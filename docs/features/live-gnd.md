@@ -1,5 +1,11 @@
 # Live GND (graduated ND)
 
+A graduated ND filter darkens the sky while leaving the foreground alone. "Live GND" does that in the camera, by
+shooting several frames and blending them with a gain that changes across the picture. Only the OM-1 II has a working
+version. This page describes how it works there and a proposed design for the E-M5 III built on our Live ND work.
+
+Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+
 **Status 2026-11-05:** spec written from the OM-1 II; nothing built.
 
 ## Who has it
@@ -11,6 +17,10 @@
 | E-M5 III, OM-5, E-M1 III | no |
 
 ## How the OM-1 II does it [code], method partly [inferred]
+
+In plain terms: it takes many shorter exposures, combines them so the bright sky doesn't clip, then brightens the
+foreground back up with a gain that fades in along the filter line.
+
 - GND k stops (GND2..32 = k 1..5): shoot **N = 2^k frames, each k stops shorter**, composite (keeps sky highlights), then a
   position-dependent gain brings the foreground back up. Sky ends k stops darker, nothing clipped. [code] for N and the shift, [inferred] that frames are shorter
 - Parameters (0x60899662, OM-1 II addresses): centre Xc/Yc from border position (±60), angle θ, width from a table of 5/10/20%

@@ -1,5 +1,12 @@
 # PEN-F / E-P7 Color / Monochrome Profile Control
 
+The PEN-F and E-P7 have a front dial for Color Profile and Monochrome Profile Control: picture modes where you set the
+saturation of 12 hue sectors (colour) or the filter, grain and shading (mono), with three saved slots each. The E-M5 III
+doesn't offer them. This page shows that the E-M5 III's firmware already contains the processing and saved settings
+for both, and that what's missing is the way to select and edit them.
+
+Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+
 **Status: back end found 2026-11-07; port plan proposed, not started** (was paused by the maintainer 2026-10-19; resumed 2026-11-07).
 
 - PEN-F 3.1: same container (`OE 12 20`, 4 blocks), MN103, base 0x60021020, no LZ4. [code]
@@ -19,11 +26,11 @@
   selector shape caduceus/PEN-F HSL hook on E-P7 (0x603b02d9). Mono path at 0x60373551. [code]
 - Playback RAW develop reads slot array 63226 (0x612b308d). GUI strings "Color Profile 1-3", "Monochrome Profile 1-3" in
   block1. [code]
-- ~~Strings only, not traced~~ (2026-10-19 note) → traced 2026-11-07: the back end is wired, not dead strings. [code]
+- A 2026-10-19 note said "strings only, not traced"; traced 2026-11-07, the back end is wired, not dead strings. [code]
 
 ## CP0 back-end test (designed 2026-11-08, not built)
-- Hook at mode loader 0x602bce58 (11 B → d32 call of a stub 0x600d00e0, section-4 body 0x6079f000): with letter **D** forces
-  picture mode 11 + test saturations, with **Q** mode 12, only in the per-shot mode record (nothing saved). Base ISL1/P2b3.
+- Hook at mode loader 0x602bce58 (11 B → d32 call of a stub 0x600d00e0, section-4 body 0x6079f000): when armed from the card it forces
+  picture mode 11 with test saturations (or mode 12 for the mono test), only in the per-shot mode record (nothing saved). Base ISL1/P2b3.
   [inferred]
 - Saved-settings registry defaults for 63210 are 0 ×12 (0x600bcde4): 0 = neutral, signed ±5 likely. [inferred]
 

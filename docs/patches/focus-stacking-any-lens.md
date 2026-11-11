@@ -1,5 +1,14 @@
 # Focus stacking lens check: patch (flashed and working on camera, 2026-10-19)
 
+This is the byte-level description of the "focus stacking with any lens" patch: which function decides whether a lens
+may be used for in-camera focus stacking, which instruction we change, and exactly which bytes differ in the firmware
+file. The background and the follow-up work are on the focus stacking page.
+
+In short: the function first checks the lens type, then checks a per-lens "supports stacking" flag. We turn the branch
+after the second check into two no-op instructions, so any lens that passes the first check is allowed.
+
+## The function
+
 Function `fcs_check_focus_stacking_enable` at VMA 0x6065e5d6 (block0 payload offset 0x63d5b6),
 called once, from 0x6065d2db:
 
@@ -11,6 +20,8 @@ called once, from 0x6065d2db:
     6065e5ec  bne  0x6065e5f0            ; <-- patched to NOP NOP
     6065e5ee  mov  1,d2                  ; result = 1
     ... debug print "fcs_check_focus_stacking_enable stacking", return d2
+
+## The patch
 
 Patch: 0x6065e5ec `c9 04` -> `cb cb`. Stacking is allowed for any lens that passes the first
 lens-type check (that check is shared with 8 other callers, so it's left alone).

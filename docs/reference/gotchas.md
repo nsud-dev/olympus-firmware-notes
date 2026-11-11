@@ -1,15 +1,23 @@
 # Gotchas, dead ends and corrected beliefs
 
-Read before designing a build. Add to it whenever something costs a flash, a day, or turns out wrong.
+This page collects the mistakes that cost us a camera flash, a battery pull or a day of work, so nobody repeats them.
+Read it before designing a build, and add to it whenever something goes wrong or a belief turns out to be false.
+
+It has three parts: things that hung or reset the camera (with the cause and the rule we follow now), beliefs we held
+and later corrected, and dead ends not worth retrying. Build names such as E6 or P2b refer to the test builds on the
+[Live ND](../features/live-nd.md) and [HHHR](../features/hhhr.md) pages.
 
 ## Things that hung, reset or bricked-for-a-while the camera
+
+Each row: what the camera did, why, and the rule we follow since.
+
 | what happened | cause | rule now | when |
 |---|---|---|---|
 | Reset on press across 4 flashes (E2c-E2j) | pool table typo 0x60539158 vs real 0x6053e158, copied into sims too | every address through `check_addrs.py`; sims don't use note values | 2026-10-29 |
 | 32 MB written outside a frame slot (E6-E6c) | main pool is two blocks (ids 9-20 at 0xc4000000); we computed a linear stride | ask the pool (vtable of the actual object) | 2026-10-30 |
 | Reboot when CPU read the 0xc4000000 block (E6e) | that block isn't CPU-readable the way we read it | CPU samples only below 0xc0000000 | 2026-10-30 |
 | Camera hung until battery pull (E5a) | DSP bridge refused a record (capacity) and the worker parked | read bridge checks for every record change | 2026-10-29 |
-| Reboot ~2 s after press (E7a/E7a3 Z) | "row done" notify for frames we didn't develop | release + refill rows per frame without notify | 2026-10-30 |
+| Reboot ~2 s after press (E7a/E7a3) | "row done" notify for frames we didn't develop | release + refill rows per frame without notify | 2026-10-30 |
 | Freeze on antishock single (E7b) | antishock while a log dump pending; root cause unknown | no antishock while a log is pending | 2026-10-30 |
 | Boot loop while LNDM1.ARM on card (M1d) | trigger fired at startup, then crashed | consume the request file before risky work | 2026-10-24 |
 | Reset after allocation (M1d) | flash-copy dest outside 0xa0000000-0xbfffffff | range-check program destinations | 2026-10-24 |
@@ -28,6 +36,9 @@ Read before designing a build. Add to it whenever something costs a flash, a day
 | om-emu run crashes during open_session write no result file | a bisect reading a fixed result path then sees the last pass (stale) | delete the result JSON before each run (fixed in our bisect3+.py) [code] private notes | 2026-11-05 |
 
 ## Wrong beliefs we corrected
+
+Things we thought were true, and what turned out to be the case.
+
 - 2026-11-05: **0x600232c5 is not a general malloc**: it is a fixed-class physical-pool allocator (classes ≤128, ≤2,048, ≤16,384 B). Larger requests print `scheap_phyalloc: Size Over` and return 0. CON1 asked for 18,576 B and would have exited at once. Native tee-open 0x6010189a takes 16,384 B from it and writes through the result without a null check. [code]
 - 2026-11-05: the "~5 MB zero run 0x61483b31-0x61858fe0, likely zero-init data, not free" note was wrong: in the decoded block0 the area after section 10 (0x61478000) is 0xFF padding the loader never copies, and RAM 0x61485000-0x61a00000 has no code refs. Also, the debug console isn't only reachable from the UART: its line executors can be called from our code. [code]
 - 2026-11-05: OM-5 II GUI strings and MODE_* keys list features the body does not offer (Human/Birds/Dogs & Cats subjects, ND32/64/128, Live GND imaging); they are shared OM-series UI text. Likewise the MDET_DL subject-detect code in E-M1 III/OM-5/OM-5 II is dead code: only E-M1X and OM-1 family ship it. Confirm a feature with reachable code or an om-emu menu run before calling it a donor. [code]
@@ -60,6 +71,9 @@ Read before designing a build. Add to it whenever something costs a flash, a day
 | Webcam Photo Booth reopen bug is in the camera | the host never calls startStream on reopen; host side |
 
 ## Dead ends (don't redo)
+
+Approaches we tried and dropped, with the reason.
+
 - Forcing debug flags (`fcs seq set2 6`, `mode_digital_nd`) to switch features on: the engines are compiled out.
 - Using the ~5 MB zero runs in block0 as free space: likely zero-init data.
 - Auto-closure porting of Live ND shooting helpers: pulled in other subsystems; matched by hand instead.

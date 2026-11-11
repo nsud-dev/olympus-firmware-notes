@@ -13,7 +13,7 @@ E-M5 III 1.7; the maintainer hasn't tried it yet. Comparison page: oly_fw_analys
 - **The callback.** 0x6005bafb reads property **63857 (0xF971)** via 0x6005ce6b. Non-zero: wait until readiness 7 is set
   (0x60045d92, polling with 0x60051a24), then call 0x6122e9b6 and **0x6122e9f6**, which fills the Wi-Fi request block
   0xa25c3c2c (216 bytes) and starts the debug network. It then reads **63873 (0xF981)**, the 8 KB console log switch
-  (0x60022f9f; see [OS and framework](../firmware/os-and-framework.md#debug-console)), and property 0x7B64 bit 31. [code] 2026-11-11
+  (0x60022f9f; see [OS and framework](../firmware/os-and-framework.md#debug-consoles)), and property 0x7B64 bit 31. [code] 2026-11-11
 - The same Wi-Fi starter is reachable from a shell command with sub-commands `init` / `start` / `info` / `auto`
   (handler 0x6122ec89; `auto` = 0x6122e9f6). [code]
 - **The shell is the user shell (Tsk_USHL)**, with the 58-command table at 0x601fbe38: echo help lens aud cam bas pwr bc take stbd

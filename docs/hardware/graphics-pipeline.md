@@ -1,13 +1,26 @@
 # Graphics pipeline (GUI, OSD engine, VSC, live view)
 
-How a pixel gets to the rear screen or EVF on the E-M5 III 1.7: the GUI draws menus and icons into OSD buffers
-through a hardware 2D engine, the display controller (VSC) mixes those over the live-view picture and scans the result
-out. Register-level detail, the display hardware features and the LV frame pointer are on [Display and OSD](display.md);
-this page is the overview. Started 2026-11-05. Evidence:, VSC register names.
-om-emu facts (third-party, facts only) are tagged [code] (om-emu); "E144" marks OM-5 facts that om-emu applies to
-E-M5 III through its port.
+This page follows a pixel from the camera's software to the rear screen or EVF. In short: the GUI (menus, icons,
+shooting info) is drawn into OSD buffers by a small hardware 2D engine, and the display controller (VSC) lays those
+buffers over the live-view picture and sends the result to the panel. Register-level detail, the display's built-in
+features (histogram, highlight warning, peaking) and the live-view frame pointer are on [Display and OSD](display.md);
+this page is the overview.
+
+Terms used here:
+
+- **GUI**: the part of the main program that draws menus and the shooting screen.
+- **OSD** ("on-screen display"): the layers the GUI draws into, shown on top of the picture.
+- **VSC**: the display controller that mixes layers and drives the TFT (rear screen), EVF and HDMI.
+- **Live view (LV)**: the moving picture from the sensor before a shot.
+- **om-emu**: a third-party emulator that runs the E-M5 III GUI. We use facts from it only, never its code. "E144"
+  marks OM-5 facts that om-emu applies to the E-M5 III through its port; "E137" is the E-M5 III.
+
+Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
+om-emu facts are tagged [code] (om-emu). Started 2026-11-05. Evidence:, VSC register names.
 
 ## The whole path
+
+The diagram reads top to bottom: the live picture on the left branch, the GUI on the right, both meeting in the VSC.
 
 ```
  sensor ──> image engine (ISP: demosaic, picture mode, gamma, resize)           [inferred]
@@ -31,6 +44,9 @@ E-M5 III through its port.
 ```
 
 ## 1. GUI drawing goes through a hardware OSD engine
+
+The GUI never sets pixels one by one. It builds a list of drawing commands and hands it to a 2D engine.
+
 - **Correction (2026-11-05):** the GUI does not rasterise in software. `osddraw` builds command lists and kicks a 2D
   draw engine at **0x9c100000**: command-list base +0x18 (E137 emulator run: list at 0xaf8c2840), status W1C +0x04,
   start +0x24 (1 = run list), sync trigger mask +0x30, enable +0x08 (kick 0x60c1dc85..0x60c1dcfd; 39 register stores in 0x60c1daed..0x60c1e6da). [code] (2026-11-05)
@@ -48,6 +64,10 @@ E-M5 III through its port.
   (2026-11-05)
 
 ## 2. OSD buffers and palettes
+
+The engine draws into three layers of 8-bit pixels. Each pixel is a colour number looked up in a palette, and one
+number means "transparent" so the live picture shows through.
+
 - Three GUI layers = pools **0x0b00/0x0c00/0x0d00**, four 0x83400-byte buffers each. 0x83400 = **896 × 600 bytes at
   8 bpp**; om-emu reads the same layout for E137 and a GUI screen of 800 × 1200 that spans two buffers (front/back
   pairs synced by COPY). [code] + [code] (om-emu) (2026-11-05)
@@ -108,7 +128,7 @@ E-M5 III through its port.
 
 ## Open questions
 - Engine register map beyond +0x04..+0x50 on E-M5 III, and how `osddraw` turns a diagonal line into commands. [inferred] open
-- ~~TFT panel area and OSD scaling on the rear screen~~ answered 2026-11-06 (720×480, no scaling; table above). [code]
+- Answered 2026-11-06: the TFT panel area and OSD scaling on the rear screen (720×480, no scaling; table above). [code]
 - Which pool holds the LV through-image in each mode, and its stride/format (LV1 probe answers this).
-- ~~A VSC/engine register dump in om-emu~~ done 2026-11-06 (the maintainer OK'd running it); IMG-plane (live view) registers stay
+- Done 2026-11-06: a VSC/engine register dump in om-emu (the maintainer OK'd running it); IMG-plane (live view) registers stay
   unknown until the LV1 camera run, since om-emu has no live view on E-M5 III. [code]

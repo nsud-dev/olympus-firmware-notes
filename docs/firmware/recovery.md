@@ -1,5 +1,21 @@
 # Recovery from bootloops and bad flashes
 
+Flashing your own firmware always carries the risk of a camera that won't start. This page sets out what the camera
+checks at power-on, what a firmware update actually writes and in what order, which kinds of failure you can recover
+from with just an SD card, and the step-by-step recovery procedure. It ends with the checks every one of our builds
+passes before it goes near a camera.
+
+The short version:
+
+- The card updater checks the whole file before it writes anything, so a corrupt or wrong-model file is harmless.
+- The updater lives inside the main program, so the camera has to boot most of the way to run it. A patch that crashes
+  every normal boot early enough can leave you without a card-based rescue.
+- So: keep everything we add switched off during boot, and keep a card with the stock firmware handy.
+
+Two terms used below: the **watchdog** is a timer that resets the camera if the software stops "kicking" it, and a
+**bootloop** is a camera that crashes, resets and crashes again on every start.
+
+Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
 Research 2026-11-07 (read-only; nothing flashed).
 .
 Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardware/memory-map.md).
@@ -65,15 +81,25 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
    flash programmer; open question).
 
 ## Pre-flash check suite (every build, 2026-11-07)
-`preflash.py STOCK.BIN BUILD.BIN OUTDIR [--manifest M.json]` runs all checks
-below in ~90 s and writes REPORT.md; **a build is handed to the maintainer only with a PASS (warnings listed) report in its zip**.
-Checks: container + checksums, components = stock, camera validator in om-emu (F1-F4); boot stub/section table/section
-ends, recovery-path and idle-boot functions (B1-B3); new bytes inside loaded sections, early→later-section hooks without
-a ready-bit test (S1-S2); feature region ownership (R1); native address evidence, plain MN10300 (A1-A2); decomp state +
-eqcheck verdict of changed functions (D1); om-emu boot + 13-step script same as stock, and which changed bytes ran with
-nothing armed (E1-E2). Calibration: stock PASS, P2c PASS with warnings, **E9b FAIL on its 0x601fce30 hook (the real
-dead-at-power-on bug)**, corrupt/overlap/unloaded test files FAIL. It can't see armed-only bugs, the real boot chain,
-indirect calls or blocks 1-4 beyond a diff. [code]
+Every build we make goes through a pre-flash check script before it is handed over:
+`preflash.py STOCK.BIN BUILD.BIN OUTDIR [--manifest M.json]`. It runs all the
+checks below in ~90 s and writes REPORT.md; **a build is handed to the maintainer only with a PASS (warnings listed) report in its
+zip**. [code]
+
+What it checks:
+
+- **F1-F4:** the container and checksums, that the components match stock, and the camera's own validator run in
+  om-emu.
+- **B1-B3:** the boot stub, section table and section ends, and the functions on the recovery path and the idle boot.
+- **S1-S2:** that new bytes sit inside loaded sections, and no early-section hook jumps into a later section without a
+  ready-bit test.
+- **R1:** that each feature stays in its own region.
+- **A1-A2:** native evidence for every absolute address, and plain MN10300 instructions only.
+- **E1-E2:** om-emu boot plus a 13-step script behaving as stock, and which changed bytes ran with nothing armed.
+
+Calibration: stock PASS, P2c PASS with warnings, **E9b FAIL on its 0x601fce30 hook (the real dead-at-power-on bug)**,
+and the corrupt/overlap/unloaded test files FAIL. Its limits: it can't see bugs that only happen when armed, the real
+boot chain, indirect calls, or blocks 1-4 beyond a diff.
 
 ## Safety rules for our builds (proposed 2026-11-07)
 1. **Pre-flight with the camera's own validator** (preflash F3): `fupcheck.mjs EMU FILE 2` in om-emu must return 0x0 with exactly

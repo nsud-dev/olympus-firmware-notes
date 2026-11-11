@@ -1,6 +1,11 @@
 # Body comparison
 
-All bodies here use the same container, the MN103/AM33-2 control CPU and block0 base 0x60021020. [code]
+This page puts the camera bodies we have looked at side by side: which chip generation each uses, how much memory, and
+which features its firmware contains. It explains why the OM-5 is our main source ("donor") for features, and why you
+can't simply flash an OM-5 firmware onto an E-M5 III.
+
+All bodies here use the same firmware container, the same MN103/AM33-2 control CPU and the same block0 base 0x60021020.
+[code] TruePic is Olympus's name for the whole processor chip (see [SoC overview](../hardware/soc-overview.md)).
 
 | | E-M5 III | OM-5 | OM-5 II | E-M1 III | OM-1 | OM-1 II | PEN-F |
 |---|---|---|---|---|---|---|---|
@@ -25,11 +30,16 @@ All bodies here use the same container, the MN103/AM33-2 control CPU and block0 
 | USB-C / PD | no (micro-USB) | yes | yes | yes | yes | yes | no |
 | function match → E-M5 III | — | 82% | 77% | 83% | not measured | | |
 
-? = not checked. Donor rules: **OM-5 1.2** for code, memory model and DSP jobs (Live ND, HHHR, Star AF, AF features);
+? = not checked; an empty cell means not looked at.
+
+**Which body we take what from.** Donor rules: **OM-5 1.2** for code, memory model and DSP jobs (Live ND, HHHR, Star AF, AF features);
 OM-5 II only for what it adds; E-M1 III for hook placement (its fcs is a superset of E-M5's); OM-1/OM-1 II for logic/maths
 references only (ND32+, Live GND) since their DSP jobs and memory don't fit.
 
 ## Why not just cross-flash the OM-5 image?
+
+The OM-5 is close enough that people ask. The differences:
+
 Different model id in every header (updater very likely rejects it), different block 3 loader, USB-PD code for absent
 hardware, different SD-pin GPIO setup, 5 factory calibration entries the E-M5 III never got, different settings store.
 Each is fixable piece by piece (which is what porting does), but a whole-image flash risks a brick with no known recovery

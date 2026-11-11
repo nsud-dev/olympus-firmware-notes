@@ -1,5 +1,9 @@
 # Glossary (Olympus naming and our shorthand)
 
+The firmware uses its own internal names (often Japanese-English abbreviations), and our notes add shorthand of their
+own. This list explains both. Terms are grouped roughly by topic: hardware, firmware structure, Live ND, other
+features, and our build process.
+
 | term | meaning |
 |---|---|
 | **TruePic VII/VIII/IX/X** | marketing name for the whole image-processor SoC (control CPUs + image engine + more), not one core |
@@ -12,6 +16,12 @@
 | **bank 6 / resource 0x8007** | block-2 resource holding job programs |
 | **ISC** | Inter System Communication, Panasonic mailbox between MN103 and ARM |
 | **CA9** | the Cortex-A9 ARM core (`TSK_CA9PWR_MNGR`) |
+| **VSC** | the display controller that mixes live view and GUI layers and drives the TFT, EVF and HDMI |
+| **OSD** | on-screen display: the GUI layers drawn over live view, by a hardware draw engine at 0x9c100000 |
+| **LV / through image** | live view, the moving picture before a shot |
+| **IS / IBIS / bc** | image stabilisation (in-body); "bc" (Blurring Correction) is the main-program module that drives the IS sub-CPU |
+| **LUKE** | block 3 of the firmware file, very likely the IS sub-CPU's program |
+| **PDAF** | phase-detect autofocus using pixels on the sensor |
 | **μITRON** | the RTOS on the MN103 |
 | **OXF / Rhapsody** | IBM Rhapsody framework generating the C++ state machines |
 | **olycompress** | LZ4-block compressed sections in some block0s |
@@ -19,6 +29,9 @@
 | **section 1-10** | RAM load units of block0, loaded in the background at boot |
 | **slack / cave** | 0xFF space after a section's end, used for our code once the end constant is raised |
 | **boot guard** | our check that a target section is ready before a hook jumps into it |
+| **hook / trampoline** | a native jump or call redirected into our code / the small wrapper that saves and restores registers around it |
+| **donor** | the newer body we port code from (OM-5 1.2) |
+| **property** | a numbered value in the camera's settings store |
 | **DIGITAL_ND / DigitalNd / iseq_nd** | Live ND (states DigitalNd/DigitalNdDarkRdy/DigitalNdEnd; image-sequencer module iseq_nd) |
 | **iseq_ndlv** | Live ND live-view preview (job 12) |
 | **digital_nd_tv / real_tv** | Live ND displayed total time vs per-frame shutter time |
@@ -47,8 +60,9 @@
 | **camecon / pcmlink / TPC** | USB camera-control class / PCM-recorder-HID class / USB personality class |
 | **M block** | Live ND's RAM log/state area 0xa07b4800 |
 | **LNDM3.ARM / LND3B7** | Live ND request file on card / log file written by the next silent single |
-| **letter (U..Z, F, G...)** | the 1-byte request selecting a test variant or ND level |
-| **armed** | our gate: request letter + S/M mode; hooks do nothing unless armed |
+| **armed** | our gate: request file + S/M mode; hooks do nothing unless armed |
 | **E2..E10f, M0..M3, stage 1-3U** | Live ND build series (OM-5 base E/M; E-M1 III base stages) |
 | **H0..H6, G0..G3, S0..S4, U1..U3** | planned test stages for HHHR, Live GND, Star AF, menus |
 | **bdelta** | build stored as a delta vs stock 1.7 |
+| **Take lease** | our name for holding the ARM powered via the camera's CA9 power manager (owner "Take") |
+| **[camera] / [code] / [inferred]** | how a fact is known: seen on the camera / read in the firmware / follows from evidence but not tested |
