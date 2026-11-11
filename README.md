@@ -1,36 +1,50 @@
-# Olympus firmware research notes (E-M5 Mark III)
+# Olympus firmware notes
 
-Notes and tools from reverse-engineering the firmware of the Olympus OM-D E-M5 Mark III (firmware 1.7), with
-comparisons to related bodies (OM-5, OM-5 II, E-M1 III, OM-1, PEN-F). The aim is right to repair and keeping an older
-camera useful: understanding how it works, and how features from newer bodies on the same platform could run on it.
+Notes and tools from taking apart the firmware of the Olympus OM-D E-M5 Mark III (firmware 1.7).
 
-**This repository contains no firmware.** No firmware images, decoded blocks, disassembly or decompiled vendor code,
-and no patched builds. Everything here is our own description of how the firmware and hardware behave, plus our own
-tools. To follow along you need your own copy of the stock firmware from the manufacturer.
+The E-M5 III shares a lot of hardware with newer bodies like the OM-5 and E-M1 III, but it never got some of their
+features. I wanted to understand how the camera works and whether some of those features could run on it. Along the
+way I've compared it with the OM-5, OM-5 II, E-M1 III, OM-1 and PEN-F.
 
-Not affiliated with or endorsed by OM Digital Solutions or Olympus. Modifying camera firmware can brick the camera and
-void its warranty; nothing here is a ready-made patch, and you use any of it at your own risk.
+**There's no firmware in this repo.** No firmware images, decoded blocks, disassembly, decompiled vendor code or
+patched builds. It's my own write-up of how things work, plus my own tools. To follow along you'll need your own copy
+of the stock firmware from OM System.
 
-## Contents
+This isn't affiliated with or endorsed by OM Digital Solutions or Olympus. Modifying camera firmware can brick your
+camera and will void the warranty. Nothing here is a ready-made patch, so use it at your own risk.
 
-| folder | what |
-|---|---|
-| [docs/](docs/README.md) | how the firmware, SoC and hardware work: container format, boot and section loading, recovery, CPU, memory map, image engine, ARM co-processor, display, USB, stabiliser, sequencer, settings and menus, patching techniques, feature studies |
-| tools/ | `olyfw.py` (unpack / repack / checksum for E-M5 III `.BIN` containers), `ptpinfo.py` (PTP GetDeviceInfo probe) |
-| [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103) (separate repo) | Ghidra processor module for Panasonic MN103 / AM33 / AM33-2 with decompiler support, call-frame handling, its generator and validation suite |
+## What's here
 
-## Conventions in the notes
-- Confidence tags: **[camera]** observed on a real E-M5 III, **[code]** read in the firmware, **[inferred]** follows
-  from evidence but not traced or tested.
-- Addresses are MN103 block0 virtual addresses in **E-M5 III firmware 1.7** (load base `0x60021020`) unless another body
-  is named. File offset in the decoded block0 = address − 0x60021020.
-- References to "private notes" point to working notes that are not published.
+- **[docs/](docs/README.md)**: how the firmware and hardware work. Covers the firmware container format, boot and
+  section loading, recovery, the MN103 CPU, the memory map, the image engine, the ARM co-processor, the display, USB,
+  the stabiliser, the shooting sequencer, settings and menus, patching techniques, and studies of individual features.
+- **tools/**: `olyfw.py` unpacks and repacks E-M5 III `.BIN` files and fixes their checksums. `ptpinfo.py` asks a
+  connected camera for its PTP device info.
+- **Ghidra support** lives in its own repo, [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103). It's a
+  processor module for the MN103 CPU that runs most of the camera.
+
+## Reading the notes
+
+- Claims are tagged by how sure I am. **[camera]** means I saw it on a real E-M5 III, **[code]** means I read it in
+  the firmware, and **[inferred]** means the evidence points that way but I haven't traced or tested it.
+- Addresses are for the MN103 side of **E-M5 III firmware 1.7**, loaded at `0x60021020`, unless a page says
+  otherwise. To get a file offset in the decoded block, subtract `0x60021020`.
+- Some pages mention working notes that aren't published.
+
+## Related projects
+
+- [fishcu/oly_fw_analysis](https://github.com/fishcu/oly_fw_analysis): research across several bodies, with the PEN-F
+  in depth, and an MN103 emulator harness.
+- [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7): firmware patches for the PEN E-P7.
+
+## AI disclosure
+
+Much of the analysis, the tools and the writing here was done with an AI assistant (Anthropic's Claude), with me
+directing it, checking the results and testing on my own camera. Anything tagged **[camera]** was tested on real
+hardware. Treat **[code]** and **[inferred]** as research notes that may contain mistakes, and please open an issue if
+you find one.
 
 ## Licences
-- Documentation (`docs/`): CC BY 4.0.
-- `tools/`: MIT.
-- The Ghidra module lives in its own repo, [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103), under GPL-3.0-or-later.
 
-## Related public work
-- fishcu/oly_fw_analysis: multi-body research notebook (PEN-F in depth), MN103 emulator harness.
-- cakelesscoder/caduceus-ep7: firmware patches for the PEN E-P7.
+- `docs/`: CC BY 4.0
+- `tools/`: MIT
