@@ -14,7 +14,7 @@ Addresses are E-M5 III firmware 1.7 unless another body is named.
 
 The control CPU is a Panasonic MN103 (also called MN10300), specifically the AM33-2 variant. It is little-endian and
 has variable-length instructions, from one byte up to seven. We identified it with the `cpu_rec` tool and confirmed it
-by clean disassembly; the maintainer had used an old IDA Pro with MN103 support for the first patch. [code]
+by clean disassembly; an old IDA Pro with MN103 support had been used for the first patch. [code]
 
 Every body we have opened uses the same instruction set and the same load base: E-M5 III, E-M1 III, OM-5, OM-5 II,
 PEN-F, OM-1 and OM-1 II. [code]
