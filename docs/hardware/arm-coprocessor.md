@@ -30,7 +30,7 @@ Some hardware details from its device tree: Linux sees 36 MB of RAM at ARM-physi
 | OM-5 II 1.1 | sub-block 0x44640000; a single squashfs root | **5.10.197** | **CYW43439** (not drop-in) |
 | OM-1 / OM-1 II | bank 9 | **AArch64 Cortex-A53**, ATF, 4.14.222 | CYW43455 |
 
-[code] Extraction script:; extracted files in
+[code] extracted files in
 .
 
 On the E-M5 III the image is a chain of segments: a vector stub, a uITRON image (runs at 0x01000000), a Linux stub, the
@@ -64,15 +64,15 @@ with 112 bytes even if the mapping fails; a mailbox error makes it exit. The tim
   code 2 (0x6120624f, returns −5 when empty), through the dispatcher 0x61206cfe. [code] Nothing on the E-M5 III uses
   channel 30. [code]
 - Powering the ARM: task `TSK_CA9PWR_MNGR` with `sys_util_ca9_start/stop`. Whether the ARM is powered while Wi-Fi and
-  Bluetooth are off is the HHHR test H0 question. [open]
+  Bluetooth are off is the first HHHR test's question. [open]
 
 ## Starting the ARM: the `arm` debug command (~0x60077d00-0x600783b8)
 
 The MN103's debug console has an `arm` command: `arm load` (Linux), `load2` (itron), **`load4` (Linux from the SD card:
 `C:\TARGET\bootlinux, zImage, dc13.dtb, rootfscpio, rootfssq`)**, `arm start/1/2`, `arm shell sd0|sd3d|sd3c|siodbg`
 (routes the ARM serial port to the SD-slot pins), and `arm pw on/off`. [code] How to reach the debug console on a retail
-body was unknown; since 2026-11-07 the card console (CON2, roadmap) is the route, but it would need an
-executor line for `arm`/`:cc` commands (the maintainer's call). [inferred]
+body was unknown; since 2026-11-07 the card console (roadmap) is the route, but it would need an
+executor line for `arm`/`:cc` commands. [inferred]
 
 ## The image loader and booting the ARM from SD (2026-11-07)
 

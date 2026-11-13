@@ -2,7 +2,7 @@
 
 The stock firmware can start a debug Wi-Fi network and a command shell from a settings file on the card. No firmware
 change is needed. We learned about it from fishcu/oly_fw_analysis (2026-11-11). A forum user reports it working on an
-E-M5 III 1.7; the maintainer hasn't tried it yet. Comparison page: oly_fw_analysis.
+E-M5 III 1.7, and it passed on our test camera on 2026-11-12 (see "First camera test" below) [camera]. Comparison page: oly_fw_analysis.
 
 ## How it works (E-M5 III 1.7)
 - **Card file.** At startup the parameter importer looks for `PARAMDT\CP??????.CSV` on the card (pattern + folder strings
@@ -32,7 +32,7 @@ E-M5 III 1.7; the maintainer hasn't tried it yet. Comparison page: oly_fw_analys
   or anything not on the list below.
 - The shell runs inside the normal firmware, so it is no help if the camera won't boot.
 
-## Test plan W1 (stock 1.7, nothing flashed) [planned]
+## How to try it (stock 1.7, nothing flashed)
 1. Card: a spare card, formatted in the camera. On a computer, create the folder `PARAMDT` at the card root and the file
    `PARAMDT\CP000001.CSV` with one line (plain text, Windows or Unix line ending):
    `Wifi shell,0xF971,1,1`
@@ -47,6 +47,50 @@ E-M5 III 1.7; the maintainer hasn't tried it yet. Comparison page: oly_fw_analys
    appear and that OI.Share pairing behaves as before.
 7. Report: network name, IP, whether a battery pull was needed, the `help` output, and step 6's result.
 
-Follow-ups if W1 works, each its own item: add `dbg log,0xF981,1,1` to the same file to tee console text into the 8 KB log
+Possible follow-ups, each its own item: add `dbg log,0xF981,1,1` to the same file to tee console text into the 8 KB log
 (on PEN-F 1 = fill once, 2 = circular; the E-M5 III values aren't checked), then save it with the stock `dbgterm` writer; read-only reads of our Live ND/HHHR state while the camera
 runs; `sdk macro` record/replay for repeatable UI tests (read-only design first).
+
+## First camera test (2026-11-12): shell works
+- With the card file, the laptop joined the camera's network by DHCP: laptop 192.168.0.3, router 192.168.0.10, mask /24. [camera]
+- `nc 192.168.0.10 23` connected (no refusal), but `help` and `echo hello` sent with nc's default LF line ending printed
+  nothing. [camera] Next try: CR or CRLF line endings (`nc -c`). Cause open.
+- **CRLF fixes it:** `nc -c 192.168.0.10 23` gives the prompt `USR>`; `echo hello` returns `hello`; `help` lists the 58 user
+  commands, exactly the table at 0x601fbe38. The shell needs CR (LF alone is ignored). [camera] 2026-11-12
+- `help <command>` just reprints the command list; per-command help has another form (not traced yet). [camera]
+- Undo check (file deleted, network gone) not reported yet.
+
+## Commands useful for Live ND / HHHR (traced 2026-11-12) [code]
+Read from the C decompile (`seg_6140.bundle.c`) and block0 strings.
+- **`take`** (handler 0x602a158b) with no argument prints its own help (0x602a168b, text 0x6044fceb): `func ...`, `dbgmode`,
+  `dbginfo`, `exec COM`, `ev_qname NAME`. Also accepts `cont_dbgmode`, `ps`, `pe`. [code]
+- **`take dbginfo`** (0x602a169b) is print-only: shooting-sequencer state (u16 0x62107744), event mask (0x62107750), the pending
+  imdfunc queue/command, then the status printers 0x60227bb0, 0x602a747d, 0x602c4e43, 0x602bbe53, 0x602a2085, 0x602a19a5,
+  0x602aee91 (job, flag manager, capture counters). No writes found two call levels down. [code]
+- **`take dbgmode`** with no value prints the current value; `take dbgmode 1` sets u32 0x62107754 (RAM) = "TAKE_MAIN sequence dbg
+  log" (the `.post(%d)` / `.exec(%d)` / `.ipost(%d)` event trace, strings 0x6044fc8d..). All four readers (0x602a0ff9, 0x602a1125, 0x602a1256, 0x602a13ba, in the state dispatcher) only test bit 0 and print the state name (state table entry +4) plus `.exec(n)` / `.ipost(n)` / `.post(n)`, and `old -> new` on a state change; no other effect, apart from the time the prints take. Written only by the `take` command and init 0x602a0f48. [code]
+- **Do not run** `take exec`, `take ps`, `take pe`, `take func exec`: they post commands to the sequencer.
+- `dbg` (0x61401a03): `dbg put put|off` sets the DBG_PUT output state (0xa2566018); `dbg info ...` block information;
+  `dbg test`/`dmyp`/`dmyw`/`nmip`/`nmiw` raise dummy warnings and **NMIs on purpose: never run them**. [code]
+- A line that is only `:` switches the session to the **system shell** dispatcher (toggle byte 0xa25b8800), which has
+  `mdump4/2/1` and `mem_get4/2/1` (read memory) but also `mem_put*`, `nmiset`, `arm load*`, `shelloff`. Not tried; whether
+  system-shell output reaches the Wi-Fi session is unknown (its `ps` writes straight to the UART). [inferred]
+- Use for a Live ND run: connect, `take dbgmode 1`, run the armed capture; the event trace arrives on the laptop, so it survives a reset
+  or battery pull. During a hang, `take dbginfo` shows the state and event mask if the shell task still runs. [inferred]
+
+## Live sequencer trace over Wi-Fi works (2026-11-12) [camera]
+- `take dbgmode 1` streams the native shooting-sequencer trace to the port-23 session as it happens: state names,
+  `.exec(n)` / `.ipost(n)` / `.post(n)` per event and ` -> NewState` on every change. A normal single shot reads
+  Idle → RdyStart → RdyFcsRdy1-3 → RdyTrig2Wait → RdyFcsTake → Standby → StlRdy1 → StlRdy2 → StlTakeCave → StlEnd1 → StlEnd2 →
+  RdyTrig2Wait → RdyAbort → RdyEnd → Idle. [camera]
+- `take dbginfo` prints the sequencer status, including a `history` line of recent events and the burst fields
+  (continue_mode, uhs_cont_speed, capture_count, stop#req, uhs_cam_packet_queue). [camera]
+- Body shutter works normally while the debug network and session are up. [camera]
+- Consequence: a Live ND / HHHR test run can be traced on the laptop with no logging code in the build, and the trace
+  survives a reset or battery pull. Not yet tried on an armed build. [inferred]
+- `take dbgmode N` stores N unmasked (0x602a1898: `*0x62107754 = parsed number`); the four stock readers test bit 0 only, so the upper bits are free as console switches for our builds (our Live ND builds use bit 1 as the LV Simulation switch). Trace print path: sprintf 0x600e054f (`[],12`), puts 0x60022fbf (`[a2,a3],28`), copied from 0x602a101d. System-shell `mem_get4 <addr>` / `mdump4 <addr> (<size>)` print through 0x60055947 -> 0x60056f8f (UART), so they are not expected to reach the Wi-Fi session. [code] 2026-11-12
+
+
+
+
+- One connection per power-on: after the first `nc` session is closed, a new connection gets no answer until a power cycle; the prompt appears only after the first Enter. Scripts must be the first and only connection. [camera] 2026-11-12

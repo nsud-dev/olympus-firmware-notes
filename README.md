@@ -54,3 +54,14 @@ you find one.
 
 - `docs/`: CC BY 4.0
 - `tools/`: MIT
+
+## Using this work
+
+You're welcome to use these notes and tools in your own projects, including firmware ports. Please credit them: CC BY
+4.0 and MIT already require it for anything copied, and for findings you build on (addresses, methods such as the Live
+ND merge or the HHHR path), a line like this is appreciated:
+
+> Uses research from olympus-firmware-notes (E-M5 Mark III Live ND / HHHR work), with a link to this repository.
+
+A line in your README, `NOTICE` or credits file is plenty. If something here helped, an issue saying so is always nice
+to read.

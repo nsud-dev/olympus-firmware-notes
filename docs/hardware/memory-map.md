@@ -29,8 +29,7 @@ The firmware sets out its image buffers in a fixed map, which tells us roughly h
 
 [code] for the maps (`decomp/hhhr/generator/ramscan.py`), [inferred] for the physical DRAM size (no teardown).
 
-This is why we port from the OM-5: it has the same 1 GB layout, so **OM-5 1.2 is the memory model for ports** (the maintainer's
-donor decision 2026-10-22). The E-M1 III and OM-1 buffer designs need twice the memory and don't fit.
+This is why we port from the OM-5: it has the same 1 GB layout, so **OM-5 1.2 is the memory model for ports**. The E-M1 III and OM-1 buffer designs need twice the memory and don't fit.
 
 ## Flash layout (E-M5 III)
 
@@ -75,7 +74,7 @@ How to use a pool: [camera]
 - Acquire with **0x603f70f5**(d0 = key, a0 = &u16 id) (inner function 0x603f7140); look up the address with
   0x603f73e2(d0=id); release with **0x603f71fe**(d0=id); add a reference with 0x603f7350; query the geometry with
   0x603f77c4, which goes to vtable+32 0x603f8ea5. [camera]
-- **The key is class << 8**, and ids are `class<<8 | index`. Passing a bare class number gives class 0. (Build E8b)
+- **The key is class << 8**, and ids are `class<<8 | index`. Passing a bare class number gives class 0.
 - A pool object holds: +8 base, +12 slot size, +20 free count (u16), +24 count (u16), +64 bitmap. For the base class,
   addr = base + (idx−1)×size.
 
@@ -83,7 +82,7 @@ The main pool is a trap: [camera]
 
 - **The main pool (class 0) is a derived two-block class** (vtable 0x6053e778, init 0x603f65a9): 20 slots of
   0x1f47600 bytes (32.8 MB each). Ids up to 8 are at **0xb0000000**, ids 9-20 at **0xc4000000** (address method
-  0x603f9cb7). Always ask the pool for an address; never compute it from a stride. (Build E6 had exactly this bug.) [camera]
+  0x603f9cb7). Always ask the pool for an address; never compute it from a stride. (One of our builds had exactly this bug.) [camera]
 
 Other pools: [camera]
 
@@ -110,35 +109,37 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 | region | size | owner | status |
 |---|---|---|---|
 | 0x600d009a-0x600d0800 (section 0 tail) | 1.9 KB | shared, see below | always ready |
-| section 4 slack 0x6079d800-0x607b6800 | ~100 KB | **Live ND** (code 0x607a0000+, M data) | proven in cave test 2 [camera]; **0x6079f000-0x6079f080 CP0 body (planned 2026-11-08)** private notes |
+| section 4 slack 0x6079d800-0x607b6800 | ~100 KB | **Live ND** (code 0x607a0000+, M data) | proven in cave test 2 [camera] |
 | section 2 slack 0x6056c000-0x60582000 | 88 KB | Starry Sky AF | not loaded yet |
+| section 2 tail 0x6056bcd8-0x6056c000 (0xFF in stock) | 808 B | Live ND live-view guards (0x6056bcd8-0x6056bd00, 0x6056bfe0-0x6056c000); console memory peek (0x6056bd00-0x6056bd98) | loaded with section 2 |
 | section 9 lower 0x613bb000-0x613d4000 | 100 KB | webcam (parked, still reserved) | used by the webcam tests [camera] |
-| section 9 upper 0x613d4000-0x613fe800 | 170 KB | **HHHR** | all 0xFF in E10f; the section 9 end must move to 0x613fe800 |
+| section 9 upper 0x613d4000-0x613fe800 | 170 KB | **HHHR** | all 0xFF; the section 9 end must move to 0x613fe800 |
 | 0x600d0800-0x600de000 (gap before section 1) | 54 KB | none | see below |
-| 0x61477cf0-0x61478000 (section-10 tail, loaded) | 784 B | **CON1 console** | runner 0x61477cf0-0x61477ff4 (built, not run) [code] 2026-11-05 |
-| 0x61478000-0x61480000 (after section 10) | 32 KB | **CON2 console** | works, see below [camera] 2026-11-06 |
-| 0x61480000-0x61483000 (after CON2) | 12 KB | none | see below |
+| 0x61477cf0-0x61478000 (section-10 tail, loaded) | 784 B | **card console, first version** | runner 0x61477cf0-0x61477ff4 (built, not run) [code] 2026-11-05 |
+| 0x61478000-0x61480000 (after section 10) | 32 KB | **card console** | works, see below [camera] 2026-11-06 |
+| 0x61480000-0x61483000 (after the card console) | 12 KB | none | see below |
 | 0x61485000-0x61a00000 | ~5.5 MB RAM | none | see below |
 | flash gap block0→block1 (≤ 2 MB) | | none | unverified |
 
 Notes on the rows above:
 
-- **Section 0 tail, 0x600d009a-0x600d0800.** It holds the state table at 0x600d0200 and the boot guards
-  0x600d06a4-0x600d079e; **FS1 focus-stack count 0x600d0140-0x600d01e4** (2026-11-05); **0x600d00a0-0x600d00ce ISL1
-  gate** (built 2026-11-07 on P2b3; 0x600d00ce-0x600d00e0 kept for ISL2);
-  **0x600d00e0-0x600d0100 CP0 stub (planned 2026-11-08)**. Left free: ~98 B at 0x600d079e
-  (HHHR), 0x600d01e4-0x600d0200 and 0x600d009a-0x600d0100. [code] **Conflict (2026-11-07):** the Live ND E11a* guards
-  run to 0x600d07b9, 27 bytes into the HHHR area at 0x600d079e (P2c has HHHR code there), so those builds clash when
-  stacked. [code]
+- **Section 0 tail, 0x600d009a-0x600d0800.** Always ready, so boot guards and small hook stubs live here: the
+  state table at 0x600d0200, boot guards 0x600d06a4-0x600d079e, and small stubs for our test builds (focus-stack count,
+  IS Level, Live ND guards). It is nearly full: about 98 B at 0x600d079e are kept for HHHR. [code]
 - **Gap before section 1, 0x600d0800-0x600de000.** 0xFF in the image, never copied, no code references. It becomes
   **always ready** if the boot-copy end immediate at 0x600211af (0x600d0800) is raised to 0x600de000. [code] 2026-11-05
-- **CON2, 0x61478000-0x61480000.** Code at 0x61478000, state at 0x61479800, buffers up to 0x61480000. The section-10
+- **Card console, 0x61478000-0x61480000.** Code at 0x61478000, state at 0x61479800, buffers up to 0x61480000. The section-10
   end at 0x60045e24 was raised to 0x61480000 and that worked. [camera] 2026-11-06
 
-- **After CON2, 0x61480000-0x61483000.** 0xFF padding, not loaded, no code references; loadable by raising the
+- **After the card console, 0x61480000-0x61483000.** 0xFF padding, not loaded, no code references; loadable by raising the
   section 10 end constant at 0x60045e24 (0x61478000). [code] 2026-11-05
 - **0x61485000-0x61a00000.** Not in any loaded section, no code references (0xa1483000-0xa1484800 staging and 0x61484e00
   32 B stay reserved). Free unless a RAM check on the camera shows writes. [code]/[inferred] 2026-11-05
 - A correction: we first listed ~5 MB zero runs (e.g. 0x61483b31-0x61858fe0) as "not free (likely zero-init data)".
   Corrected 2026-11-05: see the rows above. [code]/[inferred]
 
+
+## Image buffer pool map, E-M5 III vs OM-5 (2026-11-12)
+- Pool object: +8 base, +12 slot size (per slot: pool 0x0700 at 0xaa91d340 + 4 x 0xfe4c00 ends at the base of pool 0x2d00), +20/+24 count, +22 id. Pool table E-M5 III 0x6053e158 (87 entries), OM-5 0x60575c70 (113). [code] 2026-11-12
+- OM-5 Live ND layout = pools with flag bit 0x100: 0x6700/0x6800 (ring, 248 x 0x1ba000), 0x6b00 (19 still frames), 0x6c00, 0x6d00, 0x6e00, 0x6f00, 0x7000. [inferred] 2026-11-12
+- Live-view raw pools: OM-5 0x0700 = 4 x 0x4e6400 and 0x5c00 = 4 x 0xfe4c00; E-M5 III 0x0700 = 4 x 0xfe4c00 only, second pool 0x3900 at 0xc4000000. [code] 2026-11-12

@@ -26,7 +26,7 @@ At run time the programs are copied into RAM:
 - Jobs from another body (the "donor") can't use their own load addresses: OM-5 job 14 loads at 0xa42a7d40, which
   overlaps E-M5 job 9 (0xa422d140-0xa4265140). Load them elsewhere. [code]
 - The loader is 0x6005a177(a0=dst, a1=flash, d0=size, d1=258). The destination must be in 0xa0000000-0xbfffffff or the
-  camera resets (builds M1d/M1e). [camera]
+  camera resets. [camera]
 - Jobs don't need their native address: job 11 ran from spare RAM after section 4 and from a descriptor pool slot.
   [camera]
 
@@ -49,7 +49,7 @@ Sizes are in bytes. The OM-1 and OM-1 II have a new engine: **none** of their jo
 
 ## The E-M5 III's own jobs 0 to 10 (mapped 2026-11-06)
 
-Detail, layouts and callers:.
+
 
 How the firmware runs them: [code]
 
@@ -121,12 +121,12 @@ What we saw on the camera: [camera]
 - Timing: 2 frames 32.5 ms, 8 frames ~87 ms, 16 frames 142.5 ms.
 - The output can be written in place into one of the input frames, which then becomes the saved photo.
 
-## Submitting a job safely (learned in builds M1 and E5)
+## Submitting a job safely (learned on the camera)
 
 - Submit with 0x603185eb(d0=job, d1=1, a0=packet, a1=16). The worker then sets C+4: 2 = done, 3 = worker failed.
   [code]
 - A bridge function checks every record (capacity = min(BC+12, BC+16)/12, limits on Number). **If it refuses a record,
   the worker parks and the camera hangs the next time anything uses the image processor, until you pull the battery**
-  (build E5a). Read the bridge's checks for every change you make to a record. [camera]
+  Read the bridge's checks for every change you make to a record. [camera]
 - Running job 12 without its setter "executes, output unverified". [camera]
 

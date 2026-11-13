@@ -65,7 +65,7 @@ Addresses that come up on other pages: [code]
 
 The main memory (DRAM) sits outside the SoC: the clock list includes a memory controller and a DDR PHY interface
 (`CLKEMC`, `CLKDFI`). Whether it is a separate package or stacked on the SoC (package-on-package) would need a teardown.
-[inferred] (the maintainer asked, 2026-11-05)
+[inferred]
 
 The E-M5 III, OM-5 and OM-5 II have about 1 GB; the E-M1 III and OM-1 have about 2 GB. Details are on the
 [memory map](memory-map.md) page.
@@ -73,7 +73,7 @@ The E-M5 III, OM-5 and OM-5 II have about 1 GB; the E-M1 III and OM-1 have about
 Bigger memory chips would not be a simple swap. The firmware sets up the memory controller and lays out every buffer
 for one size, so both would have to change. [inferred] The E-M1 III uses the same TruePic IX family with a ~2 GB layout,
 so the controller very likely supports 2 GB, and its firmware would be the reference for such an upgrade (see
-roadmap). [inferred] (the maintainer asked, 2026-11-05)
+roadmap). [inferred]
 
 ## Why Olympus keeps the MN103
 

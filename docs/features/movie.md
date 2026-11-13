@@ -10,7 +10,7 @@ the part that picks the log curve is missing.
 Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 
 Status: read-only research 2026-11-07, nothing built. Roadmap: recording limit,
-OM-Log400. Working note:.
+OM-Log400.
 
 ## The 29:59 recording limit
 
@@ -37,7 +37,7 @@ A log profile records a very flat tone curve to keep more highlight and shadow d
 - **AE plumbing already in E-M5 III:** the through-image exposure tag has `+82 mode_expanded_contrast` and `+83
   mode_expanded_contrast_mode`, filled at 0x60427b6a exactly like OM-5 0x60440b8f (idle default 0/254). [code] 2026-11-07
 - Missing on E-M5 III: the selection of the log curve in the develop/movie parameter builder, View Assist, a setting/menu
-  value (menu route M2). We first thought the data might live in block 2 sub E-M5 0x45b20000 ↔ OM-5 0x44860000 (70 % match);
+  value (via the menu route). We first thought the data might live in block 2 sub E-M5 0x45b20000 ↔ OM-5 0x44860000 (70 % match);
   corrected 2026-11-07: that sub is bank 6 (DSP jobs), and its difference is jobs 11-18. [code]
 - **Image-engine resource banks 0-4 and 7 are byte-identical in E-M5 III 1.7, E-M1 III 1.6 and OM-5 1.2** (bank 5 E-M5 = OM-5).
   If the log tone data is resource data, E-M5 III already has it. [code] 2026-11-07

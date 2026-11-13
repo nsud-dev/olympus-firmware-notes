@@ -10,14 +10,14 @@ firmware, **[inferred]** follows from the evidence but not tested.
 
 ## A note on pace
 
-This is a spare-time project. Progress comes in bursts and can be slow, because the maintainer has family commitments,
+This is a spare-time project. Progress comes in bursts and can be slow, because of family commitments,
 and every change has to be tested by flashing a real camera. Several test builds are ready and waiting in the flash
-queue, so some "built, not yet run" items below will stay that way for a while. (the maintainer, 2026-11-11)
+queue, so some "built, not yet run" items below will stay that way for a while.
 
 ## How it started
 
-Before this project, the maintainer patched the focus-stacking lens check with an old IDA Pro, re-signed the file and
-flashed it, and it worked. That raised the question of what else could be enabled. From 19 October we cracked the
+This project grew out of an earlier patch to the focus-stacking lens check, made with an old IDA Pro, re-signed and
+flashed; it worked. That raised the question of what else could be enabled. From 19 October we cracked the
 firmware container, rebuilt it byte for byte, and began comparing the E-M5 III with newer bodies. See
 [focus stacking](features/focus-stacking.md) and [container format](firmware/container-format.md).
 

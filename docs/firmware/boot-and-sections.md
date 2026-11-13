@@ -41,14 +41,14 @@ loader 0x60045e2e, table 0x600272a4, ending in the switch at 0x60045dc5. They lo
 Section 10 ends at **0x61478000** (immediate at 0x60045e24); after it the image is 0xFF padding to 0x61800fe0 and is
 never loaded. 2026-11-05 [code]
 
-- [code] 2026-11-05: stock and E10f both: 0x61478000-0x61480000 is in block0 and all 0xFF; no direct reference to it or its 0xa147 alias (35 byte matches, all coincidental call operands or unaligned overlaps; only `fc` hit = the end immediate); section-10 length is computed from the end helper 0x60045dc5 by the loader (0x60045e33) and two cache paths (0x60045f0c, 0x60045fc6), so raising the end constant moves all three. Source: private notes results/precheck/, results/REVIEW.md
+- [code] 2026-11-05: stock and our Live ND test base both: 0x61478000-0x61480000 is in block0 and all 0xFF; no direct reference to it or its 0xa147 alias (35 byte matches, all coincidental call operands or unaligned overlaps; only `fc` hit = the end immediate); section-10 length is computed from the end helper 0x60045dc5 by the loader (0x60045e33) and two cache paths (0x60045f0c, 0x60045fc6), so raising the end constant moves all three. Source: private notes results/precheck/, results/REVIEW.md
 
 **How to tell whether a section is ready.** Loaded bits are at 0xa26565c4 and **ready bits at 0xa26565c0**. The waiter
 **0x60045eb3(n)** sets a ready bit after MMU/cache setup and section init, and **0x60045d92(n)** returns 1 when section n
 is ready. Section 4 is bit 3; section 9 is 0x100. [code]
 
-**How we share section 4's spare space** (E10f line): 0x6079d800..0x6079e000 free; **0x6079e000..0x6079e141 Starry Sky
-AF S1**; 0x6079e141..0x607a0000 free; 0x607a0000.. Live ND (0x607a0200..0x607a0400, 0x607a9cc0..0x607aa000,
+**How we share section 4's spare space** (our Live ND test base): 0x6079d800..0x6079e000 free; **0x6079e000..0x6079e141 Starry Sky
+AF test**; 0x6079e141..0x607a0000 free; 0x607a0000.. Live ND (0x607a0200..0x607a0400, 0x607a9cc0..0x607aa000,
 0x607ab007..0x607b2000, 0x607ad300..0x607ae000, 0x607b3e80..0x607b4800). Hooks inside section 4 that jump to section-4
 code need no boot guard. 2026-11-05 [code]
 
@@ -64,15 +64,15 @@ The firmware prints trace tags as it boots (from 0x60023bbc). The order is: [cod
 
 **The consequence:** a hook placed in an early section that jumps into section-4 or section-9 code can run before that
 code is in RAM. That caused the intermittent "dead at power-on" and "live view then reset loop" failures on Live ND
-builds (E9b's hook at 0x601fce30, in section 1, was the prime suspect). The fix, used since E10b: guard code in the
+builds (a hook at 0x601fce30, in section 1, was the prime suspect). The fix, used since then: guard code in the
 always-ready range tests the ready bit and falls back to the original instructions if the section isn't there yet.
-[code], fix confirmed by 10/10 boots on E10b [camera]
+[code], fix confirmed by 10/10 boots [camera]
 
 The stock firmware never makes such forward jumps without waiting. [code]
 
-## Flashing (the maintainer's procedure)
+## Flashing
 
-- Copy the build to the SD card as **`e1379999.bin`** (the maintainer renames it; build files keep descriptive names) and **hold
+- Copy the build to the SD card as **`e1379999.bin`** (rename a copy; build files keep descriptive names) and **hold
   OK while powering on**. The AF/tally lamp stays on while flashing and blinks when done; there is no screen UI.
   [camera]
 - The full updater analysis, flash map, write order, recovery procedure and build safety rules (2026-11-07) are on

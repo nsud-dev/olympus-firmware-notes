@@ -25,4 +25,4 @@ meaning is guessed). The Panasonic status is 0x6020d094 (`L_STAT_PANA`). Non-Pan
 - **C.** Implement Panasonic Dual IS. A long project.
 
 A separate aperture-ring hack exists in azqeurio/om-c-firmware (dbv0.3.0). Read it to learn only, never copy; credit it
-and point users there (the maintainer, 2026-11-01).
+and point users there.

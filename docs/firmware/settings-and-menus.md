@@ -59,7 +59,7 @@ What that means for patches: [code]
   value, because the backup's tail isn't cleared).
 - Custom modes are saved by setting id (property 34260, slot×3300 + bank×1650 + id), and ids above 1649 are ignored.
   There are no free ids at or below 1649.
-- The maintainer doesn't want to lose saved settings (2026-10-30).
+- Saved settings must not be lost (2026-10-30).
 
 ## How menus are built
 
@@ -78,7 +78,7 @@ that exclude each other is 0x60e7162c. [code]
 - Tab page lists hold setting ids **and** menu-only ids (3xxx, 5xxx).
 - Most lists exist in 2 copies (3 on the OM-5) and use counts: patch every copy.
 
-**Trying a menu change in the emulator (om-emu M0, 2026-11-05).** A data-only patch that adds setting 1448 to the
+**Trying a menu change in the emulator (om-emu, 2026-11-05).** A data-only patch that adds setting 1448 to the
 Bracketing page renders "Set number of shots 8". The **visible rows come from the submenu u16 list** (table 0x61069f60,
 Bracketing 0x6106a110, Focus BKT 0x6106a458 key 0x8a), and descriptors are found by id. The new row can't be edited
 (RIGHT does nothing) until the page's per-item picker code knows the id. [code]
@@ -107,7 +107,7 @@ avoids it.
 . [inferred]
 - A lesson from their Lowest S/S row (MIN_SHUTTER m2-m4, E-P7): adding a row for a hidden stock setting needs both the
   page's row-info records and the drawn row list (m2 patched only the records and got no row); a long inline value column
-  overflows, so open the stock picker screen instead (m4). This applies to our M1. [theirs]
+  overflows, so open the stock picker screen instead (m4). This applies to our first menu step. [theirs]
 
 
 ## On-screen text (GUI strings)

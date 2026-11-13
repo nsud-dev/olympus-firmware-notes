@@ -4,7 +4,7 @@ Starry Sky AF is an autofocus mode on newer bodies that can focus on stars at ni
 do. The E-M5 III doesn't have it. This page records what the feature is made of on the E-M1 III and OM-5, how it would
 fit into the E-M5 III, and the first test build.
 
-**Status 2026-11-05:** S0 research done; **S1 built over E10f, not run** (`STARAF-S1-test.zip`).
+**Status 2026-11-05:** research done; **a first test build is built, not run**.
 
 Terms: **S-AF** = single autofocus; **PDAF** = phase-detect AF (the on-sensor AF pixels), which star mode switches off in
 favour of contrast AF; **infinity pre-drive** = moving the lens to its stored infinity position before focusing.
@@ -37,7 +37,7 @@ E-M5 match 0x60663543 is weak, re-check). 2026-11-05 [code]
 The E-M1 III astro infinity drive (0x60697939) is a clone of the native focus-limiter drive (same request layout, wait,
 10 s timeout, post callback). Its target falls back to lens info +24 when no learned record matches (0x606bda0b). The
 E-M1 III star S-AF branch (0x60746cfc) is the normal S-AF branch with drive(LIMIT) replaced by that drive and command
-0x1b00 instead of 0x1100. The E-M1 also requires tf[5] == 1 there; its meaning on the E-M5 isn't pinned, so S1 skips that
+0x1b00 instead of 0x1100. The E-M1 also requires tf[5] == 1 there; its meaning on the E-M5 isn't pinned, so the test build skips that
 test. 2026-11-05 [code]
 
 Lens side: the OM-5's lens request types 6/7 (handler 0x600fc294 = E-M5 0x600ef5b2) are tagged copies of types 2 (drive
@@ -53,15 +53,15 @@ to position) and 3 (stop), so the E-M5 III can pre-drive with 2/3. The capabilit
 - **Where the code goes:** section 2 slack 0x6056c000-0x60582000 is 0xFF-filled; its only reference is the loader's
   section-2 end at 0x60045de3 (move it, as for section 4). Section 2 is ready before section 4 (take_focus/fcs), so these
   hooks have no boot race. The budget is ~75-80 KB including the 62.7 KB table: tight. Flash 0x40760000-0x4077ffff is
-  never referenced by E-M5 code (an S3 candidate; dump it read-only first). 2026-11-05 [code]
+  never referenced by E-M5 code (a candidate for the flash-learning step; dump it read-only first). 2026-11-05 [code]
 
 - **The risk:** the per-lens infinity table (62,720 B) lives in **flash** at 0x40740000 on the OM-5, and on the E-M5 III
-  that area is the `res` lens-data resource. Plan: keep the table in RAM first; flash writes only with the maintainer's go-ahead.
+  that area is the `res` lens-data resource. Plan: keep the table in RAM first; flash writes only after a separate review.
   [code]
 
-## Test build S1 (2026-11-05, over E10f, not run)
+## Test build (2026-11-05, not run)
 
-S1 makes star S-AF on the E-M5 III out of the native S-AF with four changes, armed through the Live ND request file (with a
+The test build makes star S-AF on the E-M5 III out of the native S-AF with four changes, armed through the Live ND request file (with a
 second setting that leaves out change 4) at M+24: [code]
 
 1. The S-AF start `call 0x60717c73` (drive(LIMIT), 0x60701dcb) becomes an infinity pre-drive through the native
@@ -74,10 +74,10 @@ second setting that leaves out change 4) at M+24: [code]
 The code is 321 bytes at 0x6079e000 (free in section 4, no native references). The simulator passes and the rebuild is
 identical. 2026-11-05
 
-Free code space: 0x6079d800..0x607a0000 (the cave-extended part of section 4, 0xFF in E10f, no native references); S1
+Free code space: 0x6079d800..0x607a0000 (the cave-extended part of section 4, 0xFF in our test base, no native references); the test build
 uses 0x6079e000..0x6079e141. 2026-11-05 [code]
 
 ## Stages
 
-S0 research ✓, S1 armed engine (built), S2 settings/menu, S3 flash learning, S4 polish. Open: what reads the
+Steps: research ✓, armed engine (built), settings/menu, flash learning, polish. Open: what reads the
 Accuracy/Speed setting.

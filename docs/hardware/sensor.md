@@ -20,12 +20,12 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
 
 - **Packed 12-bit Bayer:** 16-byte groups of 10 pixels (5 × 3-byte pairs, 24 bits little-endian: px0 = low 12 bits,
   px1 = high 12) plus 1 pad byte. A slot of 0x1f47600 bytes = 5240 × 3912 × 1.6 bytes, a **stride of 8384 bytes per
-  row**. [camera] (E3c; the packing is inferred from the size)
+  row**. [camera] (the packing is inferred from the size)
 - Black level ≈ 0x100 (OB 1025 in job records = 256<<2). Saturation is 4095. [camera]
-- The raw is flipped vertically compared with the picture (row 300 ≈ bottom of the picture). [camera] (E6b)
+- The raw is flipped vertically compared with the picture (row 300 ≈ bottom of the picture). [camera]
 - Live-view frames for job 12 are 1472 × 1456. [code]
 - Black level (OB) and white balance (WB) are filled in at the metadata step (0x6040c7f5), not when the capture is
-  prepared: WB R/B/Gr/Gb ≈ 140/564/128/128. [camera] (M3E0)
+  prepared: WB R/B/Gr/Gb ≈ 140/564/128/128. [camera]
 
 ## Factory calibration (PRM_* entries)
 

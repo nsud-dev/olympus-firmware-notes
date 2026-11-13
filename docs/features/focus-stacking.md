@@ -12,7 +12,7 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
 ## The lens check and the patch
 
 `fcs_check_focus_stacking_enable` (0x6065e5d6) only allows stacking for lenses on a list. The patch changes one branch
-at **0x6065e5ec from `c9 04` to `cb cb`**, so the check always passes. The maintainer's original IDA patch, made before this
+at **0x6065e5ec from `c9 04` to `cb cb`**, so the check always passes. The original IDA patch, made before this
 project, did the same; we recreated it on 2026-10-19 and flashed it, and it works. [camera]
 
 - Later builds route the lens-flag call at 0x6065e5e2 to a small cave function that returns 1 (first at 0x600d0100,
@@ -30,7 +30,7 @@ as its setting 1459 `MODE_FOCUS_STACKING_NUMBER`. The E-M5 III has the setting a
 options), not 3-15 as first thought. Setting 1459 is row 2 of its Focus BKT page (record 0x61224258), titled with string
 0xa57 "Set number of shots", which the E-M5 III also has. The E-M5 III already has the per-setting class object for 1448
 (0x608febd4). So adding the menu item is a data patch (Focus BKT page record 0x610d5e58 + copy 0x610e35e0, n 4→5) plus
-one case in viewer 0x60e096d7; that is plan stage M1. [code]
+one case in viewer 0x60e096d7; that is the first menu step of the plan. [code]
 
 Other things that touch the count: [code]
 
@@ -50,10 +50,10 @@ accepts 3-15 frames plus a reference index, so the merge chain itself allows 15.
 image-engine job 4 warp) and merges with jobs 5/3/6/7; the output is 4480×3360. See
 [image engine](../hardware/image-engine.md). [code]/[inferred]
 
-## Test build FS1 (2026-11-05, not flashed)
+## Test build: shot count 3-8 (2026-11-05, not flashed)
 
-FS1 makes stacking use "Set number of shots", clamped to 3-8. All 12 native reads of 1448 (10 via the getter
+The test build makes stacking use "Set number of shots", clamped to 3-8. All 12 native reads of 1448 (10 via the getter
 0x602e69f9, 2 via 0x602c782a in that interlock) go to a 164-byte routine at 0x600d0140; 1448 itself is never written.
-There are variants on stock + any-lens and on E10f; the address check passed. [code]
+There are variants on stock + any-lens and on our Live ND test base; the address check passed. [code]
 
 

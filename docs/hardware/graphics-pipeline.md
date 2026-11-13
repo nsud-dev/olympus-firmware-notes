@@ -115,7 +115,7 @@ number means "transparent" so the live picture shows through.
 ## 5. Live-view frames
 - The LV picture is never copied by the CPU: the ISP writes a YC frame and the driver points VSC IMG1 at it each
   frame (0x60194e50). The CPU-readable pointer is RAM **0xa26538c4 + ch×0xe28** (C plane next word). [code]
-  (2026-11-05); geometry/stride to be measured by the LV1 probe (test queue).
+  (2026-11-05); geometry/stride to be measured by the live-view probe.
 
 ## 6. om-emu and the display
 - om-emu models VSC kind 2 (registers, latches, OSD planes, palettes, scaling, stacking) and the OSD engine, and runs
@@ -129,6 +129,6 @@ number means "transparent" so the live picture shows through.
 ## Open questions
 - Engine register map beyond +0x04..+0x50 on E-M5 III, and how `osddraw` turns a diagonal line into commands. [inferred] open
 - Answered 2026-11-06: the TFT panel area and OSD scaling on the rear screen (720×480, no scaling; table above). [code]
-- Which pool holds the LV through-image in each mode, and its stride/format (LV1 probe answers this).
-- Done 2026-11-06: a VSC/engine register dump in om-emu (the maintainer OK'd running it); IMG-plane (live view) registers stay
-  unknown until the LV1 camera run, since om-emu has no live view on E-M5 III. [code]
+- Which pool holds the LV through-image in each mode, and its stride/format (the live-view probe answers this).
+- Done 2026-11-06: a VSC/engine register dump in om-emu; IMG-plane (live view) registers stay
+  unknown until the live-view probe runs, since om-emu has no live view on E-M5 III. [code]

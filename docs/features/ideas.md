@@ -11,14 +11,14 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
 
 ## Round 1 (2026-10-29): image-processor ideas
 
-Brainstorm from 2026-10-29, nothing built. Full ranked table:.
+Brainstorm from 2026-10-29, nothing built.
 
 Cheapest first:
 
 1. **Tripod multi-frame noise reduction:** the Live ND path with a full exposure per frame, averaged by job 11 (√N less
    noise). Cost S (small).
 2. **Weighted averages** using duplicate inputs in job 11 (`[acc, acc, acc, new]` = 3:1). Repeated inputs are already
-   proven by E8a, so weighted averages and running accumulators look feasible. [camera] for repeats, weights [inferred]
+   proven on the camera with ND2/ND4, so weighted averages and running accumulators look feasible. [camera] for repeats, weights [inferred]
 3. **Band records** (merging only a sub-rectangle) for Live GND-style effects.
 4. **Identify the native jobs 0-10.** A min/max or subtract job would unlock Bright/Dark multiple exposure, dark-frame
    averaging and median stacks. 2026-11-06: **mapped**
@@ -44,7 +44,7 @@ The shortlist:
 6. A Bluetooth remote (the OM-5's BLE accessory-remote keys plus its pairing-capable blebridge). [code]
 
 - Evidence (2026-11-05): the OM-5 1.2 has 1,307 `MODE_*` keys absent from the E-M5 III, mostly renames; the real gaps
-  are listed in the write-up. Lists:. [code]
+  are listed in the write-up. [code]
 - A rule we kept: a settings key or a GUI string is not a feature. Confirm there is reachable code, or run the menu in
   om-emu, first. [process]
 

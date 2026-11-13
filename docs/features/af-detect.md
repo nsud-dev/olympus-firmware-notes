@@ -26,10 +26,9 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 
 ## Why subject detection can't be ported
 
-- DL subject detect is **dead inherited code** in E-M1 III / OM-5 / OM-5 II: no network executor or weights in any image
-  (the maintainer confirmed OM-5 II has no subject detection, 2026-11-05). `[TARGET_PRIORITY] SUBJECT DETECT` log = face target toggle. [code]
+- DL subject detect is **dead inherited code** in E-M1 III / OM-5 / OM-5 II: no network executor or weights in any image. `[TARGET_PRIORITY] SUBJECT DETECT` log = face target toggle. [code]
 - On OM-1 it runs on **CPU3 + the DML hardware block** with 5 × 9.3 MB weight blobs (block 2 bank 11). E-M5 III has no CPU3 or
-  DML. Verdict: OM-1-class hardware; E-M1X (2× TruePic VIII) was the only open case and the maintainer judged its file not useful. [code]
+  DML. Verdict: OM-1-class hardware; E-M1X (2× TruePic VIII) was the only open case and we judged its file not useful. [code]
 - OM-5 II 1.1 in om-emu shows only AF > Face & Eye Detection, no Subject Detection item (2026-11-05); the Human/Birds/Dogs & Cats strings are shared OM-series GUI text. [code]
 - E-M1 III 1.6 does **not** ship subject detection: it has the `MODE_SUBJECT_DETECT` key, MDET_DL code and the same "Tracking Subject"/Motorsports/Trains GUI strings as OM-5 1.2 (corrected 2026-11-05: an earlier check, cut short, said it had none of them), but no shipped feature. Among Olympus/OM bodies only the E-M1X (2x TruePic VIII) and the OM-1 family shipped it. [code] for the strings, [inferred] for the product list.
 - Weight search (2026-11-05): no non-code blob >100 KB with weight-like entropy in OM-5 / OM-5 II block0 (largest is a 66 KB LUT at OM-5 0x6080f320); block4 is JPEG data; OM-5 II DSP sub-block adds only ~130 KB. The DL RGB prep is movie-recorder info item 27 `MDET_DL_SET_RGB_IMAGE_PRM`. E-M5 III does have a CPU2 (`IMGPRO_MDL_CPU2`). [code]

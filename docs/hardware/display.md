@@ -95,11 +95,11 @@ The `disp` debug console command can already dump the OSD planes and VSC registe
 - **Frame lines, trap-focus or motion markers:** draw with `osddraw` line/rect into a GUI layer, from task context
   (never from an interrupt), after the GUI's own redraw so it doesn't wipe them. [inferred] (2026-11-05)
 - **Cheap "JPEG zebras":** retune the hardware highlight/shadow thresholds (HILIGHT1-4). True raw zebras or a raw
-  histogram still need raw sampling (the E3c decoder). [inferred] (2026-11-05)
+  histogram still need raw sampling (our raw decoder). [inferred] (2026-11-05)
 - **Motion or lightning trigger:** compare a sparse grid of Y values in the current LV frame, frame by frame.
   [inferred] (2026-11-05)
 
-## The LV1 and LV1b probe builds
+## The live-view probe builds
 
 To answer stride, format, whether the CPU can read the frame, and how much each frame costs, we built a probe:
 
@@ -108,8 +108,8 @@ To answer stride, format, whether the CPU can read the frame, and how much each 
   named VSC registers, 8 pool objects and 2 MB of the current Y plane to `LVPnn*.BIN`. It uses the native card API from
   task context: fopen 0x60631f63, fwrite 0x60631fe8, fclose 0x60631f6c.
   [code] (2026-11-05)
-- **LV1 camera run 1:** the camera reset about 1 s after the arming shot, in live view, without pressing the shutter.
+- **First probe, camera run 1:** the camera reset about 1 s after the arming shot, in live view, without pressing the shutter.
   The only thing that changes after arming is hook R's armed path (32×32 uncached Y sampling plus tick and context calls
   inside `display_update_through_image`), so reading frame pixels from the display-update path is the prime suspect.
-  Rule until disproved: no frame reads or calls in that hook. LV1b (`b469a43b…`) keeps the hook a pure copy and does all
+  Rule until disproved: no frame reads or calls in that hook. The second probe keeps the hook a pure copy and does all
   frame reading at the silent single, writing the log first. [camera] / [inferred] cause (2026-11-05)

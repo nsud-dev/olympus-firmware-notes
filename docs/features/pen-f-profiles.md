@@ -7,7 +7,7 @@ for both, and that what's missing is the way to select and edit them.
 
 Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 
-**Status: back end found 2026-11-07; port plan proposed, not started** (was paused by the maintainer 2026-10-19; resumed 2026-11-07).
+**Status: back end found 2026-11-07; port plan proposed, not started** (paused 2026-10-19; resumed 2026-11-07).
 
 - PEN-F 3.1: same container (`OE 12 20`, 4 blocks), MN103, base 0x60021020, no LZ4. [code]
 - Internal names: Color Profile Control = **ColorCreator2** (12 hue sliders, `chColorCreator2Saturation[0..11]`),
@@ -28,9 +28,9 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
   block1. [code]
 - A 2026-10-19 note said "strings only, not traced"; traced 2026-11-07, the back end is wired, not dead strings. [code]
 
-## CP0 back-end test (designed 2026-11-08, not built)
+## Back-end test (designed 2026-11-08, not built)
 - Hook at mode loader 0x602bce58 (11 B → d32 call of a stub 0x600d00e0, section-4 body 0x6079f000): when armed from the card it forces
-  picture mode 11 with test saturations (or mode 12 for the mono test), only in the per-shot mode record (nothing saved). Base ISL1/P2b3.
+  picture mode 11 with test saturations (or mode 12 for the mono test), only in the per-shot mode record (nothing saved). Built on our current test base.
   [inferred]
 - Saved-settings registry defaults for 63210 are 0 ×12 (0x600bcde4): 0 = neutral, signed ±5 likely. [inferred]
 
@@ -45,6 +45,6 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 - caduceus PORT_EM5III.md says the E-M5 III has no profile system; wrong, only the UI is missing. Their looks need the
   slots + wheel; per-sector saturation, the hue/lightness hook site and the settings exist here, but their addresses don't
   carry over (36% signature match, SD loader not matched). [code]
-- Plan CP0-CP4 (back-end test → selectable slots → card-loaded looks → on-camera editor → extras), effort and risk in
+- Plan in five steps (back-end test → selectable slots → card-loaded looks → on-camera editor → extras), effort and risk in
 . [inferred]
 

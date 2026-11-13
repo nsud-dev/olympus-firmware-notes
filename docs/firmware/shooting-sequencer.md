@@ -24,7 +24,7 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
   stored at 0x602a13b4 (d2 old, d0 new). [code]
 - **Adding states works** (state test 1): copy the table to 0x600d0200 with extra entries, repoint the loads and raise
   the range check. [camera]
-- The current Live ND line (E2r to E10f) has 38 entries at 0x600d0200: 34 = StlTakeCave (a copy of StlTake 0x602b34c6),
+- Our Live ND builds have 38 entries at 0x600d0200: 34 = StlTakeCave (a copy of StlTake 0x602b34c6),
   35-37 = DigitalNd / DigitalNdDarkRdy / DigitalNdEnd; range check `cmp 37`; the chooser default is `mov 34` at
   0x602b3464, so **every single shot passes through state 34**. HHHR plans state 38. Ask before moving anything in
   0x600d0200-0x600d0800. [code]

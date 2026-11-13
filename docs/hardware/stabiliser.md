@@ -14,7 +14,7 @@ Terms used here:
 - **VCM** = voice-coil motor, the actuators that move the sensor; **hall sensors** measure where it is.
 
 Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
-Working notes, the full command table and a verdict for each idea:.
+
 
 ## How it is driven
 
@@ -109,10 +109,18 @@ missing. Property 6569 is free on the E-M5 III. [code] 2026-11-06
 - Callers: 0x6010af2a (in 0x6010ac0a, rel16 call), 0x6011ca8a (0x6011c8b8), 0x6011d445 (0x6011d377); frame
   [d2,d3,a2,a3],32; no indirect caller. [code]
 
-**Test build ISL1 (built 2026-11-07, not flashed).** `c985514d…`, base P2b3,; simulator 1152/1152,
-check_addrs PASS. Design: a card request turns on a gate at 0x600d00a0 that writes +10 = 1 only when section 4 is
-ready, +2 != 0 and +4 == 1. A later ISL2 could make −1 a constant (the OM-5's set C is all 128, so interpolation gives a
+**Test build for level +1 (built 2026-11-07, not flashed).**
+Design: a card request turns on a gate at 0x600d00a0 that writes +10 = 1 only when section 4 is
+ready, +2 != 0 and +4 == 1. A later build could make −1 a constant (the OM-5's set C is all 128, so interpolation gives a
 constant). [code]+[inferred] 2026-11-07
+
+**OM-5 level conditions in full, and a −1 test (2026-11-12).** [code] OM-5 0x6011aac6: movie path when +4 != 0 and +5 == 0.
+Level −1 always uses gain 0.6 and set C (all 128) on the direct path, for **both** +4 == 1 and +4 == 2, so its output is
+f2u(128 × 0.6) = 76 (truncating f2u assumed [inferred]). Level +1 gets gain 0 only when +4 ≥ 2 and (+3 == 0, or +3 == 1 and
++11 ≥ 64); the E-M5 gives 0 for +4 == 2 with any +3. Direct path on the E-M5: `out = f2u(u2f(x) × gain)` with helpers
+u2f 0x600e2350, fmul 0x600e225f, f2u 0x600e21de (`[],0` calls, use mdr); OM-5 0x600ef2a9 / 0x600ef1b8 / 0x600ef137.
+Design of the level −1 test: wrapper calls 0x6010bc83 with level 0, then sets +12/+14 = 76 when +2 != 0, +4 != 0, +5 == 0;
+needs ~80-100 B, more than the 0x600d00a0 slot). The level +1 test is built and waiting for a camera run.
 
 ## OM-5 vs E-M5 III
 

@@ -42,7 +42,7 @@ it corrupts the stack. [code]
 
 Two more rules learned the hard way:
 
-- A call writes its return address at (0,sp), so keep your own locals from (4,sp) upwards. (Lesson from build E9a.)
+- A call writes its return address at (0,sp), so keep your own locals from (4,sp) upwards.
   [code]
 - `retf` returns through the **mdr** register. A gate (a small wrapper that calls other code) must save and restore mdr.
   [code]
@@ -95,7 +95,7 @@ appear in 4.1 million instructions. [code] (2026-11-05)
 
 GCC with `-mam33-2` does emit them (3-operand add/sub, 64-bit mulu). The om-emu emulator traps on them, and our GDB
 simulator ran them silently. Whether the real core runs them is **unknown**, so compile your code as plain MN10300.
-A scanner for them:. [code]
+[code]
 
 ## UDF operations (the maths helper unit)
 
@@ -127,7 +127,7 @@ to an interrupt handler (ISR).
 | 0x60045d92(n) | 1 if block0 section n is loaded and ready (see [boot](../firmware/boot-and-sections.md)) | [code] |
 | 0x600590c9 | convert an address for the image engine (`& 0x3fffffff`) | [code] |
 | 0x60064634 | check an address is in a valid image range (b0000000-bfffffff, c4000000-dfffffff) | [code] |
-| 0x60631fe8 / 0x606320f2 | fwrite / fread (card file I/O) | [camera] (M1d) |
+| 0x60631fe8 / 0x606320f2 | fwrite / fread (card file I/O) | [camera] |
 | 0x60631f63 / 0x60631f6c / 0x60632180 / 0x606321ea | fopen `[],4` / fclose `[d2,a2,a3],16` / ftell `[d2,a2,a3],16` (msg 0x10007) / fseek `[d2,d3,a2,a3],20` (msg 0x10008); same layout as the E-P7. Each is a blocking call to the FILECLBK task with no timeout, made from ordinary tasks. 2026-11-08 private notes | [code] |
 
 ## Address aliases (cached and uncached)
@@ -136,6 +136,6 @@ The same RAM is visible at two addresses: 0x6xxxxxxx is the cached view and 0xax
 the record at 0x61a92e40 is also 0xa1a92e40). Read structures that only the CPU uses through the cached address.
 [camera] (M3D-R1)
 
-One exception to be careful with: CPU reads of the frame-buffer block at 0xc4000000 **rebooted the camera** (build E6e),
+One exception to be careful with: CPU reads of the frame-buffer block at 0xc4000000 **rebooted the camera**,
 while the image engine could use it fine. Treat that block as DMA-only, or as needing a different alias. [camera]
 

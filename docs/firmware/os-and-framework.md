@@ -96,7 +96,7 @@ The external caduceus-ep7 project (E-P7) documents a 0x99700000 NMI monitor and 
 E-M5 III. [inferred]
 
 
-### Why shell output can't simply be captured from the console log (CON3 audit, 2026-11-06) [code]
+### Why shell output can't simply be captured from the console log (audit, 2026-11-06) [code]
 
 We looked at whether shell commands' output could be read back through the 8 KB console log. Mostly it can't:
 
@@ -113,5 +113,5 @@ We looked at whether shell commands' output could be read back through the 8 KB 
 from **0x8ff00004 + 4 × (0x8050)** (the CPU number is at 0x8050); id = cpu<<12 | index; record =
 *(*(kobj+204) + 4×(index−1)); record +12 u16 state, +20 byte, +8 u16 copied out. 0x8ff00000-0x8ff000bc is a block shared
 by all CPUs (lock word 0x8ff00000, UART state 0x8ff0005c used by putc); native code reads 0x8ff00004 at 330 places.
-CON2's admitted ranges exclude it, so a CON2 dump can't reach the task records yet.
+The card console's admitted ranges exclude it, so its dumps can't reach the task records yet.
 

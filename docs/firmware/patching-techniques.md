@@ -32,8 +32,8 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
 | Hook native code via jmp/call retarget with trampolines saving all regs + MDR | Live ND E2-E10 | [camera] |
 | Hold native frames, run donor DSP job on them, save as the photo | Live ND E5c-E8c | [camera] |
 | Card-file request / RAM log written by the next silent single | Live ND (LNDM3.ARM, LND3B7) | [camera] |
-| Boot guards on out-of-section hooks | E10b (10/10 boots) | [camera] |
-| Run donor C/asm relocated from OM-5 | E10 reloc_dnd.py (OM-5 DigitalNd functions) | [code]; E10b ran [camera] |
+| Boot guards on out-of-section hooks | 10/10 boots | [camera] |
+| Run donor C/asm relocated from OM-5 | relocation script for the OM-5 DigitalNd functions | [code]; ran on the camera [camera] |
 
 ## Rules we follow (each learned the hard way)
 
@@ -44,7 +44,7 @@ The build checks in [recovery](recovery.md#pre-flash-check-suite-every-build-202
    ground truth. (E2c-E2j pool-table typo cost 4 flashes.)
 2. **Guard every hook whose site is outside the target's section**: test the ready bit (0xa26565c0 bit for that section,
    or call 0x60045d92(n)) in always-ready code; if not ready, run the displaced instructions and return.
-3. **Act only when armed.** Builds must preserve all other functionality (the maintainer, 2026-11-04): hooks fall through to native
+3. **Act only when armed.** Builds must preserve all other functionality: hooks fall through to native
    unless the card request + mode match.
 4. **Context checks before touching native objects**: 0x600386ae == 0 (task), (0x8050) == 0 (core 0), lock with a
    timeout (never forever); on failure record a code and fall through with registers and SP unchanged.
@@ -55,15 +55,14 @@ The build checks in [recovery](recovery.md#pre-flash-check-suite-every-build-202
 9. **Read the DSP bridge checks** before any record change: a refusal hangs the camera.
 10. **Compile C as plain MN10300**, never AM33-only encodings.
 11. Builds get a descriptive name, SHA-256, a `.md`/PROCEDURE with base, bytes changed, test and recovery; post a readout of
-    each camera run before building the next (the maintainer, 2026-10-30).
-12. Research the OM-5 behaviour statically before designing a test; camera runs confirm designs, they don't find them
-    (the maintainer, 2026-11-04). Faithful ports of OM-5 branches, with "armed" standing in for the missing property.
+    each camera run before building the next.
+12. Research the OM-5 behaviour statically before designing a test; camera runs confirm designs, they don't find them. Faithful ports of OM-5 branches, with "armed" standing in for the missing property.
 13. **Join points: re-derive arguments from native callers, never from the donor.** When ported donor code calls a
     helper and we retarget the call to the E-M5's native counterpart, the native helper may take different arguments
     even when it builds the same thing. For each retargeted call, read at least two native callers and the callee's
     first use of every register and stack slot, then write an adapter at the call site. Copy frames from the callee's
     `ret` (rule 7). Re-check every event number the donor posts against the port's table renumbering, including reply
-    events in request messages. (E11a: state 37 passed the donor's boolean as the native builder 0x602b97bf's record
+    events in request messages. (Example: our state 37 passed the donor's boolean as the native builder 0x602b97bf's record
     pointer -> reset; callback posted donor event 81 where the port table has 83.) [code] 2026-11-06
 ; join-point list in `firmware/live-nd-port-layers.md`.
 

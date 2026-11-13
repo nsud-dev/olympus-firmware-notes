@@ -31,7 +31,7 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
   at 0x60045200; task PER_WDT (id 25, 0x600741c0) kicks via 0x4700101b every 3 s. [code] 2026-11-07
 - **Deliberate reboot = watchdog 1 + spin:** "COMMON Reboot" 0x6005849f, NMI handlers → 0x60069f5a (registers saved
   at 0x629be000, "NMI_INT Hassei!"), flash write guard 0x600c4680. So any fault resets in ~1 s, and a fault on every
-  boot is a bootloop. A task-level hang does not reset (PER_WDT keeps kicking): E11a4 needed a battery pull. [code]+[camera]
+  boot is a bootloop. A task-level hang does not reset (PER_WDT keeps kicking): one Live ND test build needed a battery pull. [code]+[camera]
 
 ## Flash map and what an update writes
 - 128 MB flash at 0x40000000 (alias 0x80000000). Normal-operation writes are allowed only to the data windows
@@ -49,7 +49,7 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
   static start, most likely the camera-app manager's MISC/FIRMUP sub-app. [code]/[inferred] 2026-11-07
 - **Validator sub_60c3aa36(buf, size, mode, out) checks every component before writing anything:** model 0x1370,
   type 'E', header = trailer, word checksum over the descrambled payload; version not checked. Ran it natively in
-  om-emu: stock and E11a5d pass; a flipped byte gives 0x3211, OM-5 model 0x3202, truncation 0x3202, all with
+  om-emu: stock and a Live ND test build pass; a flipped byte gives 0x3211, OM-5 model 0x3202, truncation 0x3202, all with
   **0 flash writes**. [code] 2026-11-07
 - Lamp (FIRMUP_LED 0x601fca3a): solid while working (255), slow blink = success (250), **fast blink = failure** (100);
   then it waits for power off. [code]; solid/blink seen [camera]
@@ -61,14 +61,14 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
 | failure | recovery |
 |---|---|
 | Bad file (corrupt, wrong body, truncated) | rejected before writing, fast blink, camera unchanged [code] |
-| Crash only when armed or on a feature path (E10f, E11a*) | power off (battery pull if hung), boot, reflash [camera] |
+| Crash only when armed or on a feature path | power off (battery pull if hung), boot, reflash [camera] |
 | Crash on every normal boot in a shooting/live-view/lens/USB hook | OK + power with the stock file; the update boot should not start the shooting app [inferred] |
-| Intermittent boot failure (section-load race, E9b) | retry power-on with OK held; it gets through sometimes [camera]+[inferred] |
+| Intermittent boot failure (section-load race) | retry power-on with OK held; it gets through sometimes [camera]+[inferred] |
 | Crash in the boot chain (USRSTART, loader, section 7 constructors, file system, resource reads) | card/USB unreachable; service or flash programmer only [inferred] |
 | Power cut while the update writes USR (block0, last) | block0 half-erased: brick [code]+[inferred]; during the earlier blocks, block0 is intact but boot reads those blocks, so it may still fail [inferred] |
 | Bad persistent state (settings value, trigger file on card) | survives a reflash; remove card files, reset settings from the menu [inferred] |
 
-## Recovery procedure (for the maintainer)
+## Recovery procedure
 1. Keep a spare card with only `DCOLYMP/e1379999.bin` = stock `OLY_E_137_1700_0000_0000.BIN` (no other E137 files).
 2. Camera hung: battery out, wait 10 s, back in.
 3. Remove anything that wakes a feature at boot: our request files (LND*.ARM etc.), USB/HDMI cables; lens off.
@@ -83,7 +83,7 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
 ## Pre-flash check suite (every build, 2026-11-07)
 Every build we make goes through a pre-flash check script before it is handed over:
 `preflash.py STOCK.BIN BUILD.BIN OUTDIR [--manifest M.json]`. It runs all the
-checks below in ~90 s and writes REPORT.md; **a build is handed to the maintainer only with a PASS (warnings listed) report in its
+checks below in ~90 s and writes REPORT.md; **a build is handed over for flashing only with a PASS (warnings listed) report in its
 zip**. [code]
 
 What it checks:
@@ -97,7 +97,7 @@ What it checks:
 - **A1-A2:** native evidence for every absolute address, and plain MN10300 instructions only.
 - **E1-E2:** om-emu boot plus a 13-step script behaving as stock, and which changed bytes ran with nothing armed.
 
-Calibration: stock PASS, P2c PASS with warnings, **E9b FAIL on its 0x601fce30 hook (the real dead-at-power-on bug)**,
+Calibration: stock PASS, a current HHHR test build PASS with warnings, **the build with the boot-race bug FAIL on its 0x601fce30 hook (the real dead-at-power-on bug)**,
 and the corrupt/overlap/unloaded test files FAIL. Its limits: it can't see bugs that only happen when armed, the real
 boot chain, indirect calls, or blocks 1-4 beyond a diff.
 
@@ -106,7 +106,7 @@ boot chain, indirect calls, or blocks 1-4 beyond a diff.
    USR, OSD, RESCOM, LUKE, PIC. Never ship a BOOT or extra component. [code]
 2. **Recovery-path diff** (preflash B2/B3): `recovery_reach.py checkbin recovery-path-functions.csv,idle-executed-functions.csv STOCK BUILD`.
    Every hit must be camera-proven (today: section-end constants 0x60045dee/0x60045e16, focus-stack 0x6065e5ec) or
-   explained in the PROCEDURE. The static list (2,579 functions) is a lower bound: it misses indirect calls (E9b's
+   explained in the PROCEDURE. The static list (2,579 functions) is a lower bound: it misses indirect calls (the boot-race build's
    0x601fce30 is not in it). [code]
 3. Nothing of ours acts during boot: guard boot-reached hooks and keep them no-ops until the shooting app is up, so
    the update boot runs stock code. [inferred]

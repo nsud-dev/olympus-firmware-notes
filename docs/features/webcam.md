@@ -12,7 +12,7 @@ types (webcams normally stream isochronously); **MVR** = the movie recorder modu
 
 Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
 
-Parked by the maintainer on 2026-10-20. Don't restart without the maintainer asking. Section 9 lower 0x613bb000-0x613d4000 stays reserved for it.
+Parked on 2026-10-20. Section 9 lower 0x613bb000-0x613d4000 stays reserved for it.
 
 ## What we learned
 - The E-M5 III never had USB webcam support. camecon (PID 0x130) has no command handler; the orphaned PTP mode 6 does file
@@ -24,12 +24,12 @@ Parked by the maintainer on 2026-10-20. Don't restart without the maintainer ask
 
 ## Builds and results
 
-Tests 2 to 2d were built with the maintainer's own tool; we reviewed them and checked the bytes.
+Tests 2 to 2d were built with another tool; we reviewed them and checked the bytes.
 
 | build | what | result |
 |---|---|---|
 | webcam test 1 | PID 0x139 + UVC config descriptor via wrapper 0x613bb000 | **passed**: Mac lists a UVC camera [camera] |
-| test 2 / 2b / 2c (the maintainer's tool) | probe/commit, SET_INTERFACE, bulk fixed 160×120 JPEG; 2b status-mask fix; 2c EndTransfer on reset | **2c passed**: own picture over UVC, survives replug [camera] |
+| test 2 / 2b / 2c (another tool) | probe/commit, SET_INTERFACE, bulk fixed 160×120 JPEG; 2b status-mask fix; 2c EndTransfer on reset | **2c passed**: own picture over UVC, survives replug [camera] |
 | test 2d | 34 ms native timer pacing | 21.6 fps [camera] |
 | live-view 2 | native movie USB output, 320×240 JPEG | **failed**: Photo Booth froze, camera shows "One moment..." (USB-connected state turns the shooting pipeline off) [camera] |
 - uvc.log (2026-10-20): first open streams unpaced (~2400 fps, many packets dropped as `MissingFIDFlip`); on Photo Booth reopen the

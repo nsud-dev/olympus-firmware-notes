@@ -61,8 +61,6 @@ features, and our build process.
 | **M block** | Live ND's RAM log/state area 0xa07b4800 |
 | **LNDM3.ARM / LND3B7** | Live ND request file on card / log file written by the next silent single |
 | **armed** | our gate: request file + S/M mode; hooks do nothing unless armed |
-| **E2..E10f, M0..M3, stage 1-3U** | Live ND build series (OM-5 base E/M; E-M1 III base stages) |
-| **H0..H6, G0..G3, S0..S4, U1..U3** | planned test stages for HHHR, Live GND, Star AF, menus |
 | **bdelta** | build stored as a delta vs stock 1.7 |
 | **Take lease** | our name for holding the ARM powered via the camera's CA9 power manager (owner "Take") |
 | **[camera] / [code] / [inferred]** | how a fact is known: seen on the camera / read in the firmware / follows from evidence but not tested |
