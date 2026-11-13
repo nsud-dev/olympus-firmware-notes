@@ -45,10 +45,15 @@ to be flashed and tried on the camera.
 
 ## AI disclosure
 
-Much of the analysis, the tools and the writing here was done with an AI assistant (Anthropic's Claude), with me
-directing it, checking the results and testing on my own camera. Anything tagged **[camera]** was tested on real
-hardware. Treat **[code]** and **[inferred]** as research notes that may contain mistakes, and please open an issue if
-you find one.
+To get this information into people's hands, much of the documentation and logs were written by an AI assistant
+(Anthropic's Claude). I am working to replace that writing with my own, as I believe that will make the repositories
+more entertaining and readable.
+
+The firmware analysis and the tools were done with help from the same assistant, with me directing it, checking the
+results and testing on my own camera.
+
+Anything tagged **[camera]** was tested on real hardware. Treat **[code]** and **[inferred]** as research notes that
+may contain mistakes, and please open an issue if you find one.
 
 ## Licences
 
