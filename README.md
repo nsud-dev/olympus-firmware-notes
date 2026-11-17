@@ -60,6 +60,10 @@ may contain mistakes, and please open an issue if you find one.
 - `docs/`: CC BY 4.0
 - `tools/`: MIT
 
+The Ghidra MN103 module is a separate repository, [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103), under
+GPL-3.0-or-later because it is generated from the GNU binutils opcode table. No GPL code is copied into this repository;
+`tools/` here is our own code.
+
 ## Using this work
 
 You're welcome to use these notes and tools in your own projects, including firmware ports. Please credit them: CC BY

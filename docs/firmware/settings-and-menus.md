@@ -85,6 +85,13 @@ Bracketing 0x6106a110, Focus BKT 0x6106a458 key 0x8a), and descriptors are found
 
 Other tables: USB Mode options 0x61074fd2; AF mode list 0x6107e27c (0,1,2,3,5,9). [code]
 
+**Row actions and the page screen stack (2026-11-17).** OK and RIGHT on a Custom-menu row are 24-byte dispatch records
+`{u32 level, u16 item, u16 sub, u32 fn, u32 group, u16 target, u32 fn2}` per page (J2: OK table 0x6106242c, RIGHT table
+0x610623e4); with fn 0 the matcher 0x60d5af27 opens controller (group, target). Each page actuator keeps a two-slot
+screen stack (depth u16 +0x4c, screens +0x54/+0x58); at depth 2 every key goes to the sub-screen's vt[0]. The list is
+drawn from GUI variable 0x38 (0xC82 B), published with 0x60c8165d(id, size, buf, 1). Same family as the E-M10 II.
+[code]+[emu]
+
 **The OM-5 II's menus.** Its UI is the OM-1-style menu, so porting the whole UI would be a rewrite (1.4-1.65 MB of new
 GUI code, a settings model with +917/−393 keys); reorganising menus or porting single screens is realistic.
 [code]+[inferred] As booted in om-emu, the OM-5 II 1.1 menu has tabs Shooting 1 (8 pages), Shooting 2 (Computational
@@ -109,6 +116,9 @@ avoids it.
   page's row-info records and the drawn row list (m2 patched only the records and got no row); a long inline value column
   overflows, so open the stock picker screen instead (m4). This applies to our first menu step. [theirs]
 
+- 2026-11-17 atx/fenykl (E-M10 II) does the card-settings idea as one stock menu row (Eye-Fi) opening its own page that the
+  stock list view draws (copied GUI data slot, kind-5 text, `gui_data_set`), values in two CRC'd card text files; no settings
+  store. [inferred]
 
 ## On-screen text (GUI strings)
 

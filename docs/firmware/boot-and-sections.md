@@ -45,7 +45,7 @@ never loaded. 2026-11-05 [code]
 
 **How to tell whether a section is ready.** Loaded bits are at 0xa26565c4 and **ready bits at 0xa26565c0**. The waiter
 **0x60045eb3(n)** sets a ready bit after MMU/cache setup and section init, and **0x60045d92(n)** returns 1 when section n
-is ready. Section 4 is bit 3; section 9 is 0x100. [code]
+is ready. Section n is bit n-1 (`1 << (n-1)`): section 4 is bit 3, section 9 is 0x100, section 10 is 0x200. [code] (2026-11-17 bit rule from 0x60045d92)
 
 **How we share section 4's spare space** (our Live ND test base): 0x6079d800..0x6079e000 free; **0x6079e000..0x6079e141 Starry Sky
 AF test**; 0x6079e141..0x607a0000 free; 0x607a0000.. Live ND (0x607a0200..0x607a0400, 0x607a9cc0..0x607aa000,

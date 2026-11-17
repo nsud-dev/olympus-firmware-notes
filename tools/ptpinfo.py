@@ -16,8 +16,8 @@ try:
         dev.detach_kernel_driver(0)
 except Exception:
     pass
-dev.set_configuration
-intf = dev.get_active_configuration[(0, 0)]
+dev.set_configuration()
+intf = dev.get_active_configuration()[(0, 0)]
 print(f'interface class {intf.bInterfaceClass:02x}/{intf.bInterfaceSubClass:02x}/{intf.bInterfaceProtocol:02x}')
 usb.util.claim_interface(dev, intf)
 ep_out = usb.util.find_descriptor(intf, custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_OUT and usb.util.endpoint_type(e.bmAttributes) == usb.util.ENDPOINT_TYPE_BULK)

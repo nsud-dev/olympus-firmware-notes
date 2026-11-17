@@ -35,24 +35,24 @@ def decode(buf):
     _check16(len(buf))
     b = (~np.frombuffer(buf, np.uint8)).reshape(-1, 16)
     out = np.empty_like(b)
-    for base, p in P.items:
+    for base, p in P.items():
         for j in range(4):
             out[:, base + p[j]] = b[:, base + j]
-    return out.tobytes
+    return out.tobytes()
 
 
 def encode(buf):
     _check16(len(buf))
     b = np.frombuffer(buf, np.uint8).reshape(-1, 16)
     out = np.empty_like(b)
-    for base, p in P.items:
+    for base, p in P.items():
         for j in range(4):
             out[:, base + j] = b[:, base + p[j]]
-    return (~out).tobytes
+    return (~out).tobytes()
 
 
 def sum32(buf):
-    return int(np.frombuffer(buf, '<u4').astype(np.uint64).sum) & 0xffffffff
+    return int(np.frombuffer(buf, '<u4').astype(np.uint64).sum()) & 0xffffffff
 
 
 def fix_checksum(hdr, plain_payload, trl):
@@ -79,7 +79,7 @@ def blocks(fw):
 
 
 def cmd_info(path):
-    fw = open(path, 'rb').read
+    fw = open(path, 'rb').read()
     for i, (a, b, h) in enumerate(blocks(fw)):
         trl = fw[b - HDR:b]
         plain = decode(fw[a + HDR:b - HDR])
@@ -103,22 +103,22 @@ def cmd_info(path):
 
 
 def cmd_unpack(path, outdir):
-    fw = open(path, 'rb').read
+    fw = open(path, 'rb').read()
     os.makedirs(outdir, exist_ok=True)
     layout = []
     for i, (a, b, h) in enumerate(blocks(fw)):
         name = f'block{i}_{h["addr"]:08x}.bin'
         open(os.path.join(outdir, name), 'wb').write(decode(fw[a + HDR:b - HDR]))
-        layout.append(dict(file=name, header=fw[a:a + HDR].hex, trailer=fw[b - HDR:b].hex, **h))
+        layout.append(dict(file=name, header=fw[a:a + HDR].hex(), trailer=fw[b - HDR:b].hex(), **h))
     json.dump(layout, open(os.path.join(outdir, 'layout.json'), 'w'), indent=1)
     print(f'wrote {len(layout)} blocks to {outdir}')
 
 
 def cmd_repack(outdir, path):
     layout = json.load(open(os.path.join(outdir, 'layout.json')))
-    out = bytearray
+    out = bytearray()
     for blk in layout:
-        plain = open(os.path.join(outdir, blk['file']), 'rb').read
+        plain = open(os.path.join(outdir, blk['file']), 'rb').read()
         hdr, trl = bytes.fromhex(blk['header']), bytes.fromhex(blk['trailer'])
         if len(plain) != parse_hdr(hdr)['size']:
             raise ValueError(f'{blk["file"]}: size changed; keep patches in place')
@@ -141,4 +141,4 @@ def cmd_repack(outdir, path):
 if __name__ == '__main__':
     c = sys.argv[1:]
     {'info': lambda: cmd_info(c[1]), 'unpack': lambda: cmd_unpack(c[1], c[2]),
-     'repack': lambda: cmd_repack(c[1], c[2])}[c[0]]
+     'repack': lambda: cmd_repack(c[1], c[2])}[c[0]]()

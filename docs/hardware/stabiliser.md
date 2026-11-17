@@ -77,6 +77,13 @@ The user shell (table 0x601fbe38) has a **`bc` command** (handler 0x6010d41b) wi
 `getprm/getprm2 <tag>`, `tsdata`, `com <com> <rx> <data...>`, `exec/aexec`, `boot`, `rst`, `bps` and `tmo`. The read-only
 ones are a cheap way to read IS limits and versions in a future card-console session. [code]+[inferred] 2026-11-06
 
+**A movement report every live-view frame.** During live view the main program asks the stabiliser for a status
+report once per frame (bc command 50; E-M5 III request 0x6055b901, reply handled by 0x601146f2). The reply carries two
+signed movement values (reply +30 / +32) that the host keeps as running sums (E-M5 III 0x620b0e14 / 0x620b0e18) while
+stabilisation is active. The OM-5 also turns them into live-view pixels every frame and uses them to restart its Live ND
+preview when the camera moves; the E-M5 III receives the same values but does not use them per frame. Whether they are
+the raw shake or what is left after the sensor shift corrected it isn't known yet. [code]+[inferred] 2026-11-15
+
 ## IS settings
 
 - The E-M5 III has: S-IS AUTO/1/2/3/Off, M-IS1/2/Off, IS focal length, panning modes, sequential-shooting IS

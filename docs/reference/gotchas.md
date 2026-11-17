@@ -40,6 +40,10 @@ Each row: what the camera did, why, and the rule we follow since.
 
 Things we thought were true, and what turned out to be the case.
 
+- 2026-11-15: **The OM-5 does not switch to a "Live ND buffer layout" at run time.** Its preview ring pools are built
+  at every boot like all pools and are simply used only while the preview runs. The pool-map "flag 0x100" is the lock-tag
+  word at pool +16, not a layout flag. Adding pools the OM-5 way would put new code in boot-time static init, which we
+  can't recover from the card if it goes wrong; make pools lazily at preview start instead. [code]
 - 2026-11-05: **0x600232c5 is not a general malloc**: it is a fixed-class physical-pool allocator (classes ≤128, ≤2,048, ≤16,384 B). Larger requests print `scheap_phyalloc: Size Over` and return 0. Our first console build asked for 18,576 B and would have exited at once. Native tee-open 0x6010189a takes 16,384 B from it and writes through the result without a null check. [code]
 - 2026-11-05: the "~5 MB zero run 0x61483b31-0x61858fe0, likely zero-init data, not free" note was wrong: in the decoded block0 the area after section 10 (0x61478000) is 0xFF padding the loader never copies, and RAM 0x61485000-0x61a00000 has no code refs. Also, the debug console isn't only reachable from the UART: its line executors can be called from our code. [code]
 - 2026-11-05: OM-5 II GUI strings and MODE_* keys list features the body does not offer (Human/Birds/Dogs & Cats subjects, ND32/64/128, Live GND imaging); they are shared OM-series UI text. Likewise the MDET_DL subject-detect code in E-M1 III/OM-5/OM-5 II is dead code: only E-M1X and OM-1 family ship it. Confirm a feature with reachable code or an om-emu menu run before calling it a donor. [code]
