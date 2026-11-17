@@ -117,7 +117,8 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 | 0x600d0800-0x600de000 (gap before section 1) | 54 KB | none | see below |
 | 0x61477cf0-0x61478000 (section-10 tail, loaded) | 784 B | **card console, first version** | runner 0x61477cf0-0x61477ff4 (built, not run) [code] 2026-11-05 |
 | 0x61478000-0x61480000 (after section 10) | 32 KB | **card console** | works, see below [camera] 2026-11-06 |
-| 0x61480000-0x61483000 (after the card console) | 12 KB | none | see below |
+| 0x61480000-0x61483000 (after the card console) | 12 KB | **dev settings page DM1** (0x61480000-0x61481550; section-10 end raised to 0x61483000; boots and works) [camera] 2026-11-17 | see below |
+| 0x61123c5c-0x61124000 (section-6 tail) | 932 B | **DM1 stubs + J2 table copies** 0x61123c60-0x61123d70 (0xFF and unreferenced in stock) [code] 2026-11-17 | same section as the menu hooks |
 | 0x61485000-0x61a00000 | ~5.5 MB RAM | none | see below |
 | flash gap block0→block1 (≤ 2 MB) | | none | unverified |
 
