@@ -14,8 +14,8 @@ main goal.
   photo, averaged over up to 240 frames by the OM-5's job 12, as on the OM-5 (since 2026-11-12). The borrowed frame
   memory goes back before each photo and the preview comes back after it (since 2026-11-15). Turning the shutter dial
   restarts the blur, and the light lines that showed for a moment after a photo are gone (2026-11-17).
-- **Being tuned:** restarting the blur when the camera moves. Our first test compares a sample of pixels between frames
-  and only reacts to a large, sudden move, so it is too insensitive for now.
+- **Being tuned:** restarting the blur when the camera moves. It now uses the stabiliser's gyro readings, as the OM-5
+  does, and felt right in a first hand-held test; the limits stay adjustable while we tune them (2026-11-17).
 - **Not built yet:** the dark-frame pass (keep Noise Reduction off with Live ND for now), and a proper menu. For testing,
   the Live ND level and the preview can now be set from a hidden settings page we added to the camera (2026-11-17).
 - **Not user-ready:** these are research builds tested on one camera; nothing is released to install.
@@ -128,7 +128,29 @@ live-view module, not by the shooting states. [code]
 | Full window | the window follows the dial up to 240 frames, kept in up to 14 borrowed main frames; live view runs at 30 fps with LV Simulation on, as on the OM-5 | [camera] passed |
 | Hand-back | borrowed frames go back before a photo; menu and playback don't pass that point | [camera] passed (fix confirmed 2026-11-15) |
 | Restarts | the blur restarts when the shutter speed changes; the first frames after a photo are skipped | [camera] passed 2026-11-17 |
-| Shake restart | the blur restarts when the camera moves | [camera] works only on a large move; being tuned |
+| Shake restart | the blur restarts when the camera moves, judged from the stabiliser's gyro readings as on the OM-5 | [camera] felt right in a first test 2026-11-17; being tuned |
+
+**Restarting the blur when the camera moves.** If you move the camera, the averaged preview smears the old view into
+the new one, so the OM-5 throws the average away and starts again. It decides from the stabiliser's gyro, not from the
+picture: with each live-view frame the stabiliser reports how far the camera turned, converted into live-view pixels
+(one number across, one up and down). The OM-5 compares each against a limit and restarts when either is over it. The
+limit grows with the exposure time: normal up to 16 s, twice as large from 16 s, four times from 32 s (with a long
+exposure a little movement is expected anyway). After a restart it keeps restarting for 500 ms, so the blur doesn't
+build up again while the camera is still settling. [code] 2026-11-17
+
+The E-M5 III's stabiliser sends the same report once per live-view frame, and its firmware has the same conversion
+routines, but never applies them in live view. We call those native routines on each report and use the OM-5's rule.
+Readings on the camera (larger of the two numbers per frame, rough): camera on a table 0, held still in the hand about
+13, picked up about 250, panned about 360. With a limit of 40 the preview kept building up when held still and
+restarted on a real move, which felt right in a first test. [camera] 2026-11-17
+
+Why not compare the pictures? Our first try did that (a sample of pixels from frame to frame). It only reacted to a big,
+sudden move, and a hand waved in front of the lens set it off while the gyro didn't change. A picture test can't tell a
+moving subject from a moving camera, and a moving subject (water, clouds) is exactly what Live ND is for, so the
+gyro is the right input. [camera] 2026-11-17
+
+The limit, the exposure-time scaling and the hold time are copied or guessed values; they stay adjustable on the test
+builds until they're tuned for other lenses, slow pans and long exposures. [inferred]
 
 **Memory for the preview.** The OM-5 keeps a dedicated ring of frame buffers for the preview. Like all its buffer pools,
 that ring is built at every power-on and simply sits unused when the preview is off; there is no switch to a different
@@ -136,8 +158,9 @@ memory layout. On the E-M5 III we don't copy that: adding pools at power-on woul
 there can't be recovered from the card. So our preview borrows main frames while it runs, and a dedicated pool, if we
 add one, will be made when the preview starts and removed when it ends. [code]+[inferred] 2026-11-15
 
-**Still to do:** a more sensitive shake restart (possibly using the stabiliser's movement reports, see
-[stabiliser](../hardware/stabiliser.md)), the dark-frame pass, and switching the preview from the menu setting.
+**Still to do:** tuning the shake restart (other lenses and focal lengths, slow pans, long exposures; the gyro reports
+are described on [stabiliser](../hardware/stabiliser.md)), the dark-frame pass, and switching the preview from the menu
+setting.
 
 ## How it compares with caduceus's Live ND (E-P7)
 

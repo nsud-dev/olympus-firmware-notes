@@ -115,6 +115,7 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 | section 9 lower 0x613bb000-0x613d4000 | 100 KB | webcam (parked, still reserved) | used by the webcam tests [camera] |
 | section 9 upper 0x613d4000-0x613fe800 | 170 KB | **HHHR** | all 0xFF; the section 9 end must move to 0x613fe800 |
 | 0x600d0800-0x600de000 (gap before section 1) | 54 KB | none | see below |
+| 0x6022d7d4-0x6022d800 (section-1 tail, after the hash table ending 0x6022d7d4) | 44 B | **Live ND** stabiliser-reply gate (gyro conversion) 0x6022d7d4-0x6022d7f5 [code] 2026-11-17 | same section as its hook 0x60114b7e |
 | 0x61477cf0-0x61478000 (section-10 tail, loaded) | 784 B | **card console, first version** | runner 0x61477cf0-0x61477ff4 (built, not run) [code] 2026-11-05 |
 | 0x61478000-0x61480000 (after section 10) | 32 KB | **card console** | works, see below [camera] 2026-11-06 |
 | 0x61480000-0x61483000 (after the card console) | 12 KB | **dev settings page DM1** (0x61480000-0x61481550; section-10 end raised to 0x61483000; boots and works) [camera] 2026-11-17 | see below |

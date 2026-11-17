@@ -83,10 +83,16 @@ signed movement values (reply +30 / +32). The OM-5 turns them into live-view pix
 its Live ND preview when the camera moves. [code] 2026-11-15
 The E-M5 III has the same code, including running sums of the two values (0x620b0e14 / 0x620b0e18), but the sums only
 run while the stabiliser flag byte 0x6210944d is 1. On the camera, in live view, that flag was 0 and both sums stayed 0
-whether the camera was still, hand-held or panning. So the sums can't be read as a movement signal in live view; using
-the values from each reply directly is still to be tried, and it isn't yet confirmed that a reply arrives for every
-live-view frame. Whether the values are the raw shake or what is left after the sensor shift isn't known yet.
+whether the camera was still, hand-held or panning. So the sums can't be read as a movement signal in live view.
 [camera]+[code] 2026-11-17
+
+**Using the reply values directly works.** On the camera a reply arrives once per live-view frame. The E-M5 III's
+reply handler has the same two conversion routines as the OM-5 (0x60129190 / 0x601291bc) but never calls them in live
+view; called from a small hook on each reply, they give movement in live-view pixels per frame. Rough readings (larger
+of the two numbers): camera on a table 0, held still in the hand about 13, picked up about 250, panned about 360. A hand
+waved in front of the lens doesn't change them, so they measure the camera, not the picture. We use them, with the
+OM-5's limits, to restart the Live ND preview when the camera moves (see [Live ND](../features/live-nd.md#live-view-preview)).
+Whether the values are the raw shake or what is left after the sensor shift is still open. [camera]+[code] 2026-11-17
 
 ## IS settings
 
