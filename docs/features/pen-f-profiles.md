@@ -41,10 +41,11 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 - Nothing seen copies a slot (63226[p]) into the effective 63210 on the shooting path; on E-P7 the editor does it. [inferred]
 - Not traced yet: picture-mode setter/validator range, option lists, EXIF tag for 11/12. [inferred]
 
-## caduceus-ep7 (E-P7) colour features vs E-M5 III
-- caduceus PORT_EM5III.md says the E-M5 III has no profile system; wrong, only the UI is missing. Their looks need the
-  slots + wheel; per-sector saturation, the hue/lightness hook site and the settings exist here, but their addresses don't
-  carry over (36% signature match, SD loader not matched). [code]
+## Colour looks on the E-M5 III
+- The E-M5 III has the colour profile back end; only the UI to reach it is missing. Colour looks of the kind the
+  caduceus-ep7 project builds for the E-P7 need the profile slots and the colour wheel; per-sector saturation, the
+  hue/lightness hook site and the settings exist here. E-P7 addresses don't carry over (36% signature match, SD loader
+  not matched), so each site has to be found again on the E-M5 III. [code]
 - Plan in five steps (back-end test → selectable slots → card-loaded looks → on-camera editor → extras), effort and risk in
 . [inferred]
 

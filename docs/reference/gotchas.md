@@ -22,7 +22,7 @@ Each row: what the camera did, why, and the rule we follow since.
 | Reset after allocation | flash-copy dest outside 0xa0000000-0xbfffffff | range-check program destinations | 2026-10-24 |
 | Intermittent dead-at-power-on / LV-then-reset loops | hooks jumping into background-loaded sections before they were ready | boot guards on every out-of-section hook | found 2026-11-04 |
 | Live Time shut camera off when armed | hooks active in B mode | arm only in S/M, exclude B | 2026-11-04 |
-| Camera restart entering a patched screen (external: fishcu PEN-F HSL patch, not ours) | u32 struct at a 2-byte boundary; MN103 traps misaligned word/halfword access, GNU/GDB sim (their harness, our eqsim) doesn't [inferred] | align data passed to stock code (u32 fields 4 B, strings 2 B); don't trust the sim for alignment | 2026-11-11 |
+| Camera restart entering a patched screen (lesson learned from a PEN-F HSL patch in fishcu/oly_fw_analysis) | u32 struct at a 2-byte boundary; MN103 traps misaligned word/halfword access, GNU/GDB-based simulators (including our eqsim) don't [inferred] | align data passed to stock code (u32 fields 4 B, strings 2 B); don't trust the sim for alignment | 2026-11-11 |
 | Early card logs all 0 bytes | first log written from an uncached buffer, then long filenames (fw paths are 8.3 only), then the logger called 0x606320f2 (fread) instead of fwrite 0x60631fe8 | 8.3 names, heap buffer, fwrite 0x60631fe8 [camera] | 2026-10-24 |
 | Pro Capture H reset the camera | the same pool-table typo in drive_stub (Pro Cap H works once fixed) | as above [camera] | 2026-10-29 |
 | Jump-to-self at a hook entry | an inline comment on an `nj` line left a jump unresolved; `link` silently ignored a SYM_DIFF reloc | builds assert every nc/nj resolved and only PCREL relocs [code] | 2026-10-29/30 |
@@ -72,7 +72,7 @@ Things we thought were true, and what turned out to be the case.
 | 0x603fceb1.. switch = readout setup per route | metadata tags (kinds 104/109) and the bracketing map |
 | Main-pool address lookup is linear | two-block class: ids 9-20 at 0xc4000000 |
 | OB/WB are set at capture prep | filled later, at the metadata step 0x6040c7f5 |
-| E-M5 III has no Live ND code at all (caduceus-ep7's view) | the OM-5 plumbing is compiled in, switched off |
+| E-M5 III has no Live ND code at all | the OM-5 plumbing is compiled in, switched off |
 | Webcam Photo Booth reopen bug is in the camera | the host never calls startStream on reopen; host side |
 
 ## Dead ends (don't redo)

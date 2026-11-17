@@ -2,7 +2,7 @@
 
 The stock firmware can start a debug Wi-Fi network and a command shell from a settings file on the card. No firmware
 change is needed. We learned about it from fishcu/oly_fw_analysis (2026-11-11). A forum user reports it working on an
-E-M5 III 1.7, and it passed on our test camera on 2026-11-12 (see "First camera test" below) [camera]. Comparison page: oly_fw_analysis.
+E-M5 III 1.7, and it passed on our test camera on 2026-11-12 (see "First camera test" below) [camera].
 
 ## How it works (E-M5 III 1.7)
 - **Card file.** At startup the parameter importer looks for `PARAMDT\CP??????.CSV` on the card (pattern + folder strings
@@ -59,6 +59,34 @@ runs; `sdk macro` record/replay for repeatable UI tests (read-only design first)
   commands, exactly the table at 0x601fbe38. The shell needs CR (LF alone is ignored). [camera] 2026-11-12
 - `help <command>` just reprints the command list; per-command help has another form (not traced yet). [camera]
 - Undo check (file deleted, network gone) not reported yet.
+
+## Simulated button presses
+Traced 2026-11-17 [code]. The user shell's `ui` command (handler 0x61408cf3, sub-command table 0x601b7bd0: `key jog out led sound help`) can press and
+release the camera's buttons through the same path the real buttons use. Read in block0; not tried on the camera yet.
+- **How the real buttons arrive.** The key-matrix module (UI_IN, around 0x6011f000-0x60122000) keeps one bit image per key group:
+  table 0x601b8320, 12-byte records `{u32 entry lists, u32 image, u8 bytes, u8 bits, u8 count}`, five groups: power (image
+  0xa2652f38), gio (0xa2652f34, 3 bytes), adc (0xa2652f2c), dial (0xa2652f2d) and ext (0xa2652f30). When the image changes, the
+  module decodes it into app events `0x2000000 | code` (press), `0x2010000 | code` (release), `0x2020000 | code` (change), in the
+  dispatcher 0x60120ad3, which also sends a half press first when the full press arrives alone, and posts them with 0x60046008. [code]
+- **`ui key skey <code> <state>`** (sub-command 0x61408f79) calls **0x60120327(code, state)**: it finds the key's group and bit
+  (0x60120dea), copies the group image, sets or clears the bit (state 1 = pressed; the entry's polarity byte is applied), writes the
+  image back under an interrupt lock (0x60120cef) and sets UI_IN's event flag (word 0x60040dd4, set_flg 0x60051078). UI_IN's own
+  task then handles it exactly like a real press. So `skey` simulates the key matrix, not a GUI event. Numbers take `0x` for hex
+  (parser 0x60102915). The mode dial is the special code `0x2021901` with the dial position as state. [code]
+- Other sub-commands: `gkey <code>` = current state of a key (0x60120227); `gtbl` = print the key table; `debug <n>` = set the key log
+  level (byte 0xa2652cd8), which prints every app event as it is sent (good for checking which code a real button makes); `pwr_fact` =
+  power-on factor; `spkey`, `multi1`, `multi2` = special shutter callbacks (don't use). [code]
+- **Key codes** (name table 0x60251248, 4-letter names): Trg1 0x100 (half press), Trg2 0x101 (full press), MdDi 0x1901 (mode dial),
+  Cut1 0xb, Cut2 0x1209, Cut3 0x120a, Cut4 0x120b, Cut5 0x1224, Cut8 0x1227 (the Fn/REC style buttons), Levr 0x1223 (lever),
+  Play 0x87, Menu 0x89, Eras 0x84, Info 0x1205, Ok 0x4, Up 0x5, Down 0x6, Left 0x7, Rigt 0x8. Which physical button each Cut code is
+  needs `ui key debug` on the camera. [code]
+- **Never inject** Powr 0xc, LpSw 0x121c, UsbC 0x400, Hdmi 0x501, MdaC 0x1506, LnsC 0x2202 and the other cable/card/lens codes in
+  the table: they fake power, cable, card or lens events. Always send the release (state 0) after a press; a press with no release
+  stays held until a power cycle or until a real key in the same group changes. [inferred]
+- **Dials are not keys.** The front and rear dials go through the jog driver (JOG_SendEvent 0x6011fe86 posts
+  `0x2030000 | 0x1902/0x1903` with 0x60046008); `ui jog` only has start/stop/count/debug, so there is no stock way to turn a dial
+  from the shell. In menus the arrow keys do the same job; a dial turn would need a small helper in one of our builds. [code]
+- The touch panel is a separate driver (`[TP]` strings, 0x601fa531); not traced. [code]
 
 ## Commands useful for Live ND / HHHR (traced 2026-11-12) [code]
 Read from the C decompile (`seg_6140.bundle.c`) and block0 strings.

@@ -162,16 +162,6 @@ add one, will be made when the preview starts and removed when it ends. [code]+[
 are described on [stabiliser](../hardware/stabiliser.md)), the dark-frame pass, and switching the preview from the menu
 setting.
 
-## How it compares with caduceus's Live ND (E-P7)
-
-- External comparison 2026-11-11: caduceus-ep7 (E-P7, public) "early alpha Live ND" is stock Multiple Exposure with Auto
-  Gain forced (1/N average), ND3/ND4 only, AP mode only, one frame per press; their one-press attempts (continuous drive,
-  burst limit, custom self-timer) hung or crashed and are parked. Ours does ND2-ND16 in one press with job-11 merge, but
-  isn't user-ready (card-file trigger, capture end then still open). Same blocker on both sides: ending a multi-frame capture
-  cleanly. [code] (their repo, read-only)
-- Since 2026-11-12 our side of that blocker is solved: the ported OM-5 states end the capture cleanly (see
-  "How it was solved" above). [camera]
-
 ## Limits and open items
 
 - Main pool = 20 slots: 16 held + 2 stream at ND16. **ND32 has no native code to port** on OM-5/OM-5 II; plan is a

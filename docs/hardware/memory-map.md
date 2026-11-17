@@ -111,7 +111,7 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 | 0x600d009a-0x600d0800 (section 0 tail) | 1.9 KB | shared, see below | always ready |
 | section 4 slack 0x6079d800-0x607b6800 | ~100 KB | **Live ND** (code 0x607a0000+, M data) | proven in cave test 2 [camera] |
 | section 2 slack 0x6056c000-0x60582000 | 88 KB | Starry Sky AF | not loaded yet |
-| section 2 tail 0x6056bcd8-0x6056c000 (0xFF in stock) | 808 B | Live ND live-view guards (0x6056bcd8-0x6056bd00, 0x6056bfe0-0x6056c000); console memory peek (0x6056bd00-0x6056bd98) | loaded with section 2 |
+| section 2 tail 0x6056bcd8-0x6056c000 (0xFF in stock) | 808 B | Live ND live-view guards (0x6056bcd8-0x6056bd00, 0x6056bfe0-0x6056c000); console memory peek (0x6056bd00-0x6056bd98); **geotag G1** 0x6056be00-0x6056bf00 (g1.s 0x6056be00-0x6056bef9, hook 0x602bd46c) [code] 2026-11-17 | loaded with section 2 |
 | section 9 lower 0x613bb000-0x613d4000 | 100 KB | webcam (parked, still reserved) | used by the webcam tests [camera] |
 | section 9 upper 0x613d4000-0x613fe800 | 170 KB | **HHHR** | all 0xFF; the section 9 end must move to 0x613fe800 |
 | 0x600d0800-0x600de000 (gap before section 1) | 54 KB | none | see below |
