@@ -79,10 +79,14 @@ ones are a cheap way to read IS limits and versions in a future card-console ses
 
 **A movement report every live-view frame.** During live view the main program asks the stabiliser for a status
 report once per frame (bc command 50; E-M5 III request 0x6055b901, reply handled by 0x601146f2). The reply carries two
-signed movement values (reply +30 / +32) that the host keeps as running sums (E-M5 III 0x620b0e14 / 0x620b0e18) while
-stabilisation is active. The OM-5 also turns them into live-view pixels every frame and uses them to restart its Live ND
-preview when the camera moves; the E-M5 III receives the same values but does not use them per frame. Whether they are
-the raw shake or what is left after the sensor shift corrected it isn't known yet. [code]+[inferred] 2026-11-15
+signed movement values (reply +30 / +32). The OM-5 turns them into live-view pixels every frame and uses them to restart
+its Live ND preview when the camera moves. [code] 2026-11-15
+The E-M5 III has the same code, including running sums of the two values (0x620b0e14 / 0x620b0e18), but the sums only
+run while the stabiliser flag byte 0x6210944d is 1. On the camera, in live view, that flag was 0 and both sums stayed 0
+whether the camera was still, hand-held or panning. So the sums can't be read as a movement signal in live view; using
+the values from each reply directly is still to be tried, and it isn't yet confirmed that a reply arrives for every
+live-view frame. Whether the values are the raw shake or what is left after the sensor shift isn't known yet.
+[camera]+[code] 2026-11-17
 
 ## IS settings
 

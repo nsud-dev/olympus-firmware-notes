@@ -5,16 +5,19 @@ exposures and averages them into one photo. Moving water or clouds blur as if yo
 filter. The OM-5 has it; the E-M5 III, which has the same chip and sensor, doesn't. Bringing it over is this project's
 main goal.
 
-**Where it stands (2026-11-13):**
+**Where it stands (2026-11-17):**
 
 - **Works on the camera:** a full Live ND shot from one press, run by our port of the OM-5's own Live ND shooting
   states: N frames at the set shutter speed, merged by the OM-5's image-engine job 11 into one photo, ND2, ND4, ND8 and
   ND16, at 1/8 s and at 1/125 s, several presses in a row with no restart in between (since 2026-11-12).
 - **Live-view preview works too:** with LV Simulation on, the live view shows the Live ND blur as you'd get it in the
-  photo, averaged over up to 240 frames by the OM-5's job 12, as on the OM-5 (since 2026-11-12). Handing the
-  borrowed frame memory back before each photo works; a fix for one bug found there is waiting for a camera run.
-- **Not built yet:** the dark-frame pass (keep Noise Reduction off with Live ND for now), and a menu: Live ND is still
-  switched on by a request file on the card and the preview by a console setting.
+  photo, averaged over up to 240 frames by the OM-5's job 12, as on the OM-5 (since 2026-11-12). The borrowed frame
+  memory goes back before each photo and the preview comes back after it (since 2026-11-15). Turning the shutter dial
+  restarts the blur, and the light lines that showed for a moment after a photo are gone (2026-11-17).
+- **Being tuned:** restarting the blur when the camera moves. Our first test compares a sample of pixels between frames
+  and only reacts to a large, sudden move, so it is too insensitive for now.
+- **Not built yet:** the dark-frame pass (keep Noise Reduction off with Live ND for now), and a proper menu. For testing,
+  the Live ND level and the preview can now be set from a hidden settings page we added to the camera (2026-11-17).
 - **Not user-ready:** these are research builds tested on one camera; nothing is released to install.
 
 How to read this page: the first sections explain how Olympus built Live ND, how our version works and what we
@@ -123,10 +126,18 @@ live-view module, not by the shooting states. [code]
 | Job 12 on stored frames | job 12 runs on E-M5 III frames; its reset, add, slide and average steps give correct results | [camera] passed |
 | Job 12 on live view | the per-frame hook works; job records carry the CPU they run on, so jobs from the live-view task (CPU 1) must be counted separately | [camera] first live preview, 8 frames |
 | Full window | the window follows the dial up to 240 frames, kept in up to 14 borrowed main frames; live view runs at 30 fps with LV Simulation on, as on the OM-5 | [camera] passed |
-| Hand-back | borrowed frames go back before a photo; menu and playback don't pass that point | [camera] photos fine; one bug, fix built, not run |
+| Hand-back | borrowed frames go back before a photo; menu and playback don't pass that point | [camera] passed (fix confirmed 2026-11-15) |
+| Restarts | the blur restarts when the shutter speed changes; the first frames after a photo are skipped | [camera] passed 2026-11-17 |
+| Shake restart | the blur restarts when the camera moves | [camera] works only on a large move; being tuned |
 
-**Still to do:** checking the hand-back fix on the camera, the dark-frame pass, and switching the preview from the menu
-setting instead of the console.
+**Memory for the preview.** The OM-5 keeps a dedicated ring of frame buffers for the preview. Like all its buffer pools,
+that ring is built at every power-on and simply sits unused when the preview is off; there is no switch to a different
+memory layout. On the E-M5 III we don't copy that: adding pools at power-on would change the startup code, and a mistake
+there can't be recovered from the card. So our preview borrows main frames while it runs, and a dedicated pool, if we
+add one, will be made when the preview starts and removed when it ends. [code]+[inferred] 2026-11-15
+
+**Still to do:** a more sensitive shake restart (possibly using the stabiliser's movement reports, see
+[stabiliser](../hardware/stabiliser.md)), the dark-frame pass, and switching the preview from the menu setting.
 
 ## How it compares with caduceus's Live ND (E-P7)
 
