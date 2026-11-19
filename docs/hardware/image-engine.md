@@ -180,9 +180,23 @@ or lane B of one main-loop word made idle.
   in a few fields of w151, w194, w199, w211, reading the result each time). [inferred]
 - Correction to "106 bits later": the first fields line up exactly (41-68 ↔ 147-174), but the tail does not: lane A
   69-71, 72-75, 76-79, 80-83, 84-87 vs lane B 175-178, 179-181, 182-185, 186-189, 190-193 (co-change boundaries). [code]
-- **D3 built 2026-11-19** (`42befae1…`, not run): every value of the register fields of w211 A and w151/w194/w199 B
-  (448 passes), of the operation fields of w198/w211 A and w171 B (216), and each middle bit 88-127 of w151 (80, last).
-  [code]
+- **Third camera test (2026-11-19):** every value of 84 fields (register fields of w211 A and w151/w194/w199 B, operation
+  fields of w198/w211 A and w171 B, each middle bit 88-127 of w151), 746 passes, all clean, even with bits 88-127 changed.
+  10 fields matter. [camera]
+  - **Destination:** w199 B 167-170 (stock 1): any other value leaves the output at the black level (256). [camera]/[inferred]
+  - **Source:** w151 / w194 B 147-150 (stock 0): any other value reads an empty register (input B lost / black-level
+    add-back lost). [camera]/[inferred]
+  - **Register contents**, read through w211 A 41-44 at the line start: r0 = 256 (black level), r1 = the result,
+    r2 = 4095 (clip level), r5 = a value that changes along the line, r14 = 3515, r15 = 181, the rest 0. The black level and
+    clip level most likely come from the window (W+388, W+420). [camera]/[inferred]
+  - **Gain stage:** w198 A 76-79 scales around the black level, (x - OB) * g + OB. Stock g = 1.0; other values pick 1.25,
+    1.18 or 1.01 (constants not in job 11's data lines). The natural place for per-ND brightness. [camera]/[inferred]
+  - **Saturate:** w211 A bit 79 (values 8-15) forces 4095. w171 B 179-181 (stock 1): values 2-7 set the middle segment to
+    the black level. [camera]
+  - **Middle bits of w151:** 106-109 replace or break input A, 110-116 act like a read offset (middle/end segments),
+    123-127 drop input B in the middle/end segments; 88-105 and 117-122 no effect. [camera]/[inferred]
+- Next: trace offline where g's constants and r5/r14/r15 come from (setup words 11-69, the window), then possibly a test
+  that changes only record/window values (black level, clip) to see which registers follow. [inferred]
 
 ### Static analysis limit (2026-11-19)
 

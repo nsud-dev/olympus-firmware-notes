@@ -29,6 +29,10 @@ is what makes moving code between them possible. [code] See [body comparison](bo
 
 ## How the camera works
 
+For a start-to-finish read, the [guides](guides/README.md) follow one process at a time (taking a photo, boot, a
+button press, live view, the operating system, how the cores talk) through the firmware. The table below is the
+reference.
+
 | area | what we found | page |
 |---|---|---|
 | The chip | TruePic is the whole SoC: MN103 control cores, an ARM core running Linux, and an image engine that runs small "job" programs. The E-M5 III and OM-5 look like the same silicon | [SoC overview](hardware/soc-overview.md) |

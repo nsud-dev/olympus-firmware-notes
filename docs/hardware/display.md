@@ -103,7 +103,7 @@ The `disp` debug console command can already dump the OSD planes and VSC registe
 
 To answer stride, format, whether the CPU can read the frame, and how much each frame costs, we built a probe:
 
-- Build `OLY_E_137_1700_LV1_LIVEVIEW_PROBE.BIN` (`f93ff17e…`, stock base) logs every LV frame's Y/C address, the active
+- A live-view probe build (on stock) logs every LV frame's Y/C address, the active
   device and a 32×32 Y diff from the display update (hook 0x60190ab1). At each armed silent single shot it dumps the
   named VSC registers, 8 pool objects and 2 MB of the current Y plane to `LVPnn*.BIN`. It uses the native card API from
   task context: fopen 0x60631f63, fwrite 0x60631fe8, fclose 0x60631f6c.
