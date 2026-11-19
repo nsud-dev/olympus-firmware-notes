@@ -1,4 +1,4 @@
-# Boot: from power switch to a running camera
+# Boot
 
 *Guide 2 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*

@@ -1,4 +1,4 @@
-# Live view, from sensor to screen
+# Live view
 
 *Guide 8 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*

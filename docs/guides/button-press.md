@@ -159,7 +159,7 @@ waits its turn among other kinds of events.
 Sources: [Wi-Fi debug shell](../features/wifi-debug-shell.md#simulated-button-presses).
 </details>
 
-## 6. A half-press, onwards
+## 6. After a half-press
 
 In shooting mode, the half-press is where [Taking a photo](taking-a-photo.md) begins. The shooting sequencer leaves Idle,
 runs the focus and exposure states, and then waits in **RdyTrig2Wait** for the full press, which moves it on to the

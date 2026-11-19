@@ -1,4 +1,4 @@
-# Before you start: the pieces and the words
+# Before you start
 
 *Primer for the [guides](README.md) · 2026-11-19. Short definitions of everything else are in the
 [glossary](../reference/glossary.md).*

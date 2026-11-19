@@ -13,8 +13,13 @@ of the stock firmware from OM System.
 This isn't affiliated with or endorsed by OM Digital Solutions or Olympus. Modifying camera firmware can brick your
 camera and will void the warranty. Nothing here is a ready-made patch, so use it at your own risk.
 
-New here? Start with the [overview](docs/overview.md), a plain tour of everything looked at so far and where each
-feature stands.
+## Learn how the camera works
+
+The [guides](docs/guides/README.md) explain how processes on the camera work without getting bogged down in reference
+material: what happens when you take a photo, how the camera boots, how a button press reaches the app, how live view
+gets from the sensor to the screen, and more. Start with [Before you start](docs/guides/before-you-start.md).
+
+For a tour of everything looked at so far and where each feature stands, see the [overview](docs/overview.md).
 
 This is a spare-time project, so progress can be slow. I have family commitments, and several test builds are waiting
 to be flashed and tried on the camera.

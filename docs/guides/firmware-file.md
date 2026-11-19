@@ -1,4 +1,4 @@
-# What's in a firmware file, and how updates and recovery work
+# Firmware files and updates
 
 *Guide 11 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions:

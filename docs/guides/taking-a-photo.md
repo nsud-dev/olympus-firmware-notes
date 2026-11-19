@@ -1,4 +1,4 @@
-# Taking a photo, end to end
+# Taking a photo
 
 *Guide 1 · E-M5 III firmware 1.7 · draft 2, 2026-11-19. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*

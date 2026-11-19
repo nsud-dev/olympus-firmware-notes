@@ -195,15 +195,21 @@ or lane B of one main-loop word made idle.
     the black level. [camera]
   - **Middle bits of w151:** 106-109 replace or break input A, 110-116 act like a read offset (middle/end segments),
     123-127 drop input B in the middle/end segments; 88-105 and 117-122 no effect. [camera]/[inferred]
-- **Offline trace after the third test (2026-11-19):** the black level and clip registers match the job record (the
-  setter copies them into the window). The gain fits **g = 1 + r / 1024** with r a register: 1.25 = 1 + 256/1024 (the
-  black-level register) and 1.177 = 1 + 181/1024 (r15), matching the measured 1.177-1.179. So the gain stage looks like
-  a multiply-accumulate, x + (x - OB) * r / 1024, with its coefficient in a register. 3515 and 181 are not stored in
-  job 11 or in the record. [inferred]
-- **Fourth test built 2026-11-19** (not run yet): same harness, but each pass changes only the record's black level
-  (0-512, per input) and clip (1000-4095), with a few field values the third test already ran. It checks whether the
-  registers and the gain follow the record, which would let a build set the merge brightness without new microcode.
-  [code]
+- **Fourth camera test (2026-11-19):** only the record changed (black level 0-512 per input, clip 1000-4095), 73
+  passes, all clean. [camera]
+  - **Black level:** each input's own black level is subtracted, and input 0's is added back to the output (r0 = input
+    0's black level). Values below the black level go negative and still average correctly. [camera]
+  - **Clip:** WBClip clips **each input before the merge**, at black level + clip. The gain comes after the clip.
+    [camera]
+  - **Fixed constants:** r2 = 4095 whatever the clip, r14 = 3514, r15 = 181. The gains of w198 A 76-79 (1.25, about
+    1.177, about 1.013) do not follow the black level, so an earlier guess (g = 1 + black level / 1024) was wrong.
+    r5 changes between runs (likely not set). [camera]/[inferred]
+  - **Meaning:** the record sets black levels and clips but not brightness. Live ND does not need a gain: the merge is
+    an average, so ND32 needs more inputs. The record has room for 32 inputs (32 × 12 bytes before the output address
+    at +384); our guard and the native callers stop at 16 today. Live GND (a gain across the frame) has no ready
+    mechanism. [inferred]
+- Next: run job 11 with 17-32 inputs on test data (record only) to see whether the stock program merges 32 frames.
+  [inferred]
 
 ### Static analysis limit (2026-11-19)
 
