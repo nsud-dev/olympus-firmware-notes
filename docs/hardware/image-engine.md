@@ -195,8 +195,15 @@ or lane B of one main-loop word made idle.
     the black level. [camera]
   - **Middle bits of w151:** 106-109 replace or break input A, 110-116 act like a read offset (middle/end segments),
     123-127 drop input B in the middle/end segments; 88-105 and 117-122 no effect. [camera]/[inferred]
-- Next: trace offline where g's constants and r5/r14/r15 come from (setup words 11-69, the window), then possibly a test
-  that changes only record/window values (black level, clip) to see which registers follow. [inferred]
+- **Offline trace after the third test (2026-11-19):** the black level and clip registers match the job record (the
+  setter copies them into the window). The gain fits **g = 1 + r / 1024** with r a register: 1.25 = 1 + 256/1024 (the
+  black-level register) and 1.177 = 1 + 181/1024 (r15), matching the measured 1.177-1.179. So the gain stage looks like
+  a multiply-accumulate, x + (x - OB) * r / 1024, with its coefficient in a register. 3515 and 181 are not stored in
+  job 11 or in the record. [inferred]
+- **Fourth test built 2026-11-19** (not run yet): same harness, but each pass changes only the record's black level
+  (0-512, per input) and clip (1000-4095), with a few field values the third test already ran. It checks whether the
+  registers and the gain follow the record, which would let a build set the merge brightness without new microcode.
+  [code]
 
 ### Static analysis limit (2026-11-19)
 
