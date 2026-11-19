@@ -5,7 +5,7 @@ exposures and averages them into one photo. Moving water or clouds blur as if yo
 filter. The OM-5 has it; the E-M5 III, which has the same chip and sensor, doesn't. Bringing it over is this project's
 main goal.
 
-**Where it stands (2026-11-17):**
+**Where it stands (2026-11-19):**
 
 - **Works on the camera:** a full Live ND shot from one press, run by our port of the OM-5's own Live ND shooting
   states: N frames at the set shutter speed, merged by the OM-5's image-engine job 11 into one photo, ND2, ND4, ND8 and
@@ -16,8 +16,14 @@ main goal.
   restarts the blur, and the light lines that showed for a moment after a photo are gone (2026-11-17).
 - **Being tuned:** restarting the blur when the camera moves. It now uses the stabiliser's gyro readings, as the OM-5
   does, and felt right in a first hand-held test; the limits stay adjustable while we tune them (2026-11-17).
-- **Not built yet:** the dark-frame pass (keep Noise Reduction off with Live ND for now), and a proper menu. For testing,
-  the Live ND level and the preview can now be set from a hidden settings page we added to the camera (2026-11-17).
+- **Preview and focusing (2026-11-18):** the preview now survives repeated autofocus, and the white lines that
+  continuous AF (C-AF) drew over it are gone.
+- **In progress:** the dark-frame pass for Noise Reduction. The first tries either skipped it or hung the camera on the
+  dark step (2026-11-18/19); a fix is built and waiting for a test. Keep Noise Reduction off with Live ND until then.
+  Not built yet: a proper menu. For testing, the Live ND level and the preview are set from a hidden settings page we
+  added to the camera (2026-11-17).
+- **Open problem:** the test builds restart the camera once at every power-on, which stock firmware never does; the
+  cause is being looked for (2026-11-18).
 - **Not user-ready:** these are research builds tested on one camera; nothing is released to install.
 
 How to read this page: the first sections explain how Olympus built Live ND, how our version works and what we
@@ -161,11 +167,16 @@ add one, will be made when the preview starts and removed when it ends. [code]+[
 **Still to do:** tuning the shake restart (other lenses and focal lengths, slow pans, long exposures; the gyro reports
 are described on [stabiliser](../hardware/stabiliser.md)), the dark-frame pass, and switching the preview from the menu
 setting.
+Coexisting with a looks preview (2026-11-19): the planned looks live-view applier works in the colour/development stage
 
 ## Limits and open items
 
 - Main pool = 20 slots: 16 held + 2 stream at ND16. **ND32 has no native code to port** on OM-5/OM-5 II; plan is a
   two-pass merge (or running accumulator), as OM-1 does natively. [code]+[inferred]
+- 2026-11-18: caduceus-om5 reports ND32/ND64 working on an OM-5 II camera after two edits only (setting 1710 allowed
+  list 1..6 and the ND step selector 0x6023c850 extended to steps 5-6; the same selector is at OM-5 1.2 0x60239afb,
+  ~0x607a9d4f in the E-M5 III port). That questions the "engine stops at ND16" verdict below; whether their ND64 photo merges 64
+  frames or 16 dark ones is not recorded. [camera] caduceus-om5, [code] this project. details
 - Single-drive trigger cuts the stream after 1 frame (cause unfound); trigger stays silent H burst until the menu stage. [camera]
 - OM-5 II 1.1 menu path (om-emu): Shooting Menu 2 > 1. Computational Modes > Live ND Shooting (greyed in P, enabled in S/M) > page with Live ND Shooting Off/On, ND Number, LV Simulation; ND Number lists ND2-ND16 and wraps (stand-in lens). 2026-11-05 [code]
 - Card I/O rule: only a silent single shot (drive 30) may read the request or write logs. A burst writes nothing. 2026-11-05 [code]

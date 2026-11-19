@@ -32,6 +32,14 @@ features, and our build process.
 | **hook / trampoline** | a native jump or call redirected into our code / the small wrapper that saves and restores registers around it |
 | **donor** | the newer body we port code from (OM-5 1.2) |
 | **property** | a numbered value in the camera's settings store |
+| **APEX** | the photographic log2 scale for exposure: each step of 1 is one stop. The firmware stores APEX × 256 |
+| **Tv / Sv / Av** | APEX shutter time (time value), sensitivity (ISO, speed value) and aperture (aperture value) |
+| **exposure record** | the one struct per shot holding its shutter time, sensitivity and aperture, filled at StlRdy1 |
+| **shooting sequencer** | the C state machine (34 states, table 0x6044f9e4) that runs a shot from half-press to cleanup |
+| **route** | 0-4 per shot, from the Standby message; picks the take state (4 burst stream, 3 high-speed sequential, else single) |
+| **frame pool** | a fixed set of same-size image buffers handed out by id (main pool = 20 raw slots of 32.8 MB) |
+| **interrupt context** | code running inside a hardware interrupt handler: it must not wait, lock or touch files |
+| **development** | the camera's word for turning a raw frame into a finished picture |
 | **DIGITAL_ND / DigitalNd / iseq_nd** | Live ND (states DigitalNd/DigitalNdDarkRdy/DigitalNdEnd; image-sequencer module iseq_nd) |
 | **iseq_ndlv** | Live ND live-view preview (job 12) |
 | **digital_nd_tv / real_tv** | Live ND displayed total time vs per-frame shutter time |
@@ -52,7 +60,7 @@ features, and our build process.
 | **StlTake / StlTakeCave** | native single take state / our copy at state 34 |
 | **Standby / route byte** | shot message at Standby; byte 10 (OM-5 11, "continue_mode") picks route 0-4 |
 | **HSSC / MSPD / STILL** | sensor modes: half-press 60 fps / live view 120 fps / still capture |
-| **type-7 request** | camera sensor-mode request message (0x601fce30) |
+| **type-7 request** | the message that switches the sensor's mode (live view, half-press, still) and its frame rate and exposure; type 7 of the camera's request messages, sent through 0x601fce30 |
 | **kind 0x400** | OM-5 Live ND sensor request kind (allows fps 0 = long frames) |
 | **prop / setting** | property id (value store) vs menu setting id; mapped by a table |
 | **MODE_*** | settings key names in block 2 |

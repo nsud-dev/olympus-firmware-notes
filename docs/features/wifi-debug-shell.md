@@ -87,6 +87,23 @@ release the camera's buttons through the same path the real buttons use. Read in
   `0x2030000 | 0x1902/0x1903` with 0x60046008); `ui jog` only has start/stop/count/debug, so there is no stock way to turn a dial
   from the shell. In menus the arrow keys do the same job; a dial turn would need a small helper in one of our builds. [code]
 - The touch panel is a separate driver (`[TP]` strings, 0x601fa531); not traced. [code]
+- **From the key line to the app (2026-11-19)** [code] unless marked. Source: block0 disassembly.
+  - Key-line interrupts: block **0x9bd00000** (two pairs of channels at +0x00 and +0x80; status +0x08/+0x88, written back to
+    clear). The handler 0x601231e0 calls the callback registered per channel in table 0x620b2860 (registration
+    0x601230ab, which also zeroes +0x00/+0x04 or +0x80/+0x84 and calls 0x60071fa6(0, 3, 1) once). UI_IN registers
+    0x60120011 for its gio lines (at 0x6011faf1). That 0x9bd00000 is a GPIO edge-interrupt block is [inferred].
+  - Other key sources register their own callbacks: two per-channel callbacks 0x60121305 / 0x601213bd in records at
+    0x620b27a8 + 56 × n (likely the adc keys, [inferred]) and the power key 0x60121f0d through 0x60063d13 (which takes
+    cross-core lock 8), whose reader 0x60063d81 fills the power image 0xa2652f38.
+  - [code] Each callback updates the group's bit image and sets bit 0 of UI_IN's event flag (u16 0x60040dd4).
+  - **UI_IN task loop 0x6011f9d8** [code]: wait on that flag (bit 0, no timeout), clear it, run the key decoder 0x6012092f (→
+    dispatcher 0x60120ad3, see above), then the jog handler 0x6011fb2d; a progress word 0x620b2784 goes 1 → 2 → 3 each pass.
+  - **App events** [code] go out through 0x60046008 → 0x602e39b9, which allocates a 12-byte message {u16, u32 event, u32
+    argument} and writes it to queue u16 (0x60040f24) with `OlyQeWrCpu`. The HLS_EVENT task reads that queue in
+    `appevent::Wait_Event` 0x602e2f49 (also `Wait_ExecuteEvent` 0x602e32f6); the api_*.c modules (api_rec, api_play,
+    api_disp, ...) use the same queue id. 0x60046008 drops two event codes (0x40d00b5/0x40d00b6) while byte 0xa25b897e
+    is 119 and 0x602e69f9(3008) is set (meaning open).
+  - How a half-press app event reaches the shooting sequencer is open (see research gaps).
 
 ## Commands useful for Live ND / HHHR (traced 2026-11-12) [code]
 Read from the C decompile (`seg_6140.bundle.c`) and block0 strings.
@@ -115,7 +132,7 @@ Read from the C decompile (`seg_6140.bundle.c`) and block0 strings.
   (continue_mode, uhs_cont_speed, capture_count, stop#req, uhs_cam_packet_queue). [camera]
 - Body shutter works normally while the debug network and session are up. [camera]
 - Consequence: a Live ND / HHHR test run can be traced on the laptop with no logging code in the build, and the trace
-  survives a reset or battery pull. Not yet tried on an armed build. [inferred]
+  survives a reset or battery pull. [inferred] Since 2026-11-12 it has been used on every armed Live ND test run (a fault at capture start was found this way), so it works on armed builds. [camera] 2026-11-19
 - `take dbgmode N` stores N unmasked (0x602a1898: `*0x62107754 = parsed number`); the four stock readers test bit 0 only, so the upper bits are free as console switches for our builds (our Live ND builds use bit 1 as the LV Simulation switch). Trace print path: sprintf 0x600e054f (`[],12`), puts 0x60022fbf (`[a2,a3],28`), copied from 0x602a101d. System-shell `mem_get4 <addr>` / `mdump4 <addr> (<size>)` print through 0x60055947 -> 0x60056f8f (UART), so they are not expected to reach the Wi-Fi session. [code] 2026-11-12
 
 

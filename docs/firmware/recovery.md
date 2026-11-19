@@ -57,6 +57,11 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
   file system task, resource reads. USB (OM Workspace) and Wi-Fi updates need even more (USB stack, GUI, ARM), so
   they are not independent rescue paths. [code]/[inferred] 2026-11-07
 
+- **Other bodies** (string search 2026-11-19, OM-5 and E-M1 III on the expanded images): every body we hold has
+  FIRMUP_CLI, FIRMUP_SRV and `DCOLYMP`, and a card file pattern with its own model number: E-M5 III `E137????BIN`,
+  E-M1 III `E139????BIN`, OM-5 `E144????BIN`, OM-1 `E143????BIN`, PEN-F `E122????BIN` (OM-5 II: not found in the
+  unexpanded image). The NMI message "NMI_INT Hassei" is in all six; "COMMON Reboot" in all but the PEN-F. [code]
+
 ## Which failures are recoverable
 | failure | recovery |
 |---|---|
@@ -91,8 +96,6 @@ What it checks:
 - **F1-F4:** the container and checksums, that the components match stock, and the camera's own validator run in
   om-emu.
 - **B1-B3:** the boot stub, section table and section ends, and the functions on the recovery path and the idle boot.
-- **S1-S2:** that new bytes sit inside loaded sections, and no early-section hook jumps into a later section without a
-  ready-bit test.
 - **R1:** that each feature stays in its own region.
 - **A1-A2:** native evidence for every absolute address, and plain MN10300 instructions only.
 - **E1-E2:** om-emu boot plus a 13-step script behaving as stock, and which changed bytes ran with nothing armed.
@@ -116,6 +119,10 @@ boot chain, indirect calls, or blocks 1-4 beyond a diff.
 6. A hang→reboot watchdog only while armed, never at boot (it would turn a boot hang into a bootloop).
 
 ## Open
+- Crash record (idea from caduceus-ep7, 2026-11-18): hook the NMI path right after its 1 s watchdog set, copy fault
+  frames, task id, sections loaded and the capture ring into RAM that boot does not clear, write it to the card on the
+  next half-press. Would show the PC of resets that happen before the Wi-Fi shell is up (Live ND power-on reset).
+  Unproven anywhere: does DRAM survive the watchdog reset? [inferred] 2026-11-18 snapshots in two Live ND test runs of the exception save area 0x629be000 were inconclusive (area all FF after power-off + boot; the reset itself not captured) [camera]. details
 - Pre-block0 loader: does it check block0 or offer a rescue (USB/serial/test pads)? Service reflash method?
 - What exactly starts FIRMUP_CLI, and does the OK-held boot skip the shooting app? A zero-write dry run on the camera
   (stock file with its last byte flipped, OK held → fast blink, nothing written) would confirm the trigger and the lamp.

@@ -36,6 +36,10 @@ Each row: what the camera did, why, and the rule we follow since.
 - 2026-11-12: console peeks: keep CPU peek ranges below 0xc0000000. One of our peek builds allowed up to 0xdeffffff, which includes ARM Linux RAM 0xc0000000-0xc2aa0000 and the 0xc4000000 block whose CPU reads rebooted the camera. Its scripts only read pool 0x0700 at 0xaa91d340, so no harm so far; don't type other addresses there. [code]+[camera]
 - Buffer pools share memory by mode: the unused tail of a pool slot is not free RAM. Pool 0x0700 (live-view raw) overlaps pools 0x0800, 0x1400, 0x0900, 0x4c00, 0x4e00; write only into buffers taken from a pool. [code] 2026-11-12
 
+- Keep patch state out of the loaded program image (other bodies, 2026-11-18): an E-P7 build that stored a byte into section-3 code RAM through the cached alias restarted on first use; an OM-5 II build with state in sections 2 and 6 froze, reset, then looped at every start. Both fixed by moving state to heap. Stock firmware makes no such stores. Prefer heap or a fixed RAM block outside the sections; at least never store before the section is ready. [camera] (caduceus-ep7 `docs/SD_V2_CRASH.md`, caduceus-om5 `research/OM5II-IMAGE-STORE-FAULT-2026-11-11.md`)
+- Don't run the settings-store `size` shell sub-command (handler near 0x6005b81a, prints "b/c/m %08d/%08d"): it measures each store by running the default rebuilder on the live image (0x6005ca77 -> 0x6005c805 into 0x623d1000), so the user settings become defaults and the next power-off saves that. [code] 2026-11-18
+- Unloaded gaps between sections hold leftover RAM on the camera, not the file's 0xFF; emulators that map the whole file hide this (camera-stuff `research/NOTES.md` GX1/GX2 probe, 2026-11-07). [camera]
+
 ## Wrong beliefs we corrected
 
 Things we thought were true, and what turned out to be the case.
@@ -61,7 +65,7 @@ Things we thought were true, and what turned out to be the case.
 | iseq name table is {name,id} | {u32 id, char *name} |
 | Prop 36537 is the hidden Live ND switch | develop/gradation setting; don't use |
 | Card update runs from an independent loader | the SD updater is in block0 (FIRMUP_CLI) |
-| OM-5 II does ND64/128 | strings only; engine ND2-ND16 |
+| OM-5 II does ND64/128 | strings only; engine ND2-ND16 (2026-11-18: caduceus-om5 reports ND32/64 working after extending the step selector; merge count unverified; caduceus-om5 `firmware/om5ii/nd64.py`) |
 | One test photo showed a merge | motion blur; retracted |
 | Bundled binutils has `ld` | as/objdump/objcopy only |
 | 0x6017f475 / 0x6019faf0 are our hooks | stock bytes decoded at the wrong offset |

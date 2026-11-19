@@ -50,7 +50,7 @@ The first bytes of each block (the "magic") name the camera model:
 | 0 | 0x0000000 | 0x40780000 | 0x17dffc0 | 0x100 | **the main MN103 program** (code, strings, menus) |
 | 1 | 0x17e0000 | 0x42160000 | 0x1dfffc0 | 0x101 | GUI resources; entries 1-34 are languages (8 = English); ~6.7 MB of zeros at the end |
 | 2 | 0x35e0000 | 0x43f60000 | 0x31fffc0 | 0x106 | 13 sub-blocks: image-engine resources (bank 6 = 0x8007 jobs), the `MODE_*` key table 0x45e20000, the ARM image 0x45ef4000, and a 2.3 MB sub-block at 0x45b20000 (unidentified) |
-| 3 | 0x67e0000 | 0x00000000 | 0x3ffc0 | 0x10e | small loader / debug monitor (body-specific) |
+| 3 | 0x67e0000 | 0x00000000 | 0x3ffc0 | 0x10e | very likely "LUKE", the stabiliser sub-CPU program (body-specific; first read as a loader/debug monitor, corrected 2026-11-06, see [stabiliser](../hardware/stabiliser.md)) |
 | 4 | 0x6820000 | 0x47180000 | 0x8fffc0 | 0x102 | high-entropy data (JPEG sample images in other bodies) |
 
 [code]

@@ -87,6 +87,23 @@ Block0 also shows two conventions side by side (2026-11-08). The bundled Expat 1
 (plain C) passes a 3rd or 4th pointer in a free d0/d1, while Olympus's own code puts it on the stack. So the libraries
 came from a different compiler, version or mode. [code]
 
+## What block0's code looks like, by the numbers (2026-11-19)
+
+Counted over the 102,113 functions in our symbol table (12.2 MB, 4.80 million instructions), E-M5 III 1.7 block0. [code]
+Source: objdump `-m am33-2` disassembly of block0 with our function list.
+
+- **Instruction lengths:** 1 byte 27 %, 2 bytes 42 %, 3 bytes 13 %, 4 bytes 3 %, 5 bytes 3 %, 6 bytes 6 %, 7 bytes 6 %.
+  Average 2.55 bytes. Register-to-register moves, `inc4`, `asl2`, `clr` and most short loads are one byte.
+- **Most common:** `mov` 46 % of all instructions, then `call` 8.7 %, `cmp` 6.8 %, `add` 6.0 %, `movhu` 5.0 %.
+- **Calls and returns:** 418,741 `call` (direct, callee frame at the call site), 38,195 `calls` (indirect), 81,692
+  `ret`, 17,591 `retf` (return through mdr), 18,701 `movm` (multi-register save/restore).
+- **Hardware loops:** 15,070 `setlb` (set loop buffer) with `Lcc` conditional loop-back instructions (`lne` 7,309 the
+  most common). Example: the boot stub's copy loop at 0x60021278 (`setlb; mov (a1),d0; inc4 a1; mov d0,(a0); inc4 a0;
+  inc d1; cmp 1536,d1; lcs`). [code]
+- **Maths:** 11,114 `udf00` and 7,529 `udfu01` (multiply), 9,898 `div` / 3,466 `divu`, only 174 `mul` / 158 `mulu`.
+- **Bit operations:** 11,563 `btst`; `bset`/`bclr` (read-modify-write of a memory byte, which the MN10300 does as one locked operation [inferred]) are rare (203/242).
+- Almost no `trap` (1) or `rti` (3) inside functions: interrupt entry and exit are in the always-ready code. [inferred]
+
 ## AM33-only instructions: don't use them
 
 The AM33 variants add instructions that the plain MN10300 doesn't have. Stock Olympus code **never** uses them: none of

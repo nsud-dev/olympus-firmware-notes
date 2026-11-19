@@ -32,10 +32,53 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
   state 34 is PixShiftSrHandHeldEnd and the Live ND states 31-33 are DigitalNd (0x602b9265) / DarkRdy / End (table
   0x60468e74). [code]
 
+## State names and the single-shot path (2026-11-19)
+
+Names come from the state table's name strings (`st_<Name>_entry`). [code]
+
+| id | state | id | state | id | state |
+|---|---|---|---|---|---|
+| 0 | Idle | 12 | StlRdy1 | 24 | ContEnd |
+| 1 | RdyStart | 13 | StlRdy2 | 25 | HsContTake |
+| 2 | RdyFcsRdy1 | 14 | StlTake | 26 | HsContWait |
+| 3 | RdyFcsRdy2 | 15 | StlUhs | 27 | HsContRdy |
+| 4 | RdyFcsRdy3 | 16 | StlLiveTake | 28 | HsContEndPre |
+| 5 | RdyTrig2Wait | 17 | LvCompTake | 29 | HsContEnd |
+| 6 | RdyFastTrig2Wait | 18 | LvCompEnd | 30 | PixShiftSrEnd |
+| 7 | RdyFcsTake | 19 | StlEnd1 | 31 | PhotoInMovie |
+| 8 | RdyFcsAbort | 20 | StlEnd2 | 32 | PhotoInMovieContWait |
+| 9 | RdyAbort | 21 | ContAf | 33 | PhotoInMovieEnd |
+| 10 | RdyEnd | 22 | ContAfStop | | |
+| 11 | Standby | 23 | ContWait | | |
+
+- Every state change goes through **`seq_set_next_state` 0x602a1341** (d0 = state, d1 = argument; out of range is
+  logged), which stores 0x62107746 (next state) and 0x62107748 (argument); the current state is the u16 at 0x62107744.
+  It has 53 call sites, all with a constant state number. [code] (static scan of block0, 2026-11-19)
+- Read off those call sites, a single still shot runs: Idle → **1 RdyStart → 2/3/4 RdyFcsRdy1-3** (focus) →
+  **5 RdyTrig2Wait** (waiting for the full press) → **7 RdyFcsTake** (RdyTrig2Wait's event 18) → **11 Standby** →
+  **12 StlRdy1 → 13 StlRdy2** → chooser → **14 StlTake** → **19 StlEnd1 → 20 StlEnd2** → back to **5** if the byte
+  0x62110be8 is 0, otherwise **9 RdyAbort → 10 RdyEnd**, which goes to 1 or 0. [code] Reading event 18 as the full press
+  and 0x62110be8 as "half-press released" is [inferred].
+- Other exits seen: RdyFcsRdy1 event 7 → 8 RdyFcsAbort; RdyFcsRdy2 → 4, or 6 RdyFastTrig2Wait (which goes to 7 on its
+  event 18); RdyTrig2Wait event 2 → 9 RdyAbort; Standby events 7/9 → 9 / 5; StlUhs → 29 HsContEnd (0x602b5058);
+  StlLiveTake → 19; PhotoInMovieEnd → 5 or 0. [code]
+- **Sequential (non-high-speed) shooting loops through the Cont states:** StlTake (0x602b44ad) goes to **21 ContAf** when
+  the byte 0x62110cec is non-zero, else to 19 StlEnd1; then ContAf → 22 ContAfStop → 23 ContWait → **13 StlRdy2** →
+  chooser → StlTake again; ContAf/ContWait leave through 24 ContEnd → 19. [code] (2026-11-19) That 0x62110cec means
+  "more frames to take" and ContAf is the focus step between frames are [inferred]. High-speed sequential (route 3)
+  loops HsContTake 25 → 26 HsContWait → 27 HsContRdy → 25, ending 28 → 29 → 19 (or 30 PixShiftSrEnd). [code]
+- **S-AF and C-AF are not separate states**: both half-press paths run RdyFcsRdy1-3 then wait in RdyTrig2Wait. Where
+  the AF mode changes behaviour (presumably inside the focus task FCS) is not traced. [code] for the states, the rest
+  [open]
+
 ## How a still shot picks its path
 
-The **chooser 0x602b3441** sends route 4 to state 15 **StlUhs**, route 3 to 25 HsContTake, and everything else to 34
+The **chooser 0x602b3441** sends route 4 to state 15 **StlUhs**, route 3 to 25 HsContTake, and everything else to 14 StlTake (34 StlTakeCave in
+our Live ND builds, which patch the `mov 14` at 0x602b3464)
 (only when 0x62110344 == 0). [code]
+When 0x62110344 is non-zero the chooser ignores the route: it picks **17 LvCompTake** if 0x62110345 == 2, otherwise
+**16 StlLiveTake**, so 0x62110344 marks the live-view long-exposure modes (Live Bulb/Time/Composite). [code] (meaning
+[inferred]; 2026-11-19, disassembly of 0x602b3441-0x602b3483)
 
 - The route byte is 0x6211020e, loaded on entering Standby (0x602b2263) from byte 10 of the shot message (on the OM-5,
   byte 11 = continue_mode). [code]
@@ -75,9 +118,37 @@ struct tells single from H burst; that is decided somewhere we haven't found. [c
 - The E-M5 has the OM-5's Live ND plumbing **compiled in but switched off**: take-param +119/+120 = 0 at 0x604492ed;
   stubs 0x602292fd/0x60229301 return their input, 0x60229305 returns 0; AE ids 299-302 have records at 0x60547f54. [code]
 
+## Source modules along the capture path (2026-11-19)
+
+The firmware keeps many of its source-file names (see [OS and framework](os-and-framework.md#source-file-and-module-names)).
+Along a still shot they line up in layers: [code] (module spans are inferred
+from strings, so edges are approximate;)
+
+- **Capture components (C++, Rhapsody):** `CapTak_Take.cpp` (~0x608c3914; `takePicture` 0x608c4e66 and its variants
+  for continuous, auto, dark frame, Live Bulb, WB sample), `CapThr_ThroughImage.cpp` (live view), `CapBuf_TakeBuff.cpp`
+  and `CapBuf_BufferManager.cpp` (shot buffers), `CapRec_Record.cpp`, `CapAef_AEAFLock.cpp`. [code]
+- **Sequencer (C):** the state handlers above and `takepic.c` / `takepic_imgpro.c` (~0x602b7xxx-0x602bfxxx). [code]
+- **Recording (C):** `rec_precon.c` (metadata step 0x6040c7f5, OB and WB filled), `rec_imgpro*.c`, `rec_mem.c`,
+  `rec_media.c` (0x60403xxx-0x6040dxxx). [code]
+- **Files and card:** `dcf*.c` (DCIM folder and file numbering, 0x6060e7f0-0x6061df9a), `sd_mount.c`, `sdmem.c`,
+  `sdphy.c` (0x606481a4-0x6064f685). [code]
+- How `CapTak_Take::takePicture` hands over to the sequencer, and how a developed image travels from `rec_imgpro` to the
+  file writer, is not traced yet. [open]
+
 ## Sensor requests
 
 The type-7 sender is 0x601fce30. It has 11 callers in section 1, so hooks there need a boot guard. Live view is mode 9
 MSPD at 120 fps, half-press is mode 0 HSSC at 60, and the shutter is mode 14 STILL with fps 0 and the set Tv
 (0x602b321b, 0x602b0adc burst; 0x602b9d20 single). [camera] See also [sensor](../hardware/sensor.md).
 .
+
+## Component-level sequence state (CmpSqp/CmpShc)
+Separate from the state table above, the shooting-sequence components keep their own state id [code] (2026-11-18, from the decompile):
+- `getSeqStateId` 0x607c4d23 reads g_61e99a1c; `setSeqStateId` 0x607c5934 writes it and logs `SEQ=%d`. [code]
+- [code] Ids (from the `entry<STATE>` methods that set them): 1 STANDBY, 3 READY, 4 READY_FINISH, 5 READY_TRIG2,
+  7 TAKE_PICTURE, 8 TAKE_PICTURE_CONT, 9 TAKE_PICTURE_AUTO, 10 TAKE_PICTURE_END_WAIT, 0xb SECOND_WAIT, 0xc END_WAIT,
+  0xf MOV_READY, 0x10 MOV_READY_FINISH, 0x11 MOV_RECORDING, 0x12 MOV_SELFTIMER_WAIT, 0x13 MOV_END. Ids 6 and 0x14 are
+  still unnamed (their entry methods sort between entrySECOND_WAIT and entrySTANDBY; one is probably SELFTIMER_WAIT).
+- `execErrorHandlerByStateId` 0x609a2da5 maps each id to a per-state vtable slot (0x13a0..0x1438); the per-event error
+  handlers in CmpSqp_SequencePartsBase (APPEVENT_* lens trouble, USB, Wi-Fi, power ...) are laid out one per state in
+  the same slot order, which is how they get their `errorHandler<Event>In_<STATE>` names. [code]

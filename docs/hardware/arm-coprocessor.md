@@ -30,6 +30,24 @@ Some hardware details from its device tree: Linux sees 36 MB of RAM at ARM-physi
 | OM-5 II 1.1 | sub-block 0x44640000; a single squashfs root | **5.10.197** | **CYW43439** (not drop-in) |
 | OM-1 / OM-1 II | bank 9 | **AArch64 Cortex-A53**, ATF, 4.14.222 | CYW43455 |
 
+### OM-1 / OM-1 II: two Cortex-A53 cores (2026-11-19)
+
+The OM-1's ARM side is a **two-core Cortex-A53** cluster as far as any software can use it. Four independent places in
+both OM-1 1.9 and OM-1 II 1.3 agree: [code]
+
+- Device tree (`seg1`, compatible `ntcj,nep1`): exactly two `cpu` nodes, `cpu@0` and `cpu@1`, `arm,cortex-a53`,
+  `enable-method = "psci"` (PSCI 1.0 over SMC). The OM-1 and OM-1 II trees are byte-for-byte the same after decoding.
+- Kernel config (embedded `IKCFG`): `CONFIG_NR_CPUS=2`, `CONFIG_SMP=y`. Linux 4.14.222 (OM-1 II build 2025-02-21).
+- ATF BL31 v2.2 (`seg0`): `plat_core_pos_by_mpidr` (file offset 0x36c) rejects any Aff1 or Aff2 and any Aff0 above 1,
+  and the PSCI power-domain tree (offset 0x5148) is `{1, 2}`: one cluster of two cores. [code]
+- GICv3 redistributor region is 0x40000 bytes at 0xa00c0000, which is two 128 KB redistributor frames, one per core. [code]+[inferred]
+
+What firmware can't say: whether the die has more A53 cores that are fused off or held in reset. Nothing in the
+firmware addresses a third core. [inferred] The camera's other processors (four MN103 cores CPU0-3, DSP, DL block) are
+separate from this cluster. Linux on the A53 only gets 96 MB of RAM: `memory@0x40000` size 0x5100000 (81 MB) plus a
+14.75 MB RAM-disk root (`slram=mtd0,0x05140000,+0x000ec0000`). [code]
+.
+
 [code] extracted files in
 .
 

@@ -57,6 +57,9 @@ watchdog and spins until the camera resets. [code] 2026-11-07
 | 0x62000000+ | RAM globals (the Ghidra RAM block; size assumed) |
 | 0x62fe0000 (+128 KB) | memory shared with the ARM (ISC) |
 | 0x8ff00c00 | ISC control blocks |
+| 0x8fe00000-0x8fe0003f | 64 cross-core lock bits (`bset`/`bclr`) ([SoC overview](soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19)) |
+| 0x99200400 / 0x99300400 / 0x99b00400 | inter-core interrupt (doorbell) registers of CPU0 / CPU1 / CPU2 |
+| 0xa2623fdc-0xa26249f4 | cross-core call rings (9 × 32 entries) |
 | 0xa0000000-0xdfffffff | uncached image window (cached alias 0x6xxxxxxx for the low parts) |
 | 0xa411f540-0xa4277140 | the camera's own image-engine job programs 0-10 |
 | 0xa4277140-0xa42bf540 | 296 KB with no code references (a candidate home for donor job programs) |
@@ -110,18 +113,37 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 |---|---|---|---|
 | 0x600d009a-0x600d0800 (section 0 tail) | 1.9 KB | shared, see below | always ready |
 | section 4 slack 0x6079d800-0x607b6800 | ~100 KB | **Live ND** (code 0x607a0000+, M data) | proven in cave test 2 [camera] |
-| section 2 slack 0x6056c000-0x60582000 | 88 KB | Starry Sky AF | not loaded yet |
+| section 2 slack 0x6056c000-0x6057e000 | 72 KB | Starry Sky AF | not loaded yet |
+| section 2 slack 0x6057e000-0x60582000 | 16 KB | **looks** picture-mode tables (~11 KB; shared with Starry Sky AF, decided 2026-11-19; needs the section-2 end raised to 0x60582000) [inferred] 2026-11-19 | not loaded yet |
 | section 2 tail 0x6056bcd8-0x6056c000 (0xFF in stock) | 808 B | Live ND live-view guards (0x6056bcd8-0x6056bd00, 0x6056bfe0-0x6056c000); console memory peek (0x6056bd00-0x6056bd98); **geotag G1** 0x6056be00-0x6056bf00 (g1.s 0x6056be00-0x6056bef9, hook 0x602bd46c) [code] 2026-11-17 | loaded with section 2 |
+| section-5 gap 0x60bef800-0x60bf7800 | 32 KB | **looks** GUI picture-mode tables (~14 KB; section-5 end 0x60045df3 raised 0x60bef800 -> 0x60bf7800; rest of the gap to 0x60c17000 unowned) [code] 2026-11-19 | not loaded yet; om-emu only |
 | section 9 lower 0x613bb000-0x613d4000 | 100 KB | webcam (parked, still reserved) | used by the webcam tests [camera] |
 | section 9 upper 0x613d4000-0x613fe800 | 170 KB | **HHHR** | all 0xFF; the section 9 end must move to 0x613fe800 |
 | 0x600d0800-0x600de000 (gap before section 1) | 54 KB | none | see below |
 | 0x6022d7d4-0x6022d800 (section-1 tail, after the hash table ending 0x6022d7d4) | 44 B | **Live ND** stabiliser-reply gate (gyro conversion) 0x6022d7d4-0x6022d7f5 [code] 2026-11-17 | same section as its hook 0x60114b7e |
-| 0x61477cf0-0x61478000 (section-10 tail, loaded) | 784 B | **card console, first version** | runner 0x61477cf0-0x61477ff4 (built, not run) [code] 2026-11-05 |
+| 0x61477cf0-0x61478000 (section-10 tail, loaded) | 784 B | **card console, first version** | runner 0x61477cf0-0x61477ff4 (never flashed; replaced by the second version 2026-11-06) [code] 2026-11-05 |
 | 0x61478000-0x61480000 (after section 10) | 32 KB | **card console** | works, see below [camera] 2026-11-06 |
 | 0x61480000-0x61483000 (after the card console) | 12 KB | **dev settings page DM1** (0x61480000-0x61481550; section-10 end raised to 0x61483000; boots and works) [camera] 2026-11-17 | see below |
 | 0x61123c5c-0x61124000 (section-6 tail) | 932 B | **DM1 stubs + J2 table copies** 0x61123c60-0x61123d70 (0xFF and unreferenced in stock) [code] 2026-11-17 | same section as the menu hooks |
 | 0x61485000-0x61a00000 | ~5.5 MB RAM | none | see below |
 | flash gap block0→block1 (≤ 2 MB) | | none | unverified |
+| 0x6022d800-0x60250000 (after section-1 end, before the data at 0x60250000) | 138 KB | none | 0xFF, not loaded; one `fc` immediate 0x60d42cd5 → 0x60243980 to rule out first [code] 2026-11-18 |
+| 0x605d4000-0x605da800 (after section-3 end, end immediate at 0x60045e1d) | 26 KB | **native menu rows** 0x605d4000-0x605da000 Live ND menu code + tables (section-3 end raised to 0x605da000; camera-proven 2026-11-19); 0x605da000-0x605da800 free [code] 2026-11-19 private notes | 0xFF, only reference is the end constant [code] 2026-11-18 |
+| 0x60bef800-0x60c17000 (after section-5 end, 0x60045df5) | 158 KB | none | 0xFF; one `fc` hit 0x6136f60b → 0xa0bf8c9d, probably chance [code] 2026-11-18 |
+| 0x61124000-0x61125000 (after section-6 end, 0x60045dfd) | 4 KB | none | 0xFF, only the end constant refers to it [code] 2026-11-18 |
+| 0x611d4800-0x611dc800 (section-7 gap) | 32 KB | none (a menu test build used it and boot-looped 2026-11-19: section 7 is ready last, behind the access monitor; don't place boot-reached code here) [camera] 2026-11-19 | `fc` hits 0x605b5e5e (movbu disp) and 0x6139551d checked: chance |
+| 0x611dc800-0x61205800 (rest of the section-7 gap) | 164 KB | none | 0xFF [code] 2026-11-18 |
+| store-50 image tail +0x39F00-0x39F7F (RAM 0x6240af00) | 128 B | **saved mod settings** block (marker `MOD\x01`, Live ND bytes, 16 dev words); adjacent to the looks LOOKS block at +0x3A000 (agreed 2026-11-19) [emu] | saved whole with the settings at power-off |
+| 0x61208800-0x61209800 (after section-8 end, 0x60045e0d) | 4 KB | none | 0xFF, only the end constant [code] 2026-11-18 |
+| `sdk api` handlers (section 5, near 0x60810d6b) | ~200 KB (E-P7 figure) | none | stock code, freed only by cutting the `sdk`/`api` table words (loses those shell commands); see linked projects [inferred] 2026-11-18 |
+
+Section gaps (2026-11-18): every block0 section is followed in the image by 0xFF up to the next section's start (table
+0x600272a4, flash and VMA move together), and the loader copies only up to each end constant in the switch at
+0x60045dc5. So each gap becomes loadable by raising one constant, as was done for sections 4, 9 and 10. The six new rows
+above were checked for `fc` immediates (cached and uncached alias) in stock block0; none is camera-tested, so prove each
+with a section-end probe (pattern + card readback) before putting code there. [code] 2026-11-18 (scan: 4-byte words after
+an `fc` prefix and aligned words; aligned-word hits are at the same noise level as in the proven section-2/9 slack)
+
 
 Notes on the rows above:
 
@@ -141,10 +163,35 @@ Notes on the rows above:
   Corrected 2026-11-05: see the rows above. [code]/[inferred]
 
 
+## The small-object heap (`scheap`, 2026-11-19)
+
+Read off the disassembly. [code] Source: block0 disassembly.
+
+- The general allocator **0x600232c5(d0 = size)** returns a block in a0 [code] (742 call sites; free **0x600232f7(a0)**, 759
+  sites). It is not a free-list heap: it picks one of three fixed-block classes by size (0x600235a4, under cross-core
+  lock 10 and with interrupts masked), and a request over 16 KB fails with "scheap_phyalloc: Size Over" and returns 0.
+- Classes (tables 0x60027044 base, 0x60027054 count, 0x60027084 block size including header), all in uncached RAM [code]:
+
+| class | for sizes | block | count | area |
+|---|---|---|---|---|
+| small | ≤ 128 B | 0xc0 | 178 | 0xa1ab0fc0-0xa1ab9540 |
+| middle | ≤ 2 KB | 0x840 | 21 | 0xa1e80800-0xa1e8b540 |
+| large | ≤ 16 KB | 0x4040 | 43 | 0xa1cbb540-0xa1d68000 |
+| 4th (custom/apim?) | not reached by 0x600232c5 | 0xc0 | 100 | from 0xa26c9500 |
+
+- Free finds the class from the address range and logs "scheap_phyfree: not allocated" otherwise. The user shell's `sc
+  heaplist small|middle|large|custom|apim|count` and `sc heapshow` list them. About 786 KB in all, so anything big
+  (image data) must come from the frame pools. [code]
+
+- Other bodies: the `scheap_phyalloc` and `sc heaplist` strings are in all six block0s (OM-5, E-M1 III, OM-5 II,
+  OM-1, PEN-F). The same block-size table {0xc0, 0x840, 0x4040, 0xc0} is at OM-5 0x60027dc8, E-M1 III 0x60027fb0,
+  OM-5 II 0x600282c8; not found on the OM-1 or PEN-F (different sizes or layout, not traced). [code] 2026-11-19
+
 ## Image buffer pool map, E-M5 III vs OM-5 (2026-11-12)
 - Pool object: +8 base, +12 slot size (per slot: pool 0x0700 at 0xaa91d340 + 4 x 0xfe4c00 ends at the base of pool 0x2d00), +20/+24 count, +22 id. Pool table E-M5 III 0x6053e158 (87 entries), OM-5 0x60575c70 (113). [code] 2026-11-12
 - OM-5 Live ND layout = pools with flag bit 0x100: 0x6700/0x6800 (ring, 248 x 0x1ba000), 0x6b00 (19 still frames), 0x6c00, 0x6d00, 0x6e00, 0x6f00, 0x7000. [inferred] 2026-11-12
 - Live-view raw pools: OM-5 0x0700 = 4 x 0x4e6400 and 0x5c00 = 4 x 0xfe4c00; E-M5 III 0x0700 = 4 x 0xfe4c00 only, second pool 0x3900 at 0xc4000000. [code] 2026-11-12
 - Pools are built at every boot by section static constructors: E-M5 III init array 0x6056bca8 (12 entries, the first, 0x603f657f, is the pool list; runner 0x60199d84 bounded by a byte count of 48, so the 0xff words after the array are not a terminator), OM-5 0x605a7694 (13 entries, count 52). Pool objects are static RAM objects (E-M5 still pool 0xa25bb974, OM-5 ring 0x6700 at 0xa25f11a8). The OM-5 ring is constructed at every boot and only used while the preview runs; there is no runtime layout switch for it. [code] 2026-11-15
 - Correction: the "flags" column of the pool map is the ctor's last argument, stored as the word at pool +16 (the lock tag, e.g. 0x102 for the OM-5's 0x6b00, 0x101 for the ring); the byte at +30 comes from the second argument and is 0 for the ring. So "Live ND layout = flag bit 0x100" means "lock-tag group 0x1xx". [code] 2026-11-15
+- Counted from the same table (2026-11-19): the E-M5 III's constructors build 64 pools, the OM-5's 87. The E-M5 III pools add up to about 4.4 GB of slots in a 924 MB buffer area, so most memory belongs to several pools at once (alternative layouts for different modes). [code] 2026-11-19
 - Free (null) entries in the E-M5 III pool table: 0x10-0x13, 0x1a-0x21, 0x44-0x47, 0x4a; the limit 87 is an immediate in at least 10 places of the buffer module (0x603f7135..0x603f7a45), so new ids must reuse null entries. A pool could be made lazily (native multi ctor 0x603f92dc on our RAM + table entry at preview start, cleared at the end) without touching boot; table writability at run time is untested. [code]+[inferred] 2026-11-15

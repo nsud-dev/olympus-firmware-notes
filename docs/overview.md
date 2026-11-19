@@ -47,11 +47,12 @@ is what makes moving code between them possible. [code] See [body comparison](bo
 
 | feature | result so far | page |
 |---|---|---|
+| Saved mod settings and native menu rows | new rows and a page that behave like the camera's own (Live ND Shooting after High Res Shot), with values kept by the camera's own settings save across power-off; works on the camera (2026-11-19) [camera] | [saved settings and menu rows](features/saved-settings-and-menu-rows.md) |
 | Focus stacking with any lens | done, working on the camera; a shot-count setting (3-8) is built and waiting for a test [camera] | [focus stacking](features/focus-stacking.md) |
-| Live ND | merged ND2-ND16 photos work on the camera with frames at the set shutter speed; ending the capture cleanly (the one-press OM-5 behaviour) still hangs or resets [camera] | [Live ND](features/live-nd.md), [port layers](firmware/live-nd-port-layers.md) |
+| Live ND | a full one-press Live ND shot works on the camera (ND2-ND16, frames at the set shutter speed, merged by the OM-5's own image-engine program), and the live view previews the blur; being worked on: the dark-frame pass for noise reduction, a proper menu, and a restart at every power-on in the test builds [camera] (updated 2026-11-19) | [Live ND](features/live-nd.md), [port layers](firmware/live-nd-port-layers.md) |
 | Handheld High Res (HHHR) | the OM-5's four image-engine programs load, the memory is free, and we can power the ARM helper ourselves; whether the programs compose a correct picture here is unproven [camera] | [HHHR](features/hhhr.md) |
 | USB webcam | the camera shows up as a webcam and streams its own picture (tests 1 and 2c); live view would need the camera to stay in shooting mode on USB, so it's parked [camera] | [webcam](features/webcam.md) |
-| Stock Wi-Fi debug shell | a settings file on the card turns on a debug network and shell, no flashing; traced, not yet tried [code] | [Wi-Fi debug shell](features/wifi-debug-shell.md) |
+| Stock Wi-Fi debug shell | a settings file on the card turns on a debug network and shell, no flashing; works on our camera (2026-11-12) and is how we watch test runs live from a laptop [camera] | [Wi-Fi debug shell](features/wifi-debug-shell.md) |
 | Starry Sky AF | absent on the E-M5 III, present on the OM-5; a first armed test build exists [code] | [Starry Sky AF](features/starry-sky-af.md) |
 | Colour / mono profiles (PEN-F style) | the processing and saved settings are already in the E-M5 III; only the way to pick and edit them is missing [code] | [colour profiles](features/pen-f-profiles.md) |
 | Movie 29:59 limit, OM-Log400 | the time limit is one constant; much of the log profile's plumbing is present [code] | [movie](features/movie.md) |

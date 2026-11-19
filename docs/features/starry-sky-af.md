@@ -4,7 +4,7 @@ Starry Sky AF is an autofocus mode on newer bodies that can focus on stars at ni
 do. The E-M5 III doesn't have it. This page records what the feature is made of on the E-M1 III and OM-5, how it would
 fit into the E-M5 III, and the first test build.
 
-**Status 2026-11-05:** research done; **a first test build is built, not run**.
+**Status 2026-11-05:** research done; **a first test build is built, not run**. (Still true 2026-11-19. The build sits on an old base, so it needs a rebuild before it can be tested alongside current builds.)
 
 Terms: **S-AF** = single autofocus; **PDAF** = phase-detect AF (the on-sensor AF pixels), which star mode switches off in
 favour of contrast AF; **infinity pre-drive** = moving the lens to its stored infinity position before focusing.

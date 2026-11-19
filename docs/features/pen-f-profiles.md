@@ -28,7 +28,7 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
   block1. [code]
 - A 2026-10-19 note said "strings only, not traced"; traced 2026-11-07, the back end is wired, not dead strings. [code]
 
-## Back-end test (designed 2026-11-08, not built)
+## Back-end test (designed 2026-11-08; a test build exists, not run yet)
 - Hook at mode loader 0x602bce58 (11 B → d32 call of a stub 0x600d00e0, section-4 body 0x6079f000): when armed from the card it forces
   picture mode 11 with test saturations (or mode 12 for the mono test), only in the per-shot mode record (nothing saved). Built on our current test base.
   [inferred]
