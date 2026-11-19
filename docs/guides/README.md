@@ -18,4 +18,5 @@ addresses and details are on the reference pages each guide links to.
 | [How a button works](button-press.md) | from a key press to the app reacting |
 | [Live view](live-view.md) | how a live-view frame gets from the sensor to the display |
 | [Firmware files and updates](firmware-file.md) | the update file, how the camera installs it, and how to recover |
+| [Frame pools and memory](frame-pools-and-memory.md) | the address space, the heap and the frame pools that hold images in memory |
 
