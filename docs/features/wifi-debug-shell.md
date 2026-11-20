@@ -105,6 +105,12 @@ release the camera's buttons through the same path the real buttons use. Read in
     is 119 and 0x602e69f9(3008) is set (meaning open).
   - How a half-press app event reaches the shooting sequencer is open (see research gaps).
 
+## Dumping RAM to the card (2026-11-19) [camera]
+- `file memdump NAME ADR LEN` (ADR hex, LEN decimal) writes LEN bytes of RAM to the card, binary-safe (checked against
+  block0 code). The user shell **cuts each line at 31 characters**, so keep names short: `file memdump A a4423ec0 262144`
+  (30 chars). A longer line silently loses the end of LEN (`262144` became `2`). `status = 0x0000` = success; the
+  "unknown Command" after it is the extra line ending `nc -c` sends.
+
 ## Commands useful for Live ND / HHHR (traced 2026-11-12) [code]
 Read from the C decompile (`seg_6140.bundle.c`) and block0 strings.
 - **`take`** (handler 0x602a158b) with no argument prints its own help (0x602a168b, text 0x6044fceb): `func ...`, `dbgmode`,

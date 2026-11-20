@@ -32,6 +32,20 @@ pointer. [code] (2026-11-05); not yet read on the camera.
 
 **The histogram is display hardware.** It is computed on the displayed image, after picture mode and gamma: functions
 `hist_prm_set` 0x60193f6f and `hist_get_calc_result` 0x6019450a, event `DISP_HISTOGRAM_CALC_END`. [code] (2026-11-05)
+Per-channel: the block has a 2-bit **target element** (VSC +0x248 bits 24-25, `display_vscdrv_hist_targetelement_set`
+0x60194425); the display-layer routine takes element 1-4 (check 0x6018e880) and writes element − 1. Each calculation
+returns one bin set (64/128/256 bins at VSC +0x2c00). [code] (2026-11-20) The 4 elements are probably Y + R/G/B (or Y +
+colour difference), so an RGB histogram = 3 calculations, one per element; which element live view uses, and whether
+OM-5/OM-1 do RGB, is not checked. Stock shell `disp dl hst` can set the parameters for a camera check. [inferred]
+**RGB histograms already exist natively** (read-only pass 2026-11-20): the request handed to the driver carries 4 result
+slots and the driver runs one element per slot (0x6018ebdb..0x6018ec42 picks element 1-4 = first filled slot; state byte
+0x62105acd); the app layer starts per-channel calculations (`Disp_Start_Histogram_Calculation Y/R/G/B`, 0x608dc23b..);
+a `GET_HISTOGRAM` command takes colour 0 = `YRGB` or 1 = `ONLY Y` (0x608244cc) and a resolution (32/128); playback over
+the communication API has `OlyHfwOpePlyCom::getHistogram` with r/g/b channel states. Element order is most likely
+1 = Y, 2 = R, 3 = G, 4 = B. [code]/[inferred] The same strings and paths are in **OM-5 1.2 and OM-1 1.9**, so this is
+shared Olympus/OM code, not a newer-body feature. Which element the on-screen live-view histogram uses is still
+unconfirmed (likely Y only). An RGB live-view histogram would reuse this path: three extra calculations per refresh,
+one per element. [inferred] Sources: stock block0 disassembly (objdump, base 0x60021020); OM-5; OM-1.
 
 **The highlight/shadow warning is display hardware too.** `display_vscdrv_set_hi_sh` 0x60194665 sets it. By the
 firmware's own register-name table its threshold registers are **HILIGHT1-4 = VSC +0x250..+0x25c**. (An earlier note said

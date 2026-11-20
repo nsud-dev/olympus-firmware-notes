@@ -79,7 +79,7 @@ loader 0x60045e2e, table 0x600272a4, ending in the switch at 0x60045dc5. They lo
 | section | range |
 |---|---|
 | 1 | 0x600de000-0x6022d800 |
-| 2 | 0x60298000-0x6056c000 |
+| 2 | 0x60298000-0x6056c000 stock (0x60582000 since a looks test build, camera-proven 2026-11-19 [camera]) |
 | 3 | 0x60582000-0x605d4000 |
 | 4 | 0x605da800-0x6079d800 stock (0x607b6800 since cave test 2) |
 | 5 | to 0x60bef800 |

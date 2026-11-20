@@ -34,6 +34,17 @@ Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[
   Starry Sky AF 0xb981-0xb9c1. Property 36537 exists but belongs to develop/gradation, **not** Live ND: don't use it.
   [code]
 
+- **One stock row traced end to end (High Res Shot, 2026-11-20).** Setting id 772 → table entry `{u16 0xf1a1, u16 0}`
+  (property 0xf1a1, sub-index 0; value size `0xf1a1 & 7` = 1, so u8) → listed in the store-50 registry at 0x600bcc48, so
+  it is a saved user setting. Default (table 0x604b20ac) 1. Menu: 6th id of the Shooting 2 tab list 0x6106a644
+  (603, 471, 266, 682, 5005, 772, 180); title entry 0x61092af0 and help entry 0x61092d84 are kind 4 with string ids
+  2438 "High Res Shot" and 2439 (help text); option-value record id 772 in 0x604d4ee4 → 2 one-byte values {0, 1}. [code]
+- **Same table on every body (2026-11-20).** The setting → property table starts with the same words on all six bodies:
+  E-M5 III 0x604de68c, OM-5 0x60514fec, E-M1 III 0x604e4d90, OM-5 II 0x605193e8, PEN-F 0x603fa158, OM-1 block0 offset
+  0x6007c4. Property 0xf1a1 (High Res Shot on the E-M5 III) is setting 772 on the E-M5 III, 771 on the OM-5 and OM-5 II,
+  770 on the E-M1 III and OM-1, 779 on the PEN-F: same property, different id. [code] (that 0xf1a1 is High Res on the
+  other bodies is [inferred]). The "acc flash write" store save is in all but the PEN-F (string not found). [code]
+
 ### No free setting ids (2026-11-05)
 
 The lookup 0x602e6b2a walks these ranges: 0-1649 (table 0x604de68c, RAM handle cache 0xa25b8cf0), 3000-3019, 4000-4021,

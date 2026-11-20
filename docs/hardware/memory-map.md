@@ -114,9 +114,10 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 | 0x600d009a-0x600d0800 (section 0 tail) | 1.9 KB | shared, see below | always ready |
 | section 4 slack 0x6079d800-0x607b6800 | ~100 KB | **Live ND** (code 0x607a0000+, M data) | proven in cave test 2 [camera] |
 | section 2 slack 0x6056c000-0x6057e000 | 72 KB | Starry Sky AF | not loaded yet |
-| section 2 slack 0x6057e000-0x60582000 | 16 KB | **looks** picture-mode tables (~11 KB; shared with Starry Sky AF, decided 2026-11-19; needs the section-2 end raised to 0x60582000) [inferred] 2026-11-19 | not loaded yet |
+| section 2 slack 0x6057e000-0x60582000 | 16 KB | **looks** picture-mode tables (~11 KB; shared with Starry Sky AF, decided 2026-11-19); section-2 end raised to 0x60582000 by a looks test build, **camera-proven 2026-11-19** [camera] private notes | loaded |
 | section 2 tail 0x6056bcd8-0x6056c000 (0xFF in stock) | 808 B | Live ND live-view guards (0x6056bcd8-0x6056bd00, 0x6056bfe0-0x6056c000); console memory peek (0x6056bd00-0x6056bd98); **geotag G1** 0x6056be00-0x6056bf00 (g1.s 0x6056be00-0x6056bef9, hook 0x602bd46c) [code] 2026-11-17 | loaded with section 2 |
 | section-5 gap 0x60bef800-0x60bf7800 | 32 KB | **looks** GUI picture-mode tables (~14 KB; section-5 end 0x60045df3 raised 0x60bef800 -> 0x60bf7800; rest of the gap to 0x60c17000 unowned) [code] 2026-11-19 | not loaded yet; om-emu only |
+| section-5 gap 0x60bf7800-0x60bfb000 | 14 KB | **looks** colour-profile editor code + tables + editor state (0x60bf8820, 8 B) + E-M1 III wheel renderers + 16-slot image-handle table (0x60bf9f00) + sprite tables, 0x60bf8000-0x60bfa4c8; section-5 end raised to 0x60bfb000 (editor test build; not camera-proven) [code] 2026-11-19 private notes | ready, not run |
 | section 9 lower 0x613bb000-0x613d4000 | 100 KB | webcam (parked, still reserved) | used by the webcam tests [camera] |
 | section 9 upper 0x613d4000-0x613fe800 | 170 KB | **HHHR** | all 0xFF; the section 9 end must move to 0x613fe800 |
 | 0x600d0800-0x600de000 (gap before section 1) | 54 KB | none | see below |

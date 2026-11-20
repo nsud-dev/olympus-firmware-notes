@@ -75,7 +75,7 @@ What each job does:
 | 7 | 0xa421c540 | 0xe800 | focus-stack merge step (3 buffers, also the final pass) [inferred] |
 | 8 | 0xa422b540 | 0x1600 | **hardware memcpy** (`CAvpiPcomMemToMemHwcpy`, 0x603f43b8: 128 KB chunks, waits on flag 0x60041200; window 0x00 src, 0x04 dst, 0x08 len) [code] |
 | 9 | 0xa422d140 | 0x38000 | raw development in 8 strips (14-bit OB/WB clip) [inferred] |
-| 10 | 0xa4265540 | 0x11c00 | unknown; mode-selected coefficient tables (still task 0x6056175a) |
+| 10 | 0xa4265540 | 0x11c00 | fixed-coefficient filter or resampler, **not a gain map** (2026-11-19): record = input 0x10, output 0x14, mode class 0x18 (from caller record +40); the setter 0x60319cfd copies static tables from 0x604e22dc.. by mode: 3-tap weights summing to 1024 (614/205/205, 410/614/...), a monotonic index ramp (0,1,3,4,6,8,...), and 102 phase weights in steps of 71 = 853/12. No per-pixel or per-row gain input, so it can't give a smooth GND. (still task 0x6056175a, caller 0x60561eb2) [code]/[inferred] |
 
 Jobs 3 to 7 together are the **in-camera focus-stack merge** (2026-11-06). That is shot kind 19: 3-15 frames plus a
 reference; the motion detector (MDET) estimates motion vectors coarse then fine, job 4 warps each frame, then jobs
@@ -208,8 +208,20 @@ or lane B of one main-loop word made idle.
     an average, so ND32 needs more inputs. The record has room for 32 inputs (32 × 12 bytes before the output address
     at +384); our guard and the native callers stop at 16 today. Live GND (a gain across the frame) has no ready
     mechanism. [inferred]
-- Next: run job 11 with 17-32 inputs on test data (record only) to see whether the stock program merges 32 frames.
-  [inferred]
+- **Fifth test built 2026-11-19** (not run yet): job 11 unchanged, record only. 1-32 inputs (ND32; our guard's limit
+  raised from 16 to 32 for it), black frames among the inputs (darkening by an exact fraction, a possible stepped Live
+  GND), bands of rows and narrower widths. [code]
+  Its first run stopped at the first 3-input pass: our harness bridge refuses Number > (its input-size words) / 12
+  with 0xa124, and the harness had left them at 2 inputs. A fixed build replaces it. [camera]/[code]
+  The fixed build's run (2026-11-19) merged 2, 3, 4, 8, 15 and 16 inputs: every value is the per-pixel mean above black,
+  **rounded to nearest** (3 and 15 inputs only fit rounding), in the same ~10 ms for 2 or 16 inputs. [camera]
+  17 inputs was refused before the engine ran (0xa224) by a second 16-input check in our own Live ND code (job-11
+  completion gate); a build with both checks raised to 32 is next. [camera]/[code]
+- **Fifth test results (2026-11-19, all 36 passes):** job 11 merges **up to 32 inputs** unchanged, ~10 ms whatever N,
+  rows or width. Exact rule (fits every printed value): out = OB + round_half_even(Σ(in − OB) × ceil(2^19/N) / 2^19)
+  [camera]/[inferred]. Input order does not matter. Black inputs darken by exactly k/N. A record can cover a band of
+  rows (1-row granularity); width is written in 10-pixel groups (Hw 45 writes 50). So ND32 is a frame-count and memory
+  question, not microcode, and a stepped Live GND can be built from job 11 runs on row bands with black inputs. [camera]
 
 ### Static analysis limit (2026-11-19)
 

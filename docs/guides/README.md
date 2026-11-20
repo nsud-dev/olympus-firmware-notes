@@ -19,4 +19,5 @@ addresses and details are on the reference pages each guide links to.
 | [Live view](live-view.md) | how a live-view frame gets from the sensor to the display |
 | [Firmware files and updates](firmware-file.md) | the update file, how the camera installs it, and how to recover |
 | [Frame pools and memory](frame-pools-and-memory.md) | the address space, the heap and the frame pools that hold images in memory |
+| [Settings and menus](settings-and-menus.md) | how a setting gets from a menu row to the saved settings, and how new rows are added |
 
