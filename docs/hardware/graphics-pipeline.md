@@ -117,6 +117,23 @@ number means "transparent" so the live picture shows through.
   frame (0x60194e50). The CPU-readable pointer is RAM **0xa26538c4 + ch×0xe28** (C plane next word). [code]
   (2026-11-05); geometry/stride to be measured by the live-view probe.
 
+## 5b. The second drawing engine: c3d and OpenVG (2026-11-20)
+
+Besides the 2D OSD engine, the camera has a vector-graphics GPU used by the `c3d` task for the colour wheels (Color
+Creator, and the Color/Mono Profile editors we added). How the GUI starts it and how its layer reaches the screen is on
+[profile editor](../features/pen-f-profiles.md#on-camera-editor).
+
+- Block0 carries an **OpenVG 1.x** library with **EGL**, from DMP: 95 `vg*` names (vgCreatePath, vgDrawPath, vgCreateImage,
+  vgCreatePaint, vgClear, ...), EGL calls (eglCreateContext, eglCreateWindowSurface, ...) and DMP extensions
+  (`vgCreateImageDataDMP`, `vgCreatePathDataDMP`, `VG_DMP_multi_draw_image`, `VG_DMP_image_native_format`,
+  `EGL_DMP_commandbuffer_attributes`). No shader or OpenGL ES drawing names. [code] 2026-11-20 (string scan of the E-M5 III
+  block0)
+- So c3d draws with OpenVG paths, paints and images into an EGL surface (the 256 x 256 RGBA draw buffers), and the
+  renderers we ported call this library. The GPU's own registers and command buffers have not been looked at. [code]+[inferred]
+- Other bodies (string scan of block0, 2026-11-20): `osddraw`, `c3d` and EGL names are in all six. OpenVG names: E-M5 III 95,
+  OM-1 95, OM-5 / E-M1 III / OM-5 II 94, PEN-F only 8 (older library; it still has `vgCreateImageDataDMP`). Names missing
+  on the OM-5, E-M1 III and OM-5 II (`COLOR_CREATER`, `gpiUpdateDisplay`) may sit in their compressed parts. [code]
+
 ## 6. om-emu and the display
 - om-emu models VSC kind 2 (registers, latches, OSD planes, palettes, scaling, stacking) and the OSD engine, and runs
   the GUI, osddraw and display task natively; its output is the composed frame (our `emurun.mjs` saves it).
