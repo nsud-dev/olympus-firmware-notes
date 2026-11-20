@@ -38,6 +38,7 @@ Each row: what the camera did, why, and the rule we follow since.
 
 - Keep patch state out of the loaded program image (other bodies, 2026-11-18): an E-P7 build that stored a byte into section-3 code RAM through the cached alias restarted on first use; an OM-5 II build with state in sections 2 and 6 froze, reset, then looped at every start. Both fixed by moving state to heap. Stock firmware makes no such stores. Prefer heap or a fixed RAM block outside the sections; at least never store before the section is ready. [camera] (caduceus-ep7 `docs/SD_V2_CRASH.md`, caduceus-om5 `research/OM5II-IMAGE-STORE-FAULT-2026-11-11.md`)
 - Don't run the settings-store `size` shell sub-command (handler near 0x6005b81a, prints "b/c/m %08d/%08d"): it measures each store by running the default rebuilder on the live image (0x6005ca77 -> 0x6005c805 into 0x623d1000), so the user settings become defaults and the next power-off saves that. [code] 2026-11-18
+- GUI picture widgets (class 0x8003) take at most 8 picture states: the widget caches one picture pointer per state at object +172 for 8 states (0x60cc9888), so state 8+ reads a wild pointer and resets the camera. om-emu reads zero there and hides it. 2026-11-20 side-bar editor test (+2 on a 12-state digit widget) [code]+[camera]
 - Unloaded gaps between sections hold leftover RAM on the camera, not the file's 0xFF; emulators that map the whole file hide this (camera-stuff `research/NOTES.md` GX1/GX2 probe, 2026-11-07). [camera]
 
 ## Wrong beliefs we corrected

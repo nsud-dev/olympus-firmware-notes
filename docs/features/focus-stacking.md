@@ -18,6 +18,10 @@ project, did the same; we recreated it on 2026-10-19 and flashed it, and it work
 - Later builds route the lens-flag call at 0x6065e5e2 to a small cave function that returns 1 (first at 0x600d0100,
   then 0x607a0000). [camera]
 - The lens-type check reads lens_info+0x444 via 0x60206a03 (the same field as the Panasonic-lens test). [code]
+- Other bodies (2026-11-20): the same function with the same `bne` (`c9 04`) at +0x16 exists on the OM-5 1.2
+  (0x606d63fb), OM-5 II 1.1 (0x606d5524), E-M1 III 1.6 (0x606983f9), OM-1 1.9 (0x608e3899) and OM-1 II 1.3 (0x608fd3f2),
+  so the one-branch patch would carry over (not tried). The PEN-F 3.1 has no in-camera stacking. [code]
+  [body comparison](../bodies/comparison.md#our-features-on-the-other-bodies-2026-11-20)
 
 ## How many shots go into a stack (2026-11-05, research)
 

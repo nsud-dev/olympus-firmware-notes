@@ -5,7 +5,7 @@ exposures and averages them into one photo. Moving water or clouds blur as if yo
 filter. The OM-5 has it; the E-M5 III, which has the same chip and sensor, doesn't. Bringing it over is this project's
 main goal.
 
-**Where it stands (2026-11-19):**
+**Where it stands (2026-11-20):**
 
 - **Works on the camera:** a full Live ND shot from one press, run by our port of the OM-5's own Live ND shooting
   states: N frames at the set shutter speed, merged by the OM-5's image-engine job 11 into one photo, ND2, ND4, ND8 and
@@ -18,10 +18,13 @@ main goal.
   does, and felt right in a first hand-held test; the limits stay adjustable while we tune them (2026-11-17).
 - **Preview and focusing (2026-11-18):** the preview now survives repeated autofocus, and the white lines that
   continuous AF (C-AF) drew over it are gone.
-- **In progress:** the dark-frame pass for Noise Reduction. The first tries either skipped it or hung the camera on the
-  dark step (2026-11-18/19); a fix is built and waiting for a test. Keep Noise Reduction off with Live ND until then.
-  Not built yet: a proper menu. For testing, the Live ND level and the preview are set from a hidden settings page we
-  added to the camera (2026-11-17).
+- **Noise Reduction (2026-11-19):** the first complete dark-frame pass worked: with Noise Reduction on, the camera
+  merged the light frames, then the same number of dark frames, and saved a normal photo (ND4 and ND16, ISO 200). At
+  ISO 3200, NR off works, but NR on reset the camera at the save: the preview still held frames the dark pass needed.
+  A fix (hand the preview frames back earlier) is built and waiting for a test; until then use NR on only at low ISO.
+- **Menu (2026-11-19):** Live ND now has rows in the camera's own shooting menu, and the values survive power-off.
+  Letting those rows drive Live ND (instead of our hidden settings page) is built, not tested yet.
+- **Next up:** Live ND in silent single drive, not only the drive we test with (built 2026-11-20, not tested).
 - **Open problem:** the test builds restart the camera once at every power-on, which stock firmware never does; the
   cause is being looked for (2026-11-18).
 - **Not user-ready:** these are research builds tested on one camera; nothing is released to install.

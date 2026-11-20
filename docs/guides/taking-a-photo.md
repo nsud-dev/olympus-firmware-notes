@@ -127,7 +127,7 @@ the focus task (FCS), and one of the image-engine jobs (job 0) is very probably 
 | auto exposure ids | live view 323, half-press 270 | [camera] |
 | image-engine job 0 | 0xa411f540, `FCS_IP` code cluster | [inferred] |
 
-Sources: [sensor](../hardware/sensor.md#sensor-mode-requests), [Live ND](../features/live-nd.md) (E10p run),
+Sources: [sensor](../hardware/sensor.md#sensor-mode-requests), [Live ND](../features/live-nd.md) (a sensor-mode test run),
 [image engine](../hardware/image-engine.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06).
 </details>
 
