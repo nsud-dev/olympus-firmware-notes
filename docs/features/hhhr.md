@@ -87,3 +87,10 @@ TruePic VIII running jobs 14-17; ARM power with wireless off; live buffers durin
 (possible separate MCU: check prop 7729 readers 0x6058e07e/0x60592ca2). Since 2026-11-06 the IS controller is known to
 be a separate sub-CPU, see [stabiliser](../hardware/stabiliser.md).
 
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **E-M5 II 4.1:** tripod High Res (40 MP, `pixshift_*`) is native; hand-held HHHR as we port it needs the ARM `hhhr` helper and jobs 14-17, and the E-M5 II has no ARM co-processor at all. Impossible as designed. [code]+[inferred]
+- **E-M5 (Mark I) 2.3:** no pixel-shift code. Impossible. [code]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

@@ -41,6 +41,8 @@ Each row: what the camera did, why, and the rule we follow since.
 - GUI picture widgets (class 0x8003) take at most 8 picture states: the widget caches one picture pointer per state at object +172 for 8 states (0x60cc9888), so state 8+ reads a wild pointer and resets the camera. om-emu reads zero there and hides it. 2026-11-20 side-bar editor test (+2 on a 12-state digit widget) [code]+[camera]
 - Unloaded gaps between sections hold leftover RAM on the camera, not the file's 0xFF; emulators that map the whole file hide this (camera-stuff `research/NOTES.md` GX1/GX2 probe, 2026-11-07). [camera]
 
+- Writing firmware code in RAM through the cached address resets the camera (memory protection); OMKit installs its hooks through the uncached alias, byte by byte, first byte last, each inside one 16-byte line (OM-5 II, 2026-11-21 read). [camera] (OMKit `docs/architecture.md` §6)
+
 ## Wrong beliefs we corrected
 
 Things we thought were true, and what turned out to be the case.

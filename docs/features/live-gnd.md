@@ -37,3 +37,9 @@ gain) → G1 (GND2/4/8) → G2 tuning, GND16, position/angle → G3 menu/LV. GND
 
 Open: filter order (which width is soft), E-M5 raw origin/margins, MN103 pass speed.
 
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- Same verdict as [Live ND](live-nd.md#on-the-e-m5-ii-and-e-m5-mark-i-2026-11-21): a new port on the E-M5 II (no ND or GND code there), very likely impossible on the E-M5 Mark I. [inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

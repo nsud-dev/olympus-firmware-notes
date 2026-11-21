@@ -24,6 +24,8 @@ has a small μITRON image ("load arm itron") alongside Linux. [code]
 
 ## The framework: Rhapsody OXF
 
+On other bodies (2026-11-21): the PEN-F 3.1 and E-M5 II 4.1 have the same μITRON + OXF stack (`itronos`, `rhapsody/oxf`, `omreactive`). The E-M5 (Mark I) 2.3 has μITRON but **no OXF**: an older `ntos.cpp` layer and only 76 C++ source names (E-M5 III ~820), though the `OlyApi*` / `SubApp*` / `Cmp*` naming already exists. [code] See [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+
 On top of μITRON sits **IBM Rhapsody's OXF** framework (`rhapsody/oxf/itronos.h`). Rhapsody is a UML tool that
 generates C++ state machines from diagrams, which explains why the shooting states and component code look so regular.
 [code]

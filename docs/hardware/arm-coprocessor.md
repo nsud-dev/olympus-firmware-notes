@@ -29,6 +29,8 @@ Some hardware details from its device tree: Linux sees 36 MB of RAM at ARM-physi
 | OM-5 1.2 | sub-block 0x44ba0000; identical DTB; the itron debug shell removed | 4.4.127 (2022-07-14) | CYW43455 |
 | OM-5 II 1.1 | sub-block 0x44640000; a single squashfs root | **5.10.197** | **CYW43439** (not drop-in) |
 | OM-1 / OM-1 II | bank 9 | **AArch64 Cortex-A53**, ATF, 4.14.222 | CYW43455 |
+| PEN-F 3.1, E-M5 II 4.1 | **none**: no ELF, kernel or device tree in any block | none; the MN103 drives Wi-Fi itself over SDIO (`wlanapi_sdio_*`) [code] 2026-11-21 | BCM43362 |
+| E-M5 (Mark I) 2.3 | none | no Wi-Fi code [code] 2026-11-21 | none |
 
 ### OM-1 / OM-1 II: two Cortex-A53 cores (2026-11-19)
 

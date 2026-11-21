@@ -51,6 +51,10 @@ Related: [Boot and section loading](boot-and-sections.md), [Memory map](../hardw
   type 'E', header = trailer, word checksum over the descrambled payload; version not checked. Ran it natively in
   om-emu: stock and a Live ND test build pass; a flipped byte gives 0x3211, OM-5 model 0x3202, truncation 0x3202, all with
   **0 flash writes**. [code] 2026-11-07
+- **It does not check nested sub-block checksums** [emu] 2026-11-21: a block 2 sub-block with a wrong checksum and the
+  outer block's checksum fixed passes with 0x0 in modes 2, 1 and 0 (only "... Gets" per component). So nothing before
+  flashing catches that; preflash's `subblock-sum` self-test case can't show F3 failing. A flipped byte (outer checksum
+  wrong) still gives 0x3211.
 - Lamp (FIRMUP_LED 0x601fca3a): solid while working (255), slow blink = success (250), **fast blink = failure** (100);
   then it waits for power off. [code]; solid/blink seen [camera]
 - **The updater lives in block0 and needs almost the whole boot:** boot stub, loader, all sections, USRSTART2-5,
@@ -100,6 +104,22 @@ What it checks:
 - **A1-A2:** native evidence for every absolute address, and plain MN10300 instructions only.
 - **E1-E2:** om-emu boot plus a 13-step script behaving as stock, and which changed bytes ran with nothing armed.
 
+- **N1 (2026-11-21):** negative control: the manifest's feature probes must match the build and not the previous
+  build (`--prev`).
+- **W1 (2026-11-21, on with `--emu`):** om-emu write watch over free space (regions.csv, census.csv) and the
+  build's new bytes; canary stores in idle-boot code are its positive control (280 canary writes seen in the self-test) [emu].
+- **F5 (2026-11-21):** nested sub-block checksums. The camera's own validator (F3) only checks the outer
+  USR/OSD/RESCOM/LUKE/PIC blocks: it returns 0x0 on a file whose nested sub-block checksum is wrong [emu]
+  (the validator in om-emu, modes 2/1/0), so F5 checks them statically.
+
+**Self-test (2026-11-21, om10mi-mods method):** `selftest.py` builds deliberately broken images (bad checksum, section
+overlap, boot-stub byte, unloaded hook, section-1→4 and section-2→7 boot races, dangling address, AM33 instruction,
+misaligned store, foreign region, text past a section end, recovery-path byte, replaced body, probe that matches the
+previous build, nested sub-block checksum) and runs a real build that boot-looped on the camera: each must FAIL its named check, stock
+must not. All static cases as required [code]; om-emu cases (E1 hang, E2 unarmed stub, W1 writes to free RAM, F3
+flipped byte = 0x3211 checksum_error) as required [emu] (2026-11-21); every check except the WARN-only F4/B3 has now been shown failing, and stock passes with W1 on
+.
+
 Calibration: stock PASS, a current HHHR test build PASS with warnings, **the build with the boot-race bug FAIL on its 0x601fce30 hook (the real dead-at-power-on bug)**,
 and the corrupt/overlap/unloaded test files FAIL. Its limits: it can't see bugs that only happen when armed, the real
 boot chain, indirect calls, or blocks 1-4 beyond a diff.
@@ -114,7 +134,7 @@ boot chain, indirect calls, or blocks 1-4 beyond a diff.
 3. Nothing of ours acts during boot: guard boot-reached hooks and keep them no-ops until the shooting app is up, so
    the update boot runs stock code. [inferred]
 4. Arm state only in RAM (resets come up disarmed); read request files only on an armed user action, never at boot.
-5. Safe-mode key (hold a key at power-on → all hooks stay off) and, later, a boot counter in sub-CPU backup words.
+5. Safe-mode key (hold a key at power-on → all hooks stay off) and, later, a boot counter in sub-CPU backup words. Camera-proven pattern on the OM-5 II (OMKit, 2026-11-21 read): the loader asks the key-state routine whether OK is held and skips all added code [camera] theirs; E-M5 III key-state routine not looked up. details
    Both need research (key reader address, free backup words). [inferred]
 6. A hang→reboot watchdog only while armed, never at boot (it would turn a boot hang into a bootloop).
 

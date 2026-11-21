@@ -39,6 +39,23 @@ How they compare across bodies:
 
 "Analyse OM-1 and OM-1 II firmware" (2026-11-05).
 
+## Older generations: TruePic VII and VI (2026-11-21)
+
+From the E-M5 II 4.1, PEN-F 3.1 and E-M5 (Mark I) 2.3 firmware: [code] for the measurements, [inferred] for the chip reading.
+
+| | E-M5 III (VIII) | E-M5 II, PEN-F (VII) | E-M5 Mark I (VI) |
+|---|---|---|---|
+| control CPU | MN103 / AM33-2, CPU0-2 | same family, CPU0-2 | MN103 family, CPU0-1 named |
+| peripheral register constants shared with the E-M5 III | (OM-5: 94%) | 21-22% (E-M5 II vs PEN-F: 98%) | 5% |
+| image engine | 320-bit microcode jobs | same program format, older job set | no programs of that format |
+| ARM co-processor | Cortex-A9, Linux | none | none |
+| Wi-Fi | CYW43455 via the ARM | BCM43362 driven by the MN103 over SDIO | none |
+| GPU | DMP, OpenVG | DMP, OpenVG | a GPU, no OpenVG |
+
+So the E-M5 II and PEN-F are one chip, a different one from the E-M5 III's, and the E-M5 Mark I is a third. The same
+address regions (0x98-0x9f, 0x8ff0) hold peripherals on all of them, but which registers sit where mostly changed.
+Details and what it means for our features: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+
 ## The dc13 chip
 
 Linux on the ARM side describes the hardware in a "device tree" (DTB), and that tree names the chip. On the E-M5 III,

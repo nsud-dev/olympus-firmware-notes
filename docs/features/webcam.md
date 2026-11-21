@@ -46,3 +46,4 @@ Tests 2 to 2d were built with another tool; we reviewed them and checked the byt
 UVC interface descriptors (video control + streaming) are in block0 of the OM-5 1.2, OM-5 II 1.1 and OM-1 II 1.3, with
 `WEB_CAMERA` strings; the E-M1 III 1.6, OM-1 1.9 and PEN-F 3.1 have neither (any webcam use on those goes another way,
 not checked). [code] [body comparison](../bodies/comparison.md#our-features-on-the-other-bodies-2026-11-20)
+- **E-M5 II 4.1 (2026-11-21):** no UVC descriptors (same as the PEN-F); the PC tether (`camecon`) code is present. [code] See [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

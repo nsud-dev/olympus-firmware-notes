@@ -37,3 +37,9 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 
 - Plan order: A face select + release priority (OM-5 donor) → B C-AF center start → C tracker swap study.
 
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- Face and eye detection code is present on both older bodies (`face_*`, `eye*`, `mdet_*` strings), as on the E-M5 III; neither has any deep-learning detection names. So nothing from this page's "portable" list has been checked on them, and DL subject detection is impossible there for the same hardware reason as on the E-M5 III. [code]+[inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

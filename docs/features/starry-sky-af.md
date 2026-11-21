@@ -81,3 +81,9 @@ uses 0x6079e000..0x6079e141. 2026-11-05 [code]
 
 Steps: research ✓, armed engine (built), settings/menu, flash learning, polish. Open: what reads the
 Accuracy/Speed setting.
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- Neither the E-M5 II nor the E-M5 Mark I has astro AF strings; any port would be new AF code on a different chip. Not checked further. [code]+[inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

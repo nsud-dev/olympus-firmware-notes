@@ -4,7 +4,7 @@ Notes and tools from taking apart the firmware of the Olympus OM-D E-M5 Mark III
 
 The E-M5 III shares a lot of hardware with newer bodies like the OM-5 and E-M1 III, but it never got some of their
 features. I wanted to understand how the camera works and whether some of those features could run on it. Along the
-way I've compared it with the OM-5, OM-5 II, E-M1 III, OM-1 and PEN-F.
+way I've compared it with the OM-5, OM-5 II, E-M1 III, OM-1, PEN-F, E-M5 II and E-M5 (Mark I).
 
 **There's no firmware in this repo.** No firmware images, decoded blocks, disassembly, decompiled vendor code or
 patched builds. It's my own write-up of how things work, plus my own tools. To follow along you'll need your own copy

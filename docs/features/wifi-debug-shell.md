@@ -145,3 +145,10 @@ Read from the C decompile (`seg_6140.bundle.c`) and block0 strings.
 
 
 - One connection per power-on: after the first `nc` session is closed, a new connection gets no answer until a power cycle; the prompt appears only after the first Enter. Scripts must be the first and only connection. [camera] 2026-11-12
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **E-M5 II 4.1:** shell commands (`skey`, `memdump`, `sdk api`) and the card updater are present; Wi-Fi runs on the MN103 itself (BCM43362 over SDIO, no ARM), so the property-callback entry route must be found again. [code]+[inferred]
+- **E-M5 (Mark I) 2.3:** shell commands present, no Wi-Fi code at all. [code]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

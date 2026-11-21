@@ -12,6 +12,27 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 Status: read-only research 2026-11-07, nothing built. Roadmap: recording limit,
 OM-Log400.
 
+## How a movie is made (pipeline facts, 2026-11-21)
+
+- Sensor modes per movie size and the crop/scale table: see [sensor modes](../hardware/sensor.md#sensor-modes-2026-11-21).
+  4K = 1:1 centre crop, C4K = full width, FHD = 2x2 binned band. [code]+[inferred]
+- The movie scaler is the fixed image pipeline set from that table (non-integer ratios such as 5184 → 4096). DSP job 10 is
+  not part of it (its caller is the still task). [code]+[inferred]
+- **Encoder:** H.264 only, Panasonic-style AVpi framework (`CAvpiVenH264*`, `SAvScaEncVideoParam` with Hsize/Vsize/MaxHsize/
+  MaxVsize). Rate control's level table (jump at 0x6117e4ba) stops at **Level 5.1** (983040 macroblocks/s, 36864 per
+  frame). No HEVC (the OM-1 adds it). [code]
+- **Where the recording size is set:** switch at 0x603ecf4b in the record-init chain. Resolution byte 5 → 4096 x 2160,
+  6 → 3840 x 2160, 2 → 1280 x 720, 3 → 640 x 480, 4 → 640 x 360, anything else → 1920 x 1080 (Hsize +16, Vsize +20, size
+  word +56). Max size +24/+28 is 4096 x 2160 for 5 and 6, else 1920 x 1080. Bitrate rows of 80 bytes per code from
+  0x6053a584. The same size constants recur in many other movie modules (pipeline setup, YC buffers, display, metadata). [code]
+- About 21 encoder branches test `height == 2160` for 4K special cases; two test `>= 2160`. [code]
+- The encoder's video-source stage (CAvpiVsoVideoSource 0x6118ce61..0x6118d0ff) knows a fixed size list: 720 x 480 to
+  1920 x 1088, **2048 x 1536, 2560 x 1920**, 3840 x 2160, 4096 x 2160; other sizes get a small default class. [code]
+- In-camera playback (CAvpiVdeCodec 0x6116ac26) rejects width > 4096 or height > 2160. [code]
+- Movie YC 4:2:0 pool 0x2f00 (`IMGBUFF_ALOC_MOV_YC420`): 9 slots of 0xca8000 = 4096 x 2160 x 1.5. [code]
+- Pipeline load today: 4K30 about 288 Mpx/s, C4K24 about 350 Mpx/s; C4K has no 30p. Same tables in the E-M1 III, so this
+  looks like a processor limit, not segmentation. [inferred]
+
 ## The 29:59 recording limit
 
 The limit is a maximum recording time in milliseconds that the movie encoder is given when recording starts.
@@ -49,3 +70,11 @@ A log profile records a very flat tone curve to keep more highlight and shadow d
 - Next: follow OM-5 frame_param `mode_colortone` (+32) into the develop-parameter builder and its resource-loader calls
   (OM-5 loader 0x60178a66) to the bank entry chosen for 23/24; then a cheap forced picture-mode-23 movie test on E-M5 III.
   [inferred] 2026-11-07
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **Recording limit:** the 1800000 ms (30-minute) constant is present on both the E-M5 II 4.1 and the E-M5 Mark I 2.3, next to 7200000; where it is used was not traced. [code]
+- **OM-Log400:** neither has the `expanded_contrast` plumbing the E-M5 III kept, so the cheap route on this page doesn't exist there. [code]
+- Their movie code is a different, older stack (the E-M5 II shares the PEN-F's `movp_*` files; the E-M5 Mark I has QuickTime/MJPEG writers), so nothing here carries over directly. [code]+[inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

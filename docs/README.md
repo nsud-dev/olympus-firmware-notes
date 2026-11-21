@@ -16,7 +16,7 @@ Conventions used throughout:
 |---|---|
 | [Guides](guides/README.md) | how processes on the camera work, explained without the reference detail; the place to learn |
 | [Overview](overview.md) | everything investigated so far, with the state of each feature |
-| [Body comparison](bodies/comparison.md) | E-M5 III, OM-5, OM-5 II, E-M1 III, OM-1, OM-1 II, PEN-F side by side |
+| [Body comparison](bodies/comparison.md) | E-M5 III, OM-5, OM-5 II, E-M1 III, OM-1, OM-1 II, PEN-F, E-M5 II, E-M5 Mark I side by side |
 | [Glossary](reference/glossary.md) | Olympus naming and our shorthand |
 | [Gotchas](reference/gotchas.md) | things that cost a flash or a day |
 

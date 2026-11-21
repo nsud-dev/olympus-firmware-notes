@@ -56,7 +56,8 @@ firmware's own register-name table its threshold registers are **HILIGHT1-4 = VS
 0x61e8edc8 at boot (`boot_copy_callback_tables`); the word index ×4 is the byte offset. [code] (2026-11-05) Useful
 ones:
 
-- DMA7 +0x30 (control), DMA9 +0x38 (Y address), DMA10 +0x3c (C address) [code]
+- DMA7 +0x30 (control), DMA9 +0x38 (Y address), DMA10 +0x3c (C address) [code]. 2026-11-21: c3d's IMG2 buffer goes to DMA10,
+  so DMA9..11 may be IMG1..3 addresses instead [emu] ([graphics pipeline](graphics-pipeline.md) 6a) [open]
 - HIST1-3 +0x244..+0x24c, HILIGHT1-4 +0x250..+0x25c, AREA28-30 +0x320..+0x328 [code]
 - Don't read INTST1 (index 5), INTST2 (0xf1) or SRAM1/2 (0xeb/0xec): reading them has side effects. [code]
 

@@ -99,3 +99,10 @@ the hook can run, or if the hook tests the section's ready bit first. Checking t
 The idea of keeping mod settings in the unused tail of the camera's own settings image comes from the Caduceus E-P7
 project's internal-storage notes, which follow the Caduceus OM-3 port. This page applies it to the E-M5 III, adds
 native menu rows, and reports the camera result.
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **E-M5 II 4.1:** same `MODE_*` key-table design (4192 names in block 2) and the same `SubApp`/`OlyApi` layers, so the method carries; the saved-values store differs (no "acc flash write" settings image, as on the PEN-F). New addresses throughout. [code]+[inferred]
+- **E-M5 (Mark I) 2.3:** no `MODE_*` key table and an older framework (no Rhapsody OXF); a re-port from scratch. [code]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

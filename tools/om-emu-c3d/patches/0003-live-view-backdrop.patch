@@ -1,0 +1,39 @@
+diff --git a/emu/host/session.mjs b/emu/host/session.mjs
+index fa1aadd..da5cc2f 100644
+--- a/emu/host/session.mjs
++++ b/emu/host/session.mjs
+@@ -57,6 +57,18 @@ import path from 'node:path';
+ import zlib from 'node:zlib';
+ import { createHash } from 'node:crypto';
+ import { UsageError, intValue } from '../checks/lib/args.mjs';
++// c3d-layer patch (2026-11-21): OM_BACKDROP = a 720 x 480 raw RGB file shown under every plane in place of live view
++// (src/dev/vsccompose2.mjs reads globalThis.__omBackdrop; RGB -> YCbCr by the firmware's integer BT.601)
++if (process.env.OM_BACKDROP) {
++  const b = fs.readFileSync(process.env.OM_BACKDROP), w = 720, h = 480, ycc = new Uint32Array(w * h);
++  if (b.length !== w * h * 3) throw new Error(`OM_BACKDROP: ${b.length} bytes, not 720 x 480 RGB`);
++  for (let i = 0; i < w * h; i++) {
++    const r = b[3 * i], g = b[3 * i + 1], bl = b[3 * i + 2];
++    ycc[i] = ((((r << 15) - 27440 * g - 5328 * bl) >> 16) + 128 & 0xFF) << 16 | ((((-11056 * r - 21712 * g + (bl << 15)) >> 16) + 128) & 0xFF) << 8
++      | ((19595 * r + 38470 * g + 7471 * bl) >> 16) & 0xFF;
++  }
++  globalThis.__omBackdrop = { w, h, ycc };
++}
+ 
+ export const PRESS_MS = 150, HOLD_MS = 2000, SETTLE_MS = 600, DIAL_MAX = 8, READ_MAX = 0x10000;
+ export const HITS_PER_STEP = 100;      // a record's hits: the first this many, the rest counted (hits_dropped)
+diff --git a/emu/src/dev/vsccompose2.mjs b/emu/src/dev/vsccompose2.mjs
+index 6a128af..db9d5c5 100644
+--- a/emu/src/dev/vsccompose2.mjs
++++ b/emu/src/dev/vsccompose2.mjs
+@@ -144,6 +144,11 @@ export function compose2(v, c) {
+     if (view !== 0x3F) v.noteRecord(NOTE.VIEW, c, 0, view);
+     hdr[HDR.WIDTH] = vw; hdr[HDR.HEIGHT] = vh; hdr[HDR.OX] = ox; hdr[HDR.OY] = oy;
+     out.fill(bg, 0, vw * vh);
++    // c3d-layer patch (2026-11-21): an optional backdrop standing in for live view (om-emu has no sensor or IMG1 format 0):
++    // globalThis.__omBackdrop = {w, h, ycc: Uint32Array of Cr << 16 | Cb << 8 | Y}, drawn under every plane when its
++    // size is the window's, so the OSD's and IMG2's transparency shows against a picture
++    const bd = globalThis.__omBackdrop;
++    if (bd && bd.w === vw && bd.h === vh) out.set(bd.ycc.subarray(0, vw * vh), 0);
+     const L = blendLut();
+     // c3d-layer patch (2026-11-21): kind 2's IMG plane p (0 IMG1 .. 2 IMG3), from the E-M5 III Color Creator open in
+     // the lab (VSC writes after INFO, X): address DMA9 + 4p (0x3c = 0xa4423ec0, c3d's draw buffer A), stride DMA15 + 4p

@@ -150,7 +150,7 @@ The GUI is busy until c3d answers each request, so a key press waits for the whe
 | texture sheets | block 2 graphics groups, loaded at start (0x60c27449); pixel order is the GPU's own, copied as bytes | [code] |
 | draw buffers | 256 × 256 × 4 bytes, alpha first | [camera] |
 | debug | user shell `c3d dbginfo` / `c3d dbgall` | [camera] |
-| the GPU's registers and command format | not looked at yet | open |
+| the GPU's registers and command format | DMP SMAPH-F at 0x9c200000, command lists at +0x10d0; opcodes not decoded ([c3d GPU](../hardware/c3d-gpu.md)) | [code] |
 
 Sources: [graphics pipeline: c3d and OpenVG](../hardware/graphics-pipeline.md#5b-the-second-drawing-engine-c3d-and-openvg-2026-11-20),
 [profile editor](../features/pen-f-profiles.md#on-camera-editor).
@@ -186,9 +186,9 @@ Sources: [profile editor](../features/pen-f-profiles.md#on-camera-editor).
 | add an icon, a label or a digit | a picture widget child with up to eight states, using stock or own pictures | camera |
 | new label text that is a picture | hook the picture lookup and serve your own picture | camera |
 | a slider | the stock slider pictures as children, one marker per value | camera |
-| lines and boxes over live view | the drawing library's line and rectangle, from a task, after the GUI's own redraw | not tried |
+| lines and boxes over live view | the drawing library's line and rectangle, from a task, after the GUI's own redraw | emulator only (2026-11-21), not yet on the camera |
 | run an existing wheel renderer | start the draw kind, size the work buffer, load its sheets, pick the layout | camera |
-| draw your own vector graphics with OpenVG | call the library directly | **not tried; research coming** |
+| draw your own vector graphics with OpenVG | own renderer in a stub draw kind (CC2, MC, SC or TG): the kind-by-kind table and 7-step how-to are in [c3d GPU section 9](../hardware/c3d-gpu.md#9-the-olympus-driver-kind-by-kind-2026-11-21) | **not tried** |
 
 ## 8. Following along: the profile editors
 

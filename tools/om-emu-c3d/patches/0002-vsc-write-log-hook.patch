@@ -1,0 +1,12 @@
+diff --git a/emu/src/dev/vsc.mjs b/emu/src/dev/vsc.mjs
+index 0829555..b9b7dca 100644
+--- a/emu/src/dev/vsc.mjs
++++ b/emu/src/dev/vsc.mjs
+@@ -443,6 +443,7 @@ export class Vsc {
+       // done callback's word 0x62a3eaf8, polled by 0x501d6c28..63 before a start)
+       const histStart = !LATER && local === HIST1 && (value & 1) !== 0;
+       if (histStart && ch.hist !== HIST_IDLE) { this.recordError(E.HIST_UNMODELLED, c, local, value, 3, ch.hist, 0); throw BUS; }
++      if (globalThis.__vsclog && ch.w[local / 4] !== value) globalThis.__vsclog(c, local, value);
+       if (local === R.INTST1 || local === R.INTST2) ch.w[local / 4] &= ~value;          // write-1-to-clear
+       else ch.w[local / 4] = value;
+       this.dbg[this.wFlags(c) + local / 4] = 1;

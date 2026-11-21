@@ -58,8 +58,15 @@ Added 2026-11-19/20.
   labels ("Filter", "Level") are new pictures; hold-OK resets to the stored defaults; the coloured box follows the
   filter. [camera] 2026-11-20
 - **Super Control Panel.** Sharpness and contrast per profile slot work from the Super Control Panel. [camera] 2026-11-20
-- **Side-bar editor.** The editor has an OM-3 / OM-5 II style side bar (not the PEN-F top bar): rows for the profile's
-  values, set with the dials, with the stock bottom slider. Rows and sliders work. [camera] 2026-11-20
+- **Side-bar editor.** The editor has an OM-3 / OM-5 II style side bar (not the PEN-F top bar). UP/DOWN moves
+  between rows; values show as stock ± digits, and slider rows get the stock bottom slider. Rows: the wheel (Color /
+  Vivid, or Filter / Level), Sharpness, Contrast, Highlight & Shadow (front dial highlight, rear dial shadow), Midtone,
+  and on Mono also Shading, Film Grain and Mono Color. Holding OK resets the selected row. [camera] 2026-11-20
+- **Per-profile tone curve, PEN-F style.** In Color and Mono Profile, the Highlight & Shadow and Midtone settings
+  (from the side bar, the Super Control Panel tile or the stock curve screen) edit the profile's own curve, and live
+  view and photos follow it; other picture modes keep the shared curve. The curve rows show the stock curve screen's
+  grid and the live histogram behind it, when the live-view histogram display is on. Playback RAW edit still uses the
+  shared curve for profile shots. [camera] 2026-11-20
 - **Pitfall found on the way:** a picture widget holds at most 8 picture states; a ninth state reads a wild pointer
   and reset the camera. See [gotchas](../reference/gotchas.md). [camera]+[code] 2026-11-20
 - Every value the editor changes is a per-slot saved setting, so a card look loader of the Caduceus kind can fill the
@@ -83,3 +90,10 @@ Added 2026-11-19/20.
 - Plan in five steps: back-end test, selectable slots, card-loaded looks, on-camera editor, extras. Slots and editor are
   done; card-loaded looks are next. [inferred]
 
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **E-M5 II 4.1:** the `ColorCreator2` / `MonochromeCreator` back end that the E-M5 III kept is absent [code]. The PEN-F has the whole feature and is the same chip (98% of register constants) with mostly the same code (971 shared source files), so a PEN-F → E-M5 II port is the natural route there, as the OM-5 is for the E-M5 III. [inferred]
+- **E-M5 (Mark I) 2.3:** no back end and no close donor. [code]+[inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

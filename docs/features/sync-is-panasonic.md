@@ -26,3 +26,9 @@ meaning is guessed). The Panasonic status is 0x6020d094 (`L_STAT_PANA`). Non-Pan
 
 A separate aperture-ring hack exists in azqeurio/om-c-firmware (dbv0.3.0). Read it to learn only, never copy; credit it
 and point users there.
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- The lens-communication strings this analysis used (`copt`, `L_STAT_PANA`) are absent from the E-M5 II 4.1 and the E-M5 Mark I 2.3 firmware, so the E-M5 III findings here don't carry over; any route would need its own study. [code]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

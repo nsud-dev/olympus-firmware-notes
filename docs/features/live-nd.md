@@ -191,3 +191,9 @@ Coexisting with a looks preview (2026-11-19): the planned looks live-view applie
   the E-M5 III's memory (about 1 GB; the E-M1 III's needs about 2 GB). [inferred]
 - Capping the burst frame rate to get longer frames was the wrong model: the OM-5 never caps the frame rate, it asks
   the sensor for longer frames (kind 0x400, fps 0). [camera]
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **E-M5 II 4.1:** no Live ND code. Its image engine runs the same 320-bit program format (stub and memcpy job byte-identical to the E-M5 III's), so the OM-5 jobs 11/12 *might* load, but the job setters, frame pools, sensor modes and capture path are different code on a different chip (21% of register constants shared). A port would be a new project with the PEN-F as the code reference, starting with one OM-5 job run on an E-M5 II. [code] for the facts, [inferred] for the verdict.
+- **E-M5 (Mark I) 2.3:** no programs of this format anywhere in the firmware, so there is no engine to run the merge; very likely impossible. [code]+[inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

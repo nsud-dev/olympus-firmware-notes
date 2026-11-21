@@ -37,6 +37,8 @@ The first bytes of each block (the "magic") name the camera model:
 | OM-5 1.2 | OLY_E_144_1200 | `OE 14 40` | 5 |
 | OM-5 II 1.1 | OLY_E_148_1100 | `OE 14 80` | 5 |
 | PEN-F 3.1 | OLY_E_122_3101 | `OE 12 20` | 4 |
+| E-M5 II 4.1 | OLY_E_118_4100 | `OE 11 80` | 4 (block0 at 0x40300000, base 0x60021020; 2026-11-21) |
+| E-M5 (Mark I) 2.3 | OLY_E_097_2300 | `OE 09 70` | 5 (block0 at 0x902c0000, analysis base **0x7e421020**; a 64 KB MN103 block, type 0x107, at 0x40060000; 2026-11-21) |
 | OM-1 1.9 | OLY_E_143_1900 | `OE 14 30` | 6 (block 5 = sub-CPU firmware) |
 | OM-1 II 1.3 | OLY_E_146_1300 | `OE 14 60` (the last block carries the OM-1 magic) | 6 |
 

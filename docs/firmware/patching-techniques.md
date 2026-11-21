@@ -428,6 +428,32 @@ afterwards ([ARM co-processor](../hardware/arm-coprocessor.md), [HHHR](../featur
 |---|---|---|---|
 | E-M5 III · 1.7 | [camera] | this project | powered up and down cleanly around shots, 2026-11-06 |
 
+## 21. Load feature code from the card
+
+**What it gets you.** Flash the camera once with a small loader; after that, feature code and its updates are files
+on the card. A bad module costs a card edit, not a reflash, and no card (or OK held at power-on) gives a stock camera.
+
+**Method (OMKit on the OM-5 II).**
+- One 5-byte hook in a late start-up callback (live view already up) only creates a low-priority task.
+- The task waits for every section's ready bit, keeps a once-per-power-on flag in a section reloaded at each boot,
+  skips everything when OK is held, retries the card open for a late mount, checks magic, length, sum and version,
+  reads the file into free RAM and jumps into it.
+- The loaded core installs its hooks into the code **in RAM**: through the uncached alias, byte by byte, first byte
+  last, each hook a 5-byte jump inside one 16-byte line, displacing only position-independent instructions.
+
+**Pitfalls.**
+- Nothing loaded this way runs before the loader: boot-time guards, section-loading fixes, fault handlers and changes
+  to what the boot copies must stay in the flashed image.
+- Writing firmware code through the cached address resets the camera (memory protection, per OMKit); use the uncached
+  alias. Data tables the firmware reads through the cache need the same care.
+- Quick power off-on and light sleep keep the loaded code running; auto power-off is a new boot.
+
+**Extend it.** A module interface (one function table that only grows) lets features ship separately.
+
+| camera · firmware | status | by | notes |
+|---|---|---|---|
+| OM-5 II · 1.1 | [camera] | OMKit (necrostaz) | loader on the owner's camera since 2026-10-30; Wi-Fi and USB start paths not checked |
+
 ## Rules for every build
 
 The pre-flash checks in [recovery](recovery.md#pre-flash-check-suite-every-build-2026-11-07) test most of these

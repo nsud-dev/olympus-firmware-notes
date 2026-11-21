@@ -1,0 +1,86 @@
+diff --git a/emu/src/dev/vsccompose2.mjs b/emu/src/dev/vsccompose2.mjs
+index a53d493..6a128af 100644
+--- a/emu/src/dev/vsccompose2.mjs
++++ b/emu/src/dev/vsccompose2.mjs
+@@ -103,6 +103,8 @@ const K = KINDS[BOARD.vsc.kind] ?? null;
+ // kind 3: whether the build sets the level words (a build that names none draws its planes at the full level)
+ const LEVELS = BOARD.vsc.kind !== 3 || BOARD.vsc.levels;
+ const FULL_LEVEL = 0x100;
++// c3d-layer patch: whether this body's IMG planes are drawn (kind 2 only; kind 3's IMG registers are not read)
++const IMG_KIND2 = BOARD.vsc.kind === 2;
+ 
+ export function compose2(v, c) {
+   const ch = v.ch[c], m = ch.m, mf = v.mFlags(c), t = v.clock.t, out = v.out;
+@@ -143,9 +145,60 @@ export function compose2(v, c) {
+     hdr[HDR.WIDTH] = vw; hdr[HDR.HEIGHT] = vh; hdr[HDR.OX] = ox; hdr[HDR.OY] = oy;
+     out.fill(bg, 0, vw * vh);
+     const L = blendLut();
++    // c3d-layer patch (2026-11-21): kind 2's IMG plane p (0 IMG1 .. 2 IMG3), from the E-M5 III Color Creator open in
++    // the lab (VSC writes after INFO, X): address DMA9 + 4p (0x3c = 0xa4423ec0, c3d's draw buffer A), stride DMA15 + 4p
++    // in 64-byte units (0x10: 1024 bytes), area AREA1 + 12p in the OSD areas' three-word form (0x1ce0100 / 0x780078 /
++    // 0x100: 256 x 256 at (432, 112) of the 720 x 480 window, as the camera's c3d log says), control IMGPLANE1 + 4p
++    // (0x301100: format (x >> 20) & 0xf = 3, bit 12 per-pixel alpha, 0x100 the level; IMG1's 0x100 at the start is
++    // format 0, YC), enable DMA7 bit 5 - p (0x17). Format 3: 32-bit words, byte 0 alpha (0 transparent, 255 opaque,
++    // straight, not premultiplied: the camera's dump has colour above alpha), bytes 1..3 B, G, R (the camera's dump,
++    // decoded); converted by the firmware's integer BT.601 and blended over what is below. Only format 3 at 1:1 is
++    // drawn; format 0 (live view) and a scaled plane are refused as unmodelled (I for the field split)
++    const drawImg2 = (p, info) => {
++      let base, ld, w1, w2, w3, ctl, rsz;
++      if ((base = need(0x38 + 4 * p)) === null || (ld = need(0x50 + 4 * p)) === null || (w1 = need(0xA4 + 12 * p)) === null ||
++          (w2 = need(0xA8 + 12 * p)) === null || (w3 = need(0xAC + 12 * p)) === null || (ctl = need(0x194 + 4 * p)) === null) return E.UNWRITTEN;
++      rsz = mw(R.RSZ[p]) ? m[R.RSZ[p] / 4] : 0;
++      const fmt = (ctl >>> 20) & 0xF;
++      if (fmt !== 3) { cerror(E.FMT_UNMODELLED, 0x194 + 4 * p, ctl, p, 0, 0); return E.FMT_UNMODELLED; }
++      if (rsz) { cerror(E.RSZ_UNMODELLED, R.RSZ[p], rsz, p, 0, 0); return E.RSZ_UNMODELLED; }
++      if (!(ctl & 0x1FF)) { v.noteRecord(NOTE.PLANC_ZERO, c, 0x194 + 4 * p, p); return 0x101; }
++      const ox = m[R.AREA22 / 4] >>> 16, oy = m[R.AREA23 / 4] >>> 16, vw = m[R.AREA22 / 4] & 0xFFFF, vh = m[R.AREA24 / 4] & 0xFFFF;
++      const xs = w1 >>> 16, ys = w2 >>> 16, pw = w1 & 0xFFFF, ph = w3 & 0xFFFF, stride = ld * 64;
++      if (xs < ox || ys < oy || !pw || !ph || xs - ox + pw > vw || ys - oy + ph > vh || (w2 & 0xFFFF) !== ys) {
++        cerror(E.WINDOW, 0xA4 + 12 * p, w1, w2, w3, 0); return E.WINDOW;
++      }
++      if (!stride || stride < 4 * pw || !v.bus.span(base, (ph - 1) * stride + 4 * pw)) { cerror(E.DMA_RANGE, 0x38 + 4 * p, base, stride, p, 0); return E.DMA_RANGE; }
++      const x0 = xs - ox, y0 = ys - oy, perPixel = (ctl & 0x1000) !== 0;
++      v.dset(info, 0x100);
++      [x0, y0, pw, ph, base, stride, 0].forEach((x, i) => v.dset(info + 4 + 4 * i, x));
++      const row = new Uint8Array(4 * pw);
++      for (let j = 0; j < ph; j++) {
++        v.bus.read((base + j * stride) >>> 0, row, 0, 4 * pw);
++        const d0 = (y0 + j) * vw + x0;
++        for (let i = 0; i < pw; i++) {
++          const a = perPixel ? row[4 * i] : 255;
++          if (!a) continue;
++          const b = row[4 * i + 1], g = row[4 * i + 2], r = row[4 * i + 3];
++          const y = ((19595 * r + 38470 * g + 7471 * b) >> 16) & 0xFF;
++          const cb = (((-11056 * r - 21712 * g + (b << 15)) >> 16) + 128) & 0xFF;
++          const cr = ((((r << 15) - 27440 * g - 5328 * b) >> 16) + 128) & 0xFF;
++          const dst = out[d0 + i];
++          if (a === 255) { out[d0 + i] = cr << 16 | cb << 8 | y; continue; }
++          const k = 255 - a, mixc = (s, d) => ((s * a + d * k + 127) / 255) | 0;
++          out[d0 + i] = mixc(cr, dst >>> 16 & 0xFF) << 16 | mixc(cb, dst >>> 8 & 0xFF) << 8 | mixc(y, dst & 0xFF);
++        }
++      }
++      return 0;
++    };
+     for (let n = 0; n < PLANES; n++) {
+       const p = order[n], info = D.PLANE + 32 * p;
+       if (!(dmaen & (0x20 >>> p)) || !(view & (1 << p))) continue;
++      if (p < P_OSD1 && IMG_KIND2) {                                    // c3d-layer patch: kind 2's 32-bit IMG planes
++        const code = drawImg2(p, info);
++        if (code) { v.dset(info, code); hdr[HDR.SKIPPED] |= 1 << p; } else hdr[HDR.DRAWN] |= 1 << p;
++        continue;
++      }
+       if (p < P_OSD1) { cerror(E.FMT_UNMODELLED, 0, p, 0, 0, 0); v.dset(info, E.FMT_UNMODELLED); hdr[HDR.SKIPPED] |= 1 << p; continue; }
+       const q = p - P_OSD1, P = K.palette(q);
+       let base, ld, w1, w2, w3, planc, rsz, sel = 0;
+diff --git a/emu/src/lab/display.mjs b/emu/src/lab/display.mjs
+index 7b24a1c..64d18c6 100644
+--- a/emu/src/lab/display.mjs
++++ b/emu/src/lab/display.mjs
+@@ -1322,6 +1322,7 @@ export class DisplayLab extends OsdLab {
+       // edge question for A6 (no attach records these planes: under camapp 3 DISPLAY cmd 5 shows the through image's
+       // bank as IMG2 behind the menu, docs/hle-gaps.md 4.2.4). IMG1 keeps its attach rule (its 1:1 on channel 2 rests
+       // on A12)
++      if (p > 0 && BOARD.vsc.kind === 2) continue;                    // c3d-layer patch: kind 2's IMG2/IMG3 are drawn only at 1:1 (vsccompose2.mjs drawImg2 refuses a scaled one)
+       if (p > 0 && this.unscaled(c, p)) continue;
+       const regs = name === 'IMG1' ? this.img_steps(c, true) : null;
+       let fit = name === 'IMG1' ? (this.decoded_fit(c, regs) ?? this.img_attach.get(c) ?? null) : null;

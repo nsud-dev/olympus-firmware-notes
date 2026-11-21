@@ -93,3 +93,9 @@ What they share:
 - The IBIS command interface, found 2026-11-06 (it hadn't been researched before): an IS sub-CPU with a 57-command set
   including target-position, constant-speed and rotation drives ([hardware/stabiliser.md](../hardware/stabiliser.md),
   verdicts in). [code]
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- Most ideas here reuse Live ND's raw-frame averaging on image-engine job 11. The E-M5 II's engine runs the same program format but has no job 11 or Live ND plumbing, so those ideas would need the same new port as Live ND there. The E-M5 Mark I has no programs of this format, so they don't apply. Shooting tweaks that are plain settings patches would need their own addresses on each body. [code]+[inferred]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

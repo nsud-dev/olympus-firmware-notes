@@ -61,3 +61,10 @@ The test build makes stacking use "Set number of shots", clamped to 3-8. All 12 
 There are variants on stock + any-lens and on our Live ND test base; the address check passed. [code]
 
 
+
+## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+
+- **E-M5 II 4.1:** in-camera stacking code is present (`MODE_FOCUS_STACKING_ONOFF`, `MODE_FOCUS_STACKING_ENABLED_LENS`, `DevRec_Rec::recordMediaFocusStacking`, "Wait For Combining Finish"). The E-M5 III-shaped `fcs_check_focus_stacking_enable` was not found by shape (best 13 of 25 instructions), so the lens gate needs its own trace before a patch; whether the stock menu offers stacking was not checked. [code]
+- **E-M5 (Mark I) 2.3:** no stacking or focus-bracket strings; nothing to patch. [code]
+
+Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

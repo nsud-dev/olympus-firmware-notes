@@ -1,0 +1,13 @@
+om-emu-shot-fresh.patch: change to om-emu (Copyright (c) 2026 om-emu contributors, MIT licence).
+diff --git a/emu/host/session.mjs b/emu/host/session.mjs
+index fa1aadd..1e149e5 100644
+--- a/emu/host/session.mjs
++++ b/emu/host/session.mjs
+@@ -645,6 +645,7 @@ export async function openSession(o = {}) {
+       else if (st.kind === 'resume') {
+         if (!held) throw new SessionRefused('resume: the session is not at a debug stop');
+       } else if (st.kind === 'shot') {
++        if (process.env.OM_SHOT_FRESH && pl?.session) pl.publish_frame();   // local: compose now (debug calls publish nothing)
+         if (!frame) throw new SessionRefused('no frame published yet in this session');
+         const file = local(st.file);
+         writeLocal(file, pngRaw(frame.w, frame.h, frame.raw));

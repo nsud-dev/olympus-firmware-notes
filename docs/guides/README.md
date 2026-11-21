@@ -22,4 +22,6 @@ addresses and details are on the reference pages each guide links to.
 | [Settings and menus](settings-and-menus.md) | how a setting gets from a menu row to the saved settings, and how new rows are added |
 | [Anatomy of a feature port](port-anatomy.md) | how a feature is brought over from a newer body, with Live ND as the worked example |
 | [Drawing to the screen](drawing-to-the-screen.md) | the GUI layers, the 2D draw engine and the vector GPU that draws the colour wheels |
+| [Drawing your own graphics](drawing-your-own.md) | boxes, curves, pictures, text, animation and touch with the firmware's own drawing calls, tried in an emulator |
+| [Drawing with the vector GPU](vector-gpu.md) | three ways to draw with the GPU that draws the colour wheels: the Olympus driver, your own OpenVG code, raw command lists |
 

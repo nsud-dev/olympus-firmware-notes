@@ -129,7 +129,9 @@ Creator, and the Color/Mono Profile editors we added). How the GUI starts it and
   `EGL_DMP_commandbuffer_attributes`). No shader or OpenGL ES drawing names. [code] 2026-11-20 (string scan of the E-M5 III
   block0)
 - So c3d draws with OpenVG paths, paints and images into an EGL surface (the 256 x 256 RGBA draw buffers), and the
-  renderers we ported call this library. The GPU's own registers and command buffers have not been looked at. [code]+[inferred]
+  renderers we ported call this library. [code]+[inferred]
+- **Update 2026-11-21:** registers (base 0x9c200000), command lists, the c3d tasks' commands, the 147-entry proc table and
+  the display path (layer = VSC **IMG2**, set by DISP_SET_LAYER_CUSTOM) are on [c3d GPU](c3d-gpu.md). [code]
 - Other bodies (string scan of block0, 2026-11-20): `osddraw`, `c3d` and EGL names are in all six. OpenVG names: E-M5 III 95,
   OM-1 95, OM-5 / E-M1 III / OM-5 II 94, PEN-F only 8 (older library; it still has `vgCreateImageDataDMP`). Names missing
   on the OM-5, E-M1 III and OM-5 II (`COLOR_CREATER`, `gpiUpdateDisplay`) may sit in their compressed parts. [code]
@@ -139,9 +141,87 @@ Creator, and the Color/Mono Profile editors we added). How the GUI starts it and
   the GUI, osddraw and display task natively; its output is the composed frame (our `emurun.mjs` saves it).
   [code] (om-emu) (2026-11-05)
 - It does **not** model IMG planes on E-M5 III (live view is skipped), the histogram, hi/sh or peaking. Live view
-  is only driven on OM-1. [code] (om-emu) (2026-11-05)
+  is only driven on OM-1. [code] (om-emu) (2026-11-05) 2026-11-21: our om-emu patch draws the 32-bit IMG planes (the c3d
+  layer), see 6a; live view (format 0) is still not drawn.
 - Use: an `osddraw` overlay (frame lines, markers) can be smoke-tested in om-emu before a camera run; anything that
   reads LV pixels cannot. [inferred] (2026-11-05)
+
+### 6a. What om-emu would need to show the c3d layer (2026-11-21)
+
+Read of om-emu `ccfe2e0` (2026-11-19) for the E-M5 III. om-emu facts are [code] (om-emu).
+
+- **Today nothing from c3d reaches om-emu's screen, for three separate reasons.** (1) The E-M5 III's VSC compositor
+  (`emu/src/dev/vsccompose2.mjs`, kinds 2 and 3) skips every enabled IMG plane as "not modelled"; only the OSD planes are
+  drawn. (2) The DMP OpenVG library and the c3d task never run there: om-emu has no model of the GPU (its OM-3 notes,
+  `docs/hle-gaps.md` 4.12, say the same for that body: the stack is dormant and the wheel plane stays empty). (3) The
+  GUI's background drawer is an om-emu stand-in, and the GUI busy word 0x61600ba0 is only cleared by the c3d engine's
+  answer, so editor screens stall after the first key. [code] (om-emu) + [emu] (2026-11-19)
+- **What the layer is on the E-M5 III:** two flipping 256 × 256 draw buffers, 4 bytes per pixel (byte 0 alpha, bytes 1-3
+  colour, decoded as BGR), shown at (432, 112) on the rear screen. [camera] 2026-11-19.
+  ~~Which VSC plane and format register carry it is not yet read~~ It is VSC plane **IMG2**, c3d layer format 4 (2026-11-21,
+  [c3d GPU](c3d-gpu.md#5-how-the-layer-reaches-the-screen)); ~~the VSC format value is still open~~ the VSC sees it as IMGPLANE2 = 0x301100: **format 3** (bits 20..23),
+  per-pixel alpha (bit 12), level 0x100 (step 1 result below). On the OM-3 the same kind of wheel uses IMG2 in format 3
+  (`R8G8B8a8`, per-pixel alpha). [code] (om-emu, OM-3) + [inferred] for the E-M5 III
+- **Plan in three steps, smallest first** [inferred]:
+  1. **Done 2026-11-21.** *Compose IMG planes* (about 1 day): add the 32-bit per-pixel-alpha format (and the YC format for a still picture
+     underneath) to the kind-2 compositor. Any buffer we fill ourselves then shows in om-emu, so this step alone lets the 2D
+     UI work test full-colour, anti-aliased, transparent drawing done by the CPU, with no GPU involved.
+  2. *Stand in for OpenVG at the API* (about 2-4 days, after the c3d entry points and handle layouts are mapped): hook
+     the vg*/egl* calls c3d actually uses (clear, paths with fill/stroke, paints, image draws with a transform, surface
+     swap), rasterise them in JavaScript into the draw buffer, and send c3d's completion so the GUI busy word clears.
+     This shows our wheels and any OpenVG drawing we add, close to but not pixel-exact with the camera.
+  3. *Model the GPU itself* (open-ended): registers and command buffers of the DMP core. Only worth it if step 2 is not
+     faithful enough; not recommended now.
+- **Step 1 result (2026-11-21):** VSC writes when stock Color Creator opens in om-emu give the kind-2 IMG plane
+  registers, plane p = 0 IMG1 .. 2 IMG3: address DMA9 + 4p (IMG2 +0x3c = 0xa4423ec0, c3d draw buffer A), stride DMA15 + 4p
+  in 64-byte units (IMG2 0x10 = 1024 B), area AREA1 + 12p in the OSD areas' three-word form (IMG2 0x1ce0100 / 0x780078 /
+  0x100 = 256 × 256 at (432, 112) in the 720 × 480 window), control IMGPLANE1 + 4p (IMG2 0x301100), enable DMA7 bit 5 - p
+  (0x7 -> 0x17). Also written then: DMA2 +0x1c 0x10 -> 0, DMA22 +0x6c 0x17 -> 0x10 (meaning open). Pixels are straight
+  (not premultiplied) alpha: 5,788 pixels of the camera's dump have a colour byte above alpha. [emu]+[camera]
+  This means DMA10 (+0x3c) is IMG2's address, which questions the older "DMA9 Y / DMA10 C of IMG1" reading
+  ([Display and OSD](display.md)): IMG1's YC may use one address (om-emu's format 0 is interleaved). [open]
+- [code] (om-emu run) With our patch om-emu draws format-3 IMG planes at 1:1; the camera's own
+  profile-editor buffer dump poked into buffer A shows the wheel in the camera's place under the stock labels.
+  om-emu redraws only when the GUI does, so poke before a key press.
+  For drawing tests: open Color Creator (SCP > Picture Mode, INFO) and write any 256 × 256 picture to 0xa4423ec0
+  (`img2poke.py`). [emu] 2026-11-21
+- [code] (om-emu run) **Step 2 blocker (2026-11-21):** with Color Creator open and keys pressed, om-emu reaches the c3d bridge
+  0x602fccc9 but nothing after it: no hit on c3d_exe_bridge_disp_init 0x60c255c3, the EGL set-up 0x60c26187, the swap
+  0x60c2639f, eglSwapBuffers 0x6119e454, vgDrawPath 0x611bc4f8 or c3d_exe's reply 0x60c25f91. om-emu's module-ack stand-in
+  (S-MODACK, `emu/src/lab/camapp.mjs`, queue C3D) answers the C3D queue, so the c3d tasks never run. Step 2 therefore also
+  needs the c3d tasks started and fed (or their work done in JavaScript), plus an object model for paths, paints and
+  images (layouts: [c3d GPU](c3d-gpu.md) 4b; VGImage not traced yet, and the wheels are mostly image sprites). Revised
+  estimate for step 2: about a week. [inferred]
+- [code] (om-emu run) **OSD over IMG2, and the order codes (2026-11-21):** with the c3d layer showing (patch above) and three
+  overlapping gpi boxes on GUI layers 0/1/2, all OSD layers draw over IMG2 under every OSD1 order code; stacking top to
+  bottom per code: 0 L1>L0>L2, 1 L0>L1>L2, 2 L1>L2>L0, 3 L2>L1>L0 (stock), 4 L0>L2>L1, 5 L2>L0>L1. These come from om-emu's
+  own ORDER_CODES table and plane order (inferred there), so only code 3 and "OSD over the c3d layer" are camera-backed. [emu]
+- [emu] **Step 2 done (2026-11-21): stock c3d runs in om-emu.** Opening Color Creator draws the stock wheel through our
+  JS OpenVG stand-in and each key redraws it. What it took, each found on the way:
+  - [code] (om-emu run) c3d_main (task 67, entry 0x60c279d5) and task 70 (0x60c26090) are dormant in om-emu: start them with act_tsk, take
+    queue 158 out of S-MODACK and pass the GUI's synchronous sends to it to the native kernel.
+  - [code] (om-emu run) c3d_exe (0x60c25bde, queue 0x100f) and c3d_sub (0x60c28732, queue 0x1002) are **CPU-1 tasks** (posts to them ring
+    the CPU-1 doorbell). Run each post on CPU 0 as one pass of the task loop (`lab.task_message`). c3d_exe's init
+    (0x60c25b35) runs once; skip the DMP driver task it creates (entry 0x611c6090, priority 55).
+  - [code] (om-emu run) **Frame done:** c3d_main answers the GUI's command 46 late. It saves the request (0x621db678..) and replies on
+    command 48. c3d_sub posts command 48 when it gets command 3 (the GPU's frame-done) while c3d_exe's draw flag
+    0x6253c479 is set. Without a GPU, post command 3 to c3d_sub after each draw that swapped.
+  - [code] (om-emu run) Sprite sheets come from the resource reader 0x60167060 (category 0x8006, see c3d-gpu.md 4); om-emu runs no
+    resource loader on E137, so serve them from block2.
+  - [code] (om-emu run) DMP GPU registers 0x9c200000 as plain stub memory. The DMP memory manager 0x611bea11 is given two pools
+    (0xa46ce6c0 + 0x80000, 0xa474e6c0 + 0x680000), and allocations (0x611beb7b) come from the second.
+  - Not modelled: gradient paints, dashes, blend modes other than source-over, masks. No stock-vs-camera pixel
+    comparison yet: the camera dump in private notes is from the ported editor, not stock Color Creator.
+- Other om-emu limits met while building the profile editors (no 4-bpp pictures, histogram drawn as a stand-in block,
+  editor closes after ~6 s without keys) and the tools that worked: UI drawing lessons.
+  First test for step 2: the traced CC2/MC/SC renderer draw streams, which stop at the final c3d submit. [emu] 2026-11-21
+- **More screens and a stand-in live view** [emu] 2026-11-21:
+  - The ART carousel matches the camera's artwork, and Part Color (SCP, ART14) draws.
+  - Patch 0003 adds `OM_BACKDROP` (session.mjs) and `BACKDROP` (c3drun.mjs). These draw a 720 x 480 RGB picture
+    (`c3d/backdrop.py`: a generated lake-at-dusk landscape by default, a hard-edged test scene with `--test`, or a photo) under every plane, so OSD and IMG2 transparency show.
+  - `mode:N` turns the mode dial (2 ART, 3 SCN). SCN screens get START and END but no UPDATE: [open].
+
+How to draw on the GUI layers ourselves (calls, arguments, palettes, layer order, animation, other bodies): [Drawing on the GUI layers](osd-drawing.md). [emu] 2026-11-21
 
 ## Open questions
 - Engine register map beyond +0x04..+0x50 on E-M5 III, and how `osddraw` turns a diagonal line into commands. [inferred] open

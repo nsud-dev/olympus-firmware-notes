@@ -191,6 +191,11 @@ avoids it.
   main SHA prefix, CRC-32, per-byte ranges) is read once on the first half-press. Edits made on the camera are written
   back as `.NEW` (read back), the old file is renamed to `.BAK`, then `.BIN` is written (read back), and the dirty flag
   is cleared last. Camera-proven on the E-P7. [inferred] for us
+- **Setting restriction rules** [code] 2026-11-21: the table that maps one setting's value when another has a given
+  value (what greys menu options) is at **0x60477dbc** (about 280 20-byte records `{u16 sid, u16 flags, u32 rules,
+  u16 count}`; rules `{u32 cond, u16 n, u32 map, u16 n}`, cond terms `{u16 sid, u16 value, u32 0}`, maps
+  `{s16 from, s16 to}`). Format from the E-M1 III Mod Builder (`tools/patch_hhrs_flash.py`, E-M1 III 1.6 table
+  0x604920dc, a repointed map camera-checked there). Sids not yet named.
 - The E-M5 III has **no** E-P7-style settings facade vtable (0x60afd564 is 85 "not implemented" tag stubs) and no 20-byte
   validator table (scan of 0x604a1020-0x60521020). Allowed values probably live in per-setting class objects (0x608febd4
   for 1448). [code]/[inferred]
