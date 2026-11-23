@@ -1,0 +1,122 @@
+diff --git a/emu/host/olyfwenv.mjs b/emu/host/olyfwenv.mjs
+index 8bfba6b..7a52ba2 100644
+--- a/emu/host/olyfwenv.mjs
++++ b/emu/host/olyfwenv.mjs
+@@ -1,5 +1,5 @@
+ // olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): turn the optional checks on from the environment.
+-// usage: OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
++// usage: OM_CODEWRITE=FILE (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
+ //        node --import ./host/olyfwenv.mjs bin/session.mjs ...
+ // Writes the cache model's reports (OM_DCACHE_OUT) and the section monitor's record (OM_SECMON) as JSON at exit.
+ import { writeFileSync } from 'node:fs';
+@@ -13,6 +13,7 @@ if (env.OM_DCACHE) {
+ }
+ if (env.OM_SECMON) OLYFW.secmon = true;
+ if (env.OM_KCHECK) OLYFW.kcheck = true;
++if (env.OM_CODEWRITE) OLYFW.codewrite = true;
+ if (env.OM_CPU2) {
+   if (!['native', 'stand-in'].includes(env.OM_CPU2)) throw new Error(`OM_CPU2: native or stand-in, not '${env.OM_CPU2}'`);
+   OLYFW.cpu2 = env.OM_CPU2;
+@@ -27,5 +28,6 @@ process.on('exit', () => {
+   if (env.OM_DCACHE_OUT && OLYFW.made.dcache) writeFileSync(env.OM_DCACHE_OUT, JSON.stringify(OLYFW.made.dcache.summary(), null, 1));
+   if (env.OM_KCHECK && OLYFW.made.kcheck) writeFileSync(env.OM_KCHECK, JSON.stringify(OLYFW.made.kcheck.summary(), null, 1));
+   if (env.OM_CPU2_OUT && OLYFW.made.cpu2) writeFileSync(env.OM_CPU2_OUT, JSON.stringify(OLYFW.made.cpu2.report(), null, 1));
++  if (env.OM_CODEWRITE && OLYFW.made.codewrite) writeFileSync(env.OM_CODEWRITE, JSON.stringify(OLYFW.made.codewrite.summary(), null, 1));
+   if (env.OM_SECMON && OLYFW.made.secmon) writeFileSync(env.OM_SECMON, JSON.stringify(OLYFW.made.secmon.summary(), null, 1));
+ });
+diff --git a/emu/src/core/codewrite.mjs b/emu/src/core/codewrite.mjs
+new file mode 100644
+index 0000000..e22cab3
+--- /dev/null
++++ b/emu/src/core/codewrite.mjs
+@@ -0,0 +1,53 @@
++// Optional code-write monitor (olyfw patch 0010; MIT, see om-emu's LICENSE).
++//
++// The camera resets when a CPU writes program code in RAM through the cached view (memory protection; OMKit, which
++// patches code on the OM-5 II, writes it only through the uncached view, KB reference/gotchas-technical.md) [camera on
++// OM-5 II]. om-emu has no such protection, so a build that keeps data inside code runs clean here (XF2-r1, 2026-11-23:
++// a grafted driver's state in a 0xFF gap at 0x6002ad80 gave a black screen on the E-M5 III).
++//
++// What is watched: the always-loaded code of the run-time image, from the image base to the first section's start
++// (read from the image's section table after "BCS\0"; E137 1.7: 0x60021020..0x600de000, E148 1.1: ..0x600eb000).
++// Stock E137 never writes there (boot, MENU, shots, play: 0 writes, 2026-11-23). Every CPU store there is recorded:
++// 'fail' through the cached view (0x6...), 'warn' through the uncached view (0xa...). Stores into the ten sections are
++// counted per 4 KB page and listed, not judged (sections hold data stock writes: section 2 0x6034d000..0x60376000,
++// section 10 0x6145b000 on E137), so a build's list can be compared with stock's.
++//
++// Enabled through src/core/olyfw.mjs (host/olyfwenv.mjs: OM_CODEWRITE=FILE writes summary() as JSON at exit).
++const h8 = (x) => '0x' + (x >>> 0).toString(16).padStart(8, '0');
++
++// the section table after "BCS\0" in the run-time image: rows [start, flash, flags], ten of them; null if not found
++export function sectionStarts(img, base) {
++  for (let i = img.indexOf(0x42); i >= 0 && i + 4 + 120 <= img.length; i = img.indexOf(0x42, i + 1)) {
++    if (img[i + 1] !== 0x43 || img[i + 2] !== 0x53 || img[i + 3] !== 0) continue;
++    const u32 = (o) => (img[o] | img[o + 1] << 8 | img[o + 2] << 16 | img[o + 3] << 24) >>> 0, rows = [];
++    for (let k = 0; k < 10; k++) rows.push(u32(i + 4 + 12 * k));
++    if (rows.every((v, k) => v > base && (k === 0 || v > rows[k - 1]) && v < base + img.length + 0x2000000)) return rows;
++  }
++  return null;
++}
++
++export function createCodeWriteMonitor({ lo, hi, secHi = hi, pc, insns, keep = 64 }) {
++  const counts = { fail: 0, warn: 0, section: 0 };
++  const hits = [], seen = new Set(), pages = new Map();
++  function st(a, w) {
++    const v = a >>> 0, c = ((v & 0x1fffffff) | 0x60000000) >>> 0;
++    if (c >= lo && c < hi) {
++      const kind = v >= 0xa0000000 && v < 0xc0000000 ? 'warn' : 'fail';
++      counts[kind]++;
++      const p = pc() >>> 0, key = `${kind}:${c >>> 4}:${p}`;
++      if (hits.length < keep && !seen.has(key)) { seen.add(key); hits.push({ kind, addr: h8(v), width: w, pc: h8(p), insns: insns() }); }
++    } else if (c >= hi && c < secHi) {
++      counts.section++;
++      const pg = c >>> 12, e = pages.get(pg);
++      if (e) e.n++; else pages.set(pg, { n: 1, first: h8(v), pc: h8(pc()) });
++    }
++  }
++  return {
++    ld() {},
++    st(a, o, w) { st(a, w); },
++    summary() {
++      return { range: [h8(lo), h8(hi)], counts, verdict: counts.fail ? 'FAIL' : counts.warn ? 'WARN' : 'PASS', hits,
++        section_pages: [...pages].sort((x, y) => x[0] - y[0]).map(([pg, e]) => ({ page: h8(pg << 12), ...e })) };
++    },
++  };
++}
+diff --git a/emu/src/core/olyfw.mjs b/emu/src/core/olyfw.mjs
+index 1b699e7..2fc1ab7 100644
+--- a/emu/src/core/olyfw.mjs
++++ b/emu/src/core/olyfw.mjs
+@@ -4,5 +4,6 @@
+ //   secmon   false, or true: the section first-touch monitor (src/core/secmon.mjs)
+ //   heapFill null, or a 32-bit word: S-HEAP fills each block it hands out or takes back with it (src/lab/play.mjs)
+ //   kcheck   false, or true: the kernel checks (src/lab/kcheck.mjs, patch 0007), installed at the native kernel's boot
++//   codewrite false, or true: the code-write monitor (src/core/codewrite.mjs, patch 0010)
+ //   made     the newest machine's model and monitor, for the host to report
+-export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, cpu2: null, core: 2, made: { dcache: null, secmon: null, kcheck: null, cpu2: null } };
++export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, codewrite: false, cpu2: null, core: 2, made: { dcache: null, secmon: null, kcheck: null, cpu2: null, codewrite: null } };
+diff --git a/emu/src/machine.mjs b/emu/src/machine.mjs
+index 23a4f0a..4bd1260 100644
+--- a/emu/src/machine.mjs
++++ b/emu/src/machine.mjs
+@@ -29,6 +29,7 @@ import { DpcTriggers } from './dev/dpc.mjs';
+ import { Cores } from './core/cores.mjs';
+ import { createDataCache } from './core/dcache.mjs';
+ import { createSectionMonitor } from './core/secmon.mjs';
++import { createCodeWriteMonitor, sectionStarts } from './core/codewrite.mjs';
+ import { OLYFW } from './core/olyfw.mjs';
+ 
+ export { Unported, TbUndecidable };
+@@ -226,6 +227,12 @@ export function createMachine({ rom, dramBytes = BOARD.dram_size, insnLimit = 10
+     const prevCv = coverage === null ? null : coverage.mark;
+     setCoverage((p) => { if (prevCv) prevCv(p); sm.fetch(p >>> 0); });
+   }
++  if (OLYFW.codewrite) {                // olyfw patch 0010: the code-write monitor (src/core/codewrite.mjs)
++    const starts = sectionStarts(rom, IMAGE_BASE);
++    if (!starts) throw new Error('OM_CODEWRITE: no section table ("BCS\\0" + ten rising starts) in the run-time image');
++    const cw = createCodeWriteMonitor({ lo: IMAGE_BASE, hi: starts[0], secHi: IMAGE_BASE + rom.length, pc: () => R[PC] >>> 0, insns: () => S.insns });
++    olyObs.push(cw); OLYFW.made.codewrite = cw;
++  }
+   if (OLYFW.dcache) {
+     const dc = createDataCache({ ...OLYFW.dcache, U8: mem.U8, pc: () => R[PC] >>> 0, insns: () => S.insns });
+     olyObs.push(dc); OLYFW.made.dcache = dc;

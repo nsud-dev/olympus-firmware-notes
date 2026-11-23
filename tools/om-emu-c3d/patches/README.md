@@ -1,8 +1,10 @@
-# om-emu patches: the E-M5 III's 32-bit image layer
+# om-emu patches for the E-M5 III
 
-Four small changes to the om-emu emulator so it shows the picture layer the camera's vector GPU (c3d) draws into, and
-a stand-in for live view under it. Used by the scripts in `../c3d/` and for the notes pages `docs/hardware/c3d-gpu.md`
-and `docs/hardware/graphics-pipeline.md`. They contain no firmware bytes: you need your own firmware file.
+Ten small changes to the om-emu emulator. 0001-0004 show the picture layer the camera's vector GPU (c3d) draws into,
+and a stand-in for live view under it. They are used by the scripts in `../c3d/` and for the notes pages
+`docs/hardware/c3d-gpu.md` and `docs/hardware/graphics-pipeline.md`. 0005-0010 add optional checks that fail builds
+the camera would crash on, and run the E-M5 III's second and third CPUs. A plain overview is in
+`docs/tools/om-emu-additions.md`. The patches contain no firmware bytes: you need your own firmware file.
 
 ## Licence and credit
 om-emu is by the om-emu contributors, MIT licence. These patches modify MIT-licensed code and carry om-emu's licence:
@@ -12,7 +14,7 @@ Copyright (c) 2026 om-emu contributors, MIT (see om-emu's `LICENSE`). Our own sc
 ## Set-up
 - An om-emu clone at commit `ccfe2e0`, node 22 or newer, and the E-M5 III firmware unpacked with
   `node emu/bin/fetch-fw.mjs --model E137`.
-- `sh apply.sh OM_EMU_CLONE` applies the nine patches in order (0003 builds on 0001; 0005-0009 on 0001-0004, 0009 on 0008).
+- `sh apply.sh OM_EMU_CLONE` applies the ten patches in order (0003 builds on 0001; 0005-0010 on 0001-0004, 0009 on 0008, 0010 on 0009).
 
 ## The patches
 - `0001-kind2-img-planes.patch`: om-emu skipped every IMG plane on the E-M5 III's display controller (kind 2), so the
@@ -62,6 +64,15 @@ Copyright (c) 2026 om-emu contributors, MIT (see om-emu's `LICENSE`). Our own sc
   stock reaches the shooting screen and MENU. The kernel checks (0007) now read the running core's KCB for the
   nesting byte (without that, core 1's dly_tsk in its idle loop showed as blocking in an interrupt). `test/test_cpu2.mjs`
   (30/30), `bin/test-pure.mjs`, `kcheck_selftest.mjs` and the E137 CPU 2 run (`OM_CPU2=native`) are unchanged.
+- `0010-olyfw-code-write-monitor.patch` (2026-11-23): `OM_CODEWRITE=FILE` records every CPU store into the
+  always-loaded code of the run-time image (image base to the first section's start, read from the section table after
+  "BCS\0": E137 0x60021020..0x600de000, E148 0x60021020..0x600eb000) and writes a summary at exit. A store through the
+  cached view (0x6...) is a FAIL (the camera resets: memory protection, OMKit on the OM-5 II writes code only through
+  the uncached view), through the uncached view (0xa...) a WARN. Stores into the ten sections are only counted per 4 KB
+  page (stock writes data there). New file `src/core/codewrite.mjs`; `machine.mjs` adds it as a memory observer.
+  Stock E137 (boot, S1, S2, MENU, play) and stock E148 make 0 such stores. A test build that kept a driver's data in
+  a 0xFF gap of the code (black screen on the camera 2026-11-23) makes 31 cached and 55 uncached ones during boot, and
+  its fix makes none (it boots). `bin/test-pure.mjs` passes unchanged.
 - `img2poke.py`: writes a session script that pokes a 256 x 256 picture into the layer and takes a shot.
 
 The patches are ordinary `git diff` output, written so they could be offered to om-emu as they are.

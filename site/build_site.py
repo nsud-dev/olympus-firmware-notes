@@ -2,7 +2,7 @@
 """Build the notes site (MkDocs Material) from a folder that holds docs/.
   pip install -r site/requirements.txt
   python3 -I site/build_site.py . _site      # in the notes repo: the folder with docs/, then the output folder
-Nav order: guides in guides/README.md order, then Features / Hardware / Firmware / Bodies / Reference in docs/README.md
+Nav order: guides in guides/README.md order, then Features / Hardware / Firmware / Bodies / Reference / Tools in docs/README.md
 order, then any page the README doesn't list. The GitHub Pages workflow (.github/workflows/pages.yml) runs this."""
 import os, re, shutil, subprocess, sys, tempfile, yaml
 exp, out = sys.argv[1:3]
@@ -25,9 +25,9 @@ def take(p):
     if p in seen or not os.path.exists(os.path.join(d, p)): return False
     seen.add(p); return True
 guides = [p for p in ['guides/README.md'] + links('guides/README.md', 'guides/') if take(p)]
-groups = {g: [] for g in ['Features', 'Hardware', 'Firmware', 'Bodies', 'Reference']}
+groups = {g: [] for g in ['Features', 'Hardware', 'Firmware', 'Bodies', 'Reference', 'Tools']}
 folder = {'features': 'Features', 'patches': 'Features', 'hardware': 'Hardware', 'firmware': 'Firmware',
-          'bodies': 'Bodies', 'reference': 'Reference'}
+          'bodies': 'Bodies', 'reference': 'Reference', 'tools': 'Tools'}
 for p in links('README.md'):
     if p.split('/')[0] in folder and take(p): groups[folder[p.split('/')[0]]].append(p)
 for f, g in folder.items():

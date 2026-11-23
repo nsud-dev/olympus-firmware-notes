@@ -47,6 +47,11 @@ Conventions used throughout:
 | [Patching techniques](firmware/patching-techniques.md) | what has worked on the camera, and the rules we follow |
 | [Live ND port layers](firmware/live-nd-port-layers.md) | where ported Live ND code meets the camera's own code |
 
+## Tools
+| page | what |
+|---|---|
+| [om-emu additions](tools/om-emu-additions.md) | our ten patches to the om-emu emulator: GPU layer, crash checks, second and third CPUs ([technical notes](tools/om-emu-additions-technical.md)) |
+
 ## Features
 | page | what |
 |---|---|

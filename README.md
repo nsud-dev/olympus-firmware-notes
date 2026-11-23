@@ -30,7 +30,8 @@ to be flashed and tried on the camera.
   section loading, recovery, the MN103 CPU, the memory map, the image engine, the ARM co-processor, the display, USB,
   the stabiliser, the shooting sequencer, settings and menus, patching techniques, and studies of individual features.
 - **tools/**: `olyfw.py` unpacks and repacks E-M5 III `.BIN` files and fixes their checksums. `ptpinfo.py` asks a
-  connected camera for its PTP device info.
+  connected camera for its PTP device info. `om-emu-c3d/` holds our patches to the om-emu emulator
+  ([what they add](docs/tools/om-emu-additions.md)).
 - **Ghidra support** lives in its own repo, [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103). It's a
   processor module for the MN103 CPU that runs most of the camera.
 
