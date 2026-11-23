@@ -1,45 +1,62 @@
-# Live GND (graduated ND)
+# Live GND
 
-A graduated ND filter darkens the sky while leaving the foreground alone. "Live GND" does that in the camera, by
-shooting several frames and blending them with a gain that changes across the picture. Only the OM-1 II has a working
-version. This page describes how it works there and a proposed design for the E-M5 III built on our Live ND work.
+<!-- human page -->
+> The dense reference for this page is [Live GND: technical notes](live-gnd-technical.md).
 
-Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+A graduated ND filter darkens the sky while leaving the foreground alone. Live GND does the same job inside the camera.
+It shoots several frames and blends them with a strength that changes across the picture.
 
-**Status 2026-11-05:** spec written from the OM-1 II; nothing built.
+Only the OM-1 II has a working version. This page explains how it works there, and how it could be built on the
+E-M5 III from our Live ND work.
 
-## Who has it
-| body | Live GND |
+## Status
+
+A design has been written from the OM-1 II's firmware. Nothing has been built.
+
+## On the OM-1 II
+
+For a GND filter of k stops, the camera takes 2 to the power k frames, each k stops shorter than a normal exposure. For
+a 3-stop filter that means 8 frames, each 3 stops shorter.
+
+1. It adds the frames together. Because each frame is short, the bright sky does not clip.
+2. It then brings the foreground back up with a gain that fades in along the filter line.
+
+The result is a sky k stops darker than the foreground, with nothing clipped. You set the line's position, angle and
+how soft its edge is, much like a real filter.
+
+The firmware works out the line from those settings with some simple trigonometry. The gain curve itself is inside the
+OM-1 II's image-engine program. That engine is a newer design and its programs cannot run on the E-M5 III.
+
+## Other cameras
+
+| camera | Live GND |
 |---|---|
-| OM-1 II fw 1.3 | **real**: module `iseq_half_nd` (gnd_comp, gnd_blend, gnd_lv, calc_comp_prm), states DigitalGnd/DarkRdy/End, AE mode `FULL_LQ_GND` [code] |
-| OM-1 1.9 | no |
-| OM-5 II 1.1 | **UI only**: settings 2166-2175, props 43329/43345/43361..., interlocks; OlyApiShooting GND methods (+1088..+1124) are empty stubs; no imaging code reads the props [code] |
-| E-M5 III, OM-5, E-M1 III | no |
+| OM-1 II | working |
+| OM-5 II | menu settings only, with nothing behind them |
+| OM-1 | no |
+| OM-5, E-M1 III, E-M5 III | no |
+| E-M5 II | no, would be a new port |
+| E-M5 (Mark I) | no, very likely impossible |
 
-## How the OM-1 II does it [code], method partly [inferred]
+## A design for the E-M5 III
 
-In plain terms: it takes many shorter exposures, combines them so the bright sky doesn't clip, then brightens the
-foreground back up with a gain that fades in along the filter line.
+The E-M5 III can already capture and average several frames for Live ND. Live GND would reuse that.
 
-- GND k stops (GND2..32 = k 1..5): shoot **N = 2^k frames, each k stops shorter**, composite (keeps sky highlights), then a
-  position-dependent gain brings the foreground back up. Sky ends k stops darker, nothing clipped. [code] for N and the shift, [inferred] that frames are shorter
-- Parameters (0x60899662, OM-1 II addresses): centre Xc/Yc from border position (±60), angle θ, width from a table of 5/10/20%
-  of sensor width (Q15 1638/3276/6553), CoefA = −sin θ·16384, CoefB = cos θ·16384, CoefC = 2(Xc sin θ − Yc cos θ) + Width·K[n];
-  GainMin table 1/2..1/32 (Q31), K offsets −0.138..−0.779. [code]
-- 2026-11-05: frame count/Tv: `digital_gnd_info` 0x60309326 sets frame_number = 1<<step when prop 43329 is on; real_tv via 0x603092a5 (shift in 1/3, 1/2 or 1 EV units). Calc inputs: 43345 number, 43361 filter, runtime props 43417[0/1] (border X/Y, ±60) and 43394 (angle, degrees), not menu settings. Float helpers: 0x6004c188 fadd, c19b fdiv, c1ad fmul, 0x600487df sin, 0x60048162 cos. Filter widths live in RAM 0xa34fb814, init 0x6089ca7b. [code]
-- WB-aware highlight clip: Clip_c = Sat × min(WB_Gr, WB_Gb) / WB_c (0x6089ad87). [code]
-- The actual gain curve shape is in OM-1 DSP microcode (not visible, not portable). [code]
+1. Capture the frames with the shutter speed shortened by k stops.
+2. Merge them with the same image-engine job Live ND uses.
+3. Apply our own gain pass to the merged raw picture, using a small lookup table for the soft edge.
 
-## E-M5 III design (proposed)
-Reuse the Live ND capture path (N frames, job 11 average) with Tv shortened by k stops, then **our own gain pass** on the merged
-Bayer: g = N × G(s), smoothstep in log2 stops, 256-entry LUT; run on the MN103 (or ARM NEON if too slow). Stages G0 (single frame +
-gain) → G1 (GND2/4/8) → G2 tuning, GND16, position/angle → G3 menu/LV. GND32 needs 32 frames (doesn't fit). [inferred]
+The gain pass would run on the main processor, or on the ARM co-processor if that is too slow. The plan goes in steps.
+A single frame with gain comes first, then 2-, 4- and 8-frame filters, then tuning and position and angle controls,
+and finally the menu and live view. A 32-frame filter will not fit in memory.
 
-Open: filter order (which width is soft), E-M5 raw origin/margins, MN103 pass speed.
+Three questions are open:
 
+- which filter width is the soft one
+- where the E-M5 III's raw picture starts and how wide its margins are
+- whether the main processor is fast enough for the gain pass
 
-## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+## Further reading
 
-- Same verdict as [Live ND](live-nd.md#on-the-e-m5-ii-and-e-m5-mark-i-2026-11-21): a new port on the E-M5 II (no ND or GND code there), very likely impossible on the E-M5 Mark I. [inferred]
-
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+- [Live ND](live-nd.md) covers the capture and merge that Live GND builds on.
+- [Image engine](../hardware/image-engine.md) explains why the OM-1 II's own programs cannot be reused.

@@ -52,7 +52,7 @@ donor whose feature fits in its own memory map will fit in yours only if the map
 | donor choice | OM-5 1.2 for Live ND and handheld high res (2026-10-22) | decision |
 | image-engine generation | same from PEN-F to OM-5 II; OM-1 differs ([image engine](../hardware/image-engine.md)) | [code] |
 
-Sources: [Frame pools and memory](frame-pools-and-memory.md), [Live ND: paths we tried and dropped](../features/live-nd.md#paths-we-tried-and-dropped-dont-repeat).
+Sources: [Frame pools and memory](frame-pools-and-memory.md), [Live ND: paths we tried and dropped](../features/live-nd-technical.md#paths-we-tried-and-dropped-dont-repeat).
 </details>
 
 ## 2. Read the donor first
@@ -83,7 +83,7 @@ The rule we work by now: research the donor until a test can only confirm a desi
 | sensor request | kind 0x400, fps 0 | [code]; on the E-M5 III [camera] |
 | frame-rate cap attempts | dropped | [camera] |
 
-Sources: [Live ND: how Olympus does it](../features/live-nd.md#how-olympus-does-it-om-5-12-our-donor).
+Sources: [Live ND: how Olympus does it](../features/live-nd-technical.md#how-olympus-does-it-om-5-12-our-donor).
 </details>
 
 ## 3. List what the target already has
@@ -106,7 +106,7 @@ ids in the state table and the menus. Each of those had a limit we hit later.
 | OM-5 job 11 runs on the E-M5 III image engine | first merged photo | [camera] |
 | free space per feature | [memory map: spare space](../hardware/memory-map.md#spare-space-for-our-code) | [camera] / [code] |
 
-Sources: [Live ND: what the E-M5 III already has](../features/live-nd.md#what-the-e-m5-iii-already-has).
+Sources: [Live ND: what the E-M5 III already has](../features/live-nd-technical.md#what-the-e-m5-iii-already-has).
 </details>
 
 ## 4. Get a first result with the target's own code
@@ -133,9 +133,9 @@ request file on the card, before any of the donor's own logic had been ported.
 | first merged photo | 2026-10-29 | [camera] |
 | ND8, ND2-ND16 | 2026-10-30 | [camera] |
 | frames at the set time, same brightness as a single shot within 0.03 EV | 2026-11-05 | [camera] |
-| how job 11 is driven | [Live ND](../features/live-nd.md#how-our-version-works) | [camera] |
+| how job 11 is driven | [Live ND](../features/live-nd-technical.md#how-our-version-works) | [camera] |
 
-Sources: [Live ND: what we measured on the camera](../features/live-nd.md#what-we-measured-on-the-camera).
+Sources: [Live ND: what we measured on the camera](../features/live-nd-technical.md#what-we-measured-on-the-camera).
 </details>
 
 ## 5. Arm, don't replace
@@ -163,7 +163,7 @@ Techniques: [3 hook native code](../firmware/patching-techniques.md#3-hook-nativ
 | request too wide: hang on a single shot | 2026-11-05 | [camera] |
 | armed only for the burst's request builders | three call sites | [camera] |
 
-Sources: [Live ND: how our version works](../features/live-nd.md#how-our-version-works).
+Sources: [Live ND: how our version works](../features/live-nd-technical.md#how-our-version-works).
 </details>
 
 ## 6. Port the donor's logic, then find the join points
@@ -200,7 +200,7 @@ Techniques: [9 add shooting states](../firmware/patching-techniques.md#9-add-sho
 | first complete run (capture, end, back to live view) | 2026-11-12 | [camera] |
 | merged ND2-ND16 through the ported states | 2026-11-12 | [camera] |
 
-Sources: [Live ND: porting the OM-5's own states](../features/live-nd.md#porting-the-om-5s-own-live-nd-states).
+Sources: [Live ND: porting the OM-5's own states](../features/live-nd-technical.md#porting-the-om-5s-own-live-nd-states).
 </details>
 
 ## 7. See what happened

@@ -1,4 +1,6 @@
-# Settings, properties, menus and GUI strings
+# Settings and menus
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Settings and menus](../guides/settings-and-menus.md).
 
 Every camera setting, from ISO to the hidden debug switches, lives in a numbered store, and the menus are built from
 tables that point into it. This page explains how menu settings map to stored values, how saved settings are kept in
@@ -182,6 +184,14 @@ GUI code, a settings model with +917/−393 keys); reorganising menus or porting
 Modes, Other Shooting Functions, Bracketing), AF (7 pages), Movie, Playback, Custom, Setup and My Menu; screenshots and
 the page-title list are in. 2026-11-05 [code]
 
+**A new Custom Menu letter that opens (2026-11-22).** [code]+[emu] Besides the letter id / glyph / key / preview /
+open-page / page-map / controller / controller-init / letter picture tables used for K, a letter only opens with RIGHT
+when (1) the letter column controller (stock controller entry 102 {0x3f, 4, 0x52}) has a record for it in its RIGHT
+and OK lists (0x61060bfc / 0x61060e0c, identical, 22 x 24 B {1, letter id, fn, 0xf, 1, 0}; 0x60d59bfd returns 0 for a
+letter not listed), and (2) its page key is in the key -> row-list function table 0x6106a8e4 (51 x {u16 key, 0, fn},
+reader 0x60d61c3a, count at 0x60d61c4f; generic list function 0x60d62264; key 103 is there, 129 is not: the page opens
+with its title and no rows). Loader L5 adds letter 3295 (key 129) as K2 this way.
+
 ## Keeping feature settings in a card file (2026-11-08)
 
 Adding settings to the internal store is risky (see above), so we looked at how the caduceus project (E-P7 patches)
@@ -196,6 +206,24 @@ avoids it.
   u16 count}`; rules `{u32 cond, u16 n, u32 map, u16 n}`, cond terms `{u16 sid, u16 value, u32 0}`, maps
   `{s16 from, s16 to}`). Format from the E-M1 III Mod Builder (`tools/patch_hhrs_flash.py`, E-M1 III 1.6 table
   0x604920dc, a repointed map camera-checked there). Sids not yet named.
+  **Correction 2026-11-22 [code]:** the table proper starts at **0x60477dd0, 305 records** (walked by 0x602cc943 and the
+  hash builder 0x602cc9e7, `cmp 305`; hash 32 buckets at 0x621173ac); the record at 0x60477dbc is not part of it. Record =
+  `{u16 sid, u16 flags, u32 rules, u32 nrules, u32 0, u32 fn}` (fn = a check routine on one record, 0x602d0dcf), 3,039 rules;
+  rule lists and value maps are **shared** between rules and records (654 shared rule entries), so lifting one rule by
+  editing its map lifts every sharer. Cond value bit 15 is set on some terms (meaning not traced). Decoder + full listing:
+, `RULES-1.7.TXT`; RFIX builder `mods/rulefix/rulefix.py`.
+- **Property hash layout** [code]+[emu] 2026-11-22: 4096 slots of 8 B at **0xa262585c** `{u16 prop, u16 count, u32 data}`
+  (slot = prop >> 4, lookup 0x6005be20; CSV-import overrides in a second table 0xa262d85c used while u16 0xa2625858 != 0).
+  2,257 slots used on 1.7 in om-emu (91,086 values; largest 0x85d4 with 29,880). Getter 0x6005ce6b(d0 prop, d1 index,
+  a0 0), value size prop & 7, bit 3 = signed. The DOCS card mod dumps all of them (PROPS_x.TXT).
+- **AE BKT options** [code]+[emu] 2026-11-22/23: the picker's entries are 64-byte option structs `{u32 frames, u32 step
+  1/256 EV, u32 type (1 AE, 4 HDR)}`, one list per EV step (setting 64): 0x604bbca4 (1/3 EV, 19), 0x604bc164 (1/2 EV, 15),
+  0x604bc524 (1 EV, 11), through option-value records `{u16 id, u16 key, structs, codes, u16 size, u16 elsize, u32 0x600}`
+  (0x604d5024..). Picking one runs 0x602c62da, which writes setting **5 = frames**, 1480 = step, 1502 = 1 via 0x602c606f
+  (= setter 0x602e6f11, which only stages into prop 0x8b54, + apply 0x602e6a4c); the getter 0x602e69f9 returns the frame
+  count, om-emu's `setting:` token shows the entry code. A 9 in an entry is taken as is, but the shooting-screen bracket
+  info then overruns its 7-entry buffers (om-emu: GUI stop 0x60dbad56 on leaving the menu); a clamp at 0x6030871b fixes
+  it. AEB9 = that clamp in the base + card mod MOD13.
 - The E-M5 III has **no** E-P7-style settings facade vtable (0x60afd564 is 85 "not implemented" tag stubs) and no 20-byte
   validator table (scan of 0x604a1020-0x60521020). Allowed values probably live in per-setting class objects (0x608febd4
   for 1448). [code]/[inferred]

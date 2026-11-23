@@ -1,34 +1,43 @@
 # Sync IS with Panasonic lenses
 
-Olympus bodies can combine their in-body stabiliser with the lens's own stabiliser ("Sync IS") on Olympus lenses.
-Panasonic lenses use Panasonic's own scheme instead (Dual IS), so on an E-M5 III you get one or the other. This page
-records why a simple patch can't switch Sync IS on for Panasonic lenses, and what routes might work.
+<!-- human page -->
+> The dense reference for this page is [Sync IS with Panasonic lenses: technical notes](sync-is-panasonic-technical.md).
 
-**Status:** study of the idea done (2026-11-01); nothing built. Doc: (private link)
+With an Olympus stabilised lens, the E-M5 III can run the lens's stabiliser and its own in-body stabiliser together.
+Olympus calls this Sync IS. Panasonic lenses use Panasonic's own scheme, called Dual IS. So on an E-M5 III with a
+stabilised Panasonic lens you get one stabiliser or the other, never both.
 
-Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+This page explains why a simple patch cannot change that, and which routes might.
 
-## Why a body-only flag patch won't work
+## Status
 
-Sync IS ("copt", short for cooperative, internally) is reported **by the lens**. The body asks with lens command 41
-(0x600fd973 calls 0x6020d42e) and stores the reply in the copt flag 0x620a688e (get 0x602075ce / set 0x602075d7).
-Panasonic lenses speak Panasonic Dual IS, not copt, so there's nothing in the body to flip. [code]
+The idea has been studied. Nothing has been built.
 
-How the body spots a Panasonic lens: the test at 0x6020d782 checks lens_info+0x444 byte0 ∈ {2,3} and byte1 ≠ 0 (the
-meaning is guessed). The Panasonic status is 0x6020d094 (`L_STAT_PANA`). Non-Panasonic lenses branch off at 0x6021012d.
-[code] The stabiliser side of the body/lens split is on [stabiliser](../hardware/stabiliser.md).
+## Why a simple patch will not work
 
-## Possible routes [inferred]
+It is the lens that tells the body whether it can do Sync IS. At start-up the body asks the lens, and stores the answer.
+An Olympus lens answers yes. A Panasonic lens does not understand the question in that form, because it speaks Dual IS.
 
-- **A.** Force the flag. Very low odds.
-- **B.** Split the work: the lens's OIS does yaw and pitch, the body does roll. The best bet.
-- **C.** Implement Panasonic Dual IS. A long project.
+So there is no switch in the body to flip. Forcing the answer to "yes" would make the body try to cooperate with a lens
+that does not know how.
 
-A separate aperture-ring hack exists in azqeurio/om-c-firmware (dbv0.3.0). Read it to learn only, never copy; credit it
-and point users there.
+## Possible routes
 
-## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+1. **Force the flag.** The body would believe the lens can cooperate. Very unlikely to work.
+2. **Split the work.** Let the lens's stabiliser handle up-down and left-right tilt, and let the body handle rotation.
+   This is the most promising route.
+3. **Speak Dual IS.** Teach the body Panasonic's protocol. That would be a long project.
 
-- The lens-communication strings this analysis used (`copt`, `L_STAT_PANA`) are absent from the E-M5 II 4.1 and the E-M5 Mark I 2.3 firmware, so the E-M5 III findings here don't carry over; any route would need its own study. [code]
+## Other cameras
 
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+The E-M5 II and the original E-M5 do not have the lens-communication code this study relied on, so any attempt there
+would need its own study.
+
+## Related work
+
+A separate project, om-c-firmware by azqeurio, has an aperture-ring hack for Panasonic lenses. It is worth reading for
+ideas.
+
+## Further reading
+
+- [Image stabiliser](../hardware/stabiliser.md) explains how the body and lens share the stabilising work.

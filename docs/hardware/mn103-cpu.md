@@ -1,4 +1,6 @@
-# MN103 / AM33-2 control CPU
+# MN103 control CPU
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [An MN103 primer](../guides/mn103-primer.md).
 
 The camera's main program runs on Panasonic MN103 cores. This page covers what the CPU is, how functions pass arguments
 and build their stack frames (the "calling convention"), which compiler Olympus probably used, a few instruction-set
@@ -142,6 +144,12 @@ to an interrupt handler (ISR).
 | 0x60069e11 / 0x60069e5a | enter / leave a critical section (returns a token) | [code] |
 | 0x60051679 / 0x6005174e | take a lock (with timeout) / give it back | [code] |
 | 0x60045d92(n) | 1 if block0 section n is loaded and ready (see [boot](../firmware/boot-and-sections.md)) | [code] |
+| 0x60051d55 | create a task: a0 name, d0 = 2 (create and start), d1 exinf, a1 entry, (4,sp) priority, (8,sp) stack size, (12,sp) stack = 0 (kernel allocates, as at 0x60182491); frame `[d2,d3,a2,a3],56`; returns the task id. 2026-11-21 private notes | [code] [emu] |
+| 0x60051a24 | sleep d0 ms, frame `[d2],8` | [code] [emu] |
+| 0x60120227 | key state: d0 = key code, frame `[d2,d3,a2,a3],24`, returns **0 while held** (OK = 4); the boot's own key checks use it (0x60045b29); same shape as OMKit's OM-5 II 0x60130fb8. 2026-11-21 private notes | [code] [emu] |
+| 0x6019c68c | FastEndCb, late start-up callback (string 0x601fbd06; registered via 0x607c244a; waits for boot stage 0xa265657c >= 13 via 0x6019a822); entry `movm [a2],(sp); add -4,sp`, resume 0x6019c691. Mod loader hook site. 2026-11-21 private notes | [code] |
+| 0x600644ae | write back and invalidate the **data** cache of the current core (core id 0x8050): critical section, D-cache off (CHCTR 0x8070 bit 1), wait busy (bit 3), write back by reading 0x28a00000/0x28a80000, drain the core's bus buffer (0x98100000 + 0x400 x core, bit 4), invalidate the tags 0x28900000/0x28980000 in 16-byte lines, CHCTR \|= 0x22; does not touch the instruction cache ([caches](caches.md)); frame `[d2,d3],16`, 21 stock callers. For code written at run time (mod loader hook helper). 2026-11-22 private notes | [code] |
+| 0x600232c5 | malloc d0 bytes, frame `[],4` (returns a0) | [code] [emu] |
 | 0x600590c9 | convert an address for the image engine (`& 0x3fffffff`) | [code] |
 | 0x60064634 | check an address is in a valid image range (b0000000-bfffffff, c4000000-dfffffff) | [code] |
 | 0x60631fe8 / 0x606320f2 | fwrite / fread (card file I/O) | [camera] |
@@ -155,4 +163,10 @@ the record at 0x61a92e40 is also 0xa1a92e40). Read structures that only the CPU 
 
 One exception to be careful with: CPU reads of the frame-buffer block at 0xc4000000 **rebooted the camera**,
 while the image engine could use it fine. Treat that block as DMA-only, or as needing a different alias. [camera]
+
+## Caches
+
+Each core has its own 8 KB data cache (2 ways, 256 sets, 16-byte lines, write-back), controlled by CHCTR at 0x8070;
+the whole-cache routine is 0x600644ae (data cache only, current core). The instruction cache is invalidated only at
+core start. Full write-up, with the bus buffers and the boot access monitor: [Caches](caches.md). [code]
 

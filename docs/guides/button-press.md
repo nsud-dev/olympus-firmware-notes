@@ -35,7 +35,7 @@ as a **group** with its own bit image, one bit per key:
 | adc | keys read through an analogue input (several keys share a line, told apart by voltage) |
 | dial | the mode dial position |
 | ext | keys on an external input chip |
-| power | the power switch, read through the power sub-processor |
+| power | the power switch, read through the always-on power block (wake input 0) |
 
 Each key has a 4-letter name and a number in a table. Some examples: `Trg1` (0x100) is the shutter button half-pressed,
 `Trg2` (0x101) fully pressed, `Ok` (0x4), `Menu` (0x89), `Play` (0x87), `Info` (0x1205). Cables, card doors and the
@@ -50,7 +50,7 @@ lens show up as "keys" too (`UsbC`, `Hdmi`, `LnsC`), which is why the same modul
 | key names and codes | 0x60251248 | [code] |
 | which physical button each `Cut` code is | needs `ui key debug` on the camera | open |
 
-Sources: [Wi-Fi debug shell: simulated button presses](../features/wifi-debug-shell.md#simulated-button-presses).
+Sources: [Wi-Fi debug shell: simulated button presses](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
 ## 2. The interrupt
@@ -78,7 +78,7 @@ group's image and sets UI_IN's flag. Registering the power-switch callback takes
 | power key callback | 0x60121f0d (via 0x60063d13, lock 8) | [code] |
 | UI_IN event flag | u16 at 0x60040dd4, bit 0 | [code] |
 
-Sources: [Wi-Fi debug shell: from the key line to the app](../features/wifi-debug-shell.md#simulated-button-presses).
+Sources: [Wi-Fi debug shell: from the key line to the app](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
 ## 3. The UI_IN task: from bits to events
@@ -107,7 +107,7 @@ half-press, however quickly the button was pushed.
 | key dispatcher (events, half-press first) | 0x60120ad3 | [code] |
 | event kinds | 0x2000000 / 0x2010000 / 0x2020000 + code | [code] |
 
-Sources: [Wi-Fi debug shell](../features/wifi-debug-shell.md#simulated-button-presses).
+Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
 ## 4. Dials
@@ -123,7 +123,7 @@ jog driver after the keys.
 | send a dial event | `JOG_SendEvent` 0x6011fe86 (0x2030000 + 0x1902 / 0x1903) | [code] |
 | how the pulses are counted (timer, interrupt) | not traced | open |
 
-Sources: [Wi-Fi debug shell](../features/wifi-debug-shell.md#simulated-button-presses).
+Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
 ## 5. The app event queue
@@ -156,7 +156,7 @@ waits its turn among other kinds of events.
 | reader | `appevent::Wait_Event` 0x602e2f49, `Wait_ExecuteEvent` 0x602e32f6 (HLS_EVENT task) | [code] |
 | dropped events | 0x40d00b5 / 0x40d00b6 while byte 0xa25b897e = 119 | [code]; meaning open |
 
-Sources: [Wi-Fi debug shell](../features/wifi-debug-shell.md#simulated-button-presses).
+Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
 ## 6. After a half-press
@@ -199,7 +199,7 @@ fake those events.
 | set a key | 0x60120327(code, state) | [code] |
 | tried on the camera | not yet | open |
 
-Sources: [Wi-Fi debug shell](../features/wifi-debug-shell.md#simulated-button-presses), remote test rig.
+Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses), remote test rig.
 </details>
 
 ## How our features use this

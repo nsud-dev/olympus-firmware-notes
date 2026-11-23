@@ -194,12 +194,20 @@ recipe.
 The om-emu emulator runs the camera's c3d tasks when the Color Creator is open. It can work in two ways:
 
 - **Stand-in mode.** A stand-in written in JavaScript answers the OpenVG calls and draws the result, so you see your
-  renderer's output.
+  renderer's output. It knows only two image formats, the DMP tiled layout and plain RGBA, and has no gradients,
+  dashes, masks or blend modes other than normal, so check those on the camera.
 - **Native mode.** The real library runs, and the emulator captures the command lists it would send to the GPU.
 
 Our renderers were loaded as compiled objects and wired in place of the empty Tough Gear renderer. Native-mode
 captures, with a list decoder, are how the command format above was worked out. The emulator patches and scripts are
 in these notes' `tools/om-emu-c3d/` folder, and the header, example renderer and list tools in `tools/c3d_vg/`.
+
+<p class="shots">
+<a href="../images/stock-color-creator.webp"><img src="../images/stock-color-creator.webp" alt="The stock Color Creator wheel" width="360"></a>
+<a href="../images/own-gpu-renderer.webp"><img src="../images/own-gpu-renderer.webp" alt="Our own renderer on the vector GPU" width="360"></a>
+</p>
+
+*Left, the camera's own Color Creator wheel, drawn by c3d in stand-in mode. Right, our own renderer, loaded in place of an unused one and drawn through the same path. Emulator screenshots.*
 
 ## 6. Limits and open questions
 

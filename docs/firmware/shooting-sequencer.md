@@ -1,4 +1,6 @@
-# Shooting sequencer (E-M5 III 1.7)
+# Shooting sequencer
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Taking a photo](../guides/taking-a-photo.md).
 
 When you press the shutter, a "shooting sequencer" in the main program steps through a series of states: standby,
 preparing, taking the exposure, developing, saving. This page describes that state machine, how it decides which path a

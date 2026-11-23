@@ -60,7 +60,7 @@ anything.
 | no self-check on the boot path | boot stub, loader 0x60045e2e | [code] |
 | updater checks every component first | validator 0x60c3aa36 | [code] |
 
-Sources: [recovery](../firmware/recovery.md#what-checks-what-at-power-on),
+Sources: [recovery](../firmware/recovery-technical.md#what-checks-what-at-power-on),
 [boot and sections](../firmware/boot-and-sections.md#addresses).
 </details>
 
@@ -132,7 +132,7 @@ The main program runs **μITRON**, a real-time operating system, with Olympus's 
 **Stage 0** initialises the drivers and debug support, then starts the first tasks. Their names say what they are
 for:
 
-- **PER_WDT**, the watchdog keeper. The watchdog itself lives in a separate sub-processor and resets the camera if it
+- **PER_WDT**, the watchdog keeper. The watchdog itself lives in a small always-on part of the main chip (the power block) and resets the camera if it
   isn't "kicked" regularly. Boot sets its timeout (the value 10; the unit isn't confirmed) and PER_WDT kicks it every 3 seconds.
 - **PER_PCONT**, power control.
 - **BCHK_MAIN**, battery check.
@@ -148,12 +148,12 @@ before going on.
 | stage 0 | 0x60045103 (tags `0_1` ... `0_v`) | [code] |
 | task start call | `OlyTaStCpu` 0x6005185f | [code] |
 | watchdog set-up and task | 0x600741b2; PER_WDT task id 25, entry 0x600741c0, kick every 3 s; timeout set to 10 | [code] |
-| watchdog hardware | in the sub-CPU, 0x98e0008c via 0x600226e1 | [code] |
+| watchdog hardware | always-on power block (not a sub-CPU, 2026-11-23), 0x98e0008c via 0x600226e1 | [code] |
 | stage 1 | 0x60045841 (tags `1_1` ... `1_8`); waits with 0x60045eb3(1) | [code] |
 | which task is which loader | ids at 0x60040b68, 0x60041132, 0x60041294 | [inferred] |
 
 Sources: [start-up stages 0 and 1](../firmware/boot-and-sections.md#start-up-stages-0-and-1-2026-11-19),
-[recovery](../firmware/recovery.md#what-checks-what-at-power-on).
+[recovery](../firmware/recovery-technical.md#what-checks-what-at-power-on).
 </details>
 
 ## 5. Sections load in the background
@@ -211,7 +211,7 @@ How the camera gets from here to the first live-view frame on the screen is not 
 | card updater client | FIRMUP_CLI id 88, entry 0x60c3a1b3 | [code] |
 
 Sources: [boot order](../firmware/boot-and-sections.md#boot-order-and-why-hooks-need-a-guard),
-[card updater](../firmware/recovery.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
+[card updater](../firmware/recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
 </details>
 
 ## 7. What can go wrong

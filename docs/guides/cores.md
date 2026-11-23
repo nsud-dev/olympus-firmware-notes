@@ -40,7 +40,7 @@ The ARM runs Linux, for Wi-Fi, Bluetooth and the helper that does the maths for 
 | which code runs in those tasks | not traced | open |
 | ARM programs and their channels | [ARM co-processor](../hardware/arm-coprocessor.md) | [code] |
 
-Sources: [SoC overview](../hardware/soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19).
+Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19).
 </details>
 
 ## 2. Shared memory
@@ -103,7 +103,7 @@ these loops have no timeout: if the holder never lets go, the waiting core spins
 | ISC's own copy | 0x61206b6d | [code] |
 | `bset` atomic across cores | the design depends on it | [inferred] |
 
-Sources: [SoC overview](../hardware/soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19).
+Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19).
 </details>
 
 ## 4. Doorbells: one core interrupting another
@@ -138,7 +138,7 @@ An interrupt arriving from another core that nobody expected prints `!!Dummy IRQ
 | fault request | +0x00 (0x60058333) | [code] |
 | unexpected inter-core interrupt message | 0x60054fa8 | [code] |
 
-Sources: [SoC overview](../hardware/soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19), [memory map](../hardware/memory-map.md).
+Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19), [memory map](../hardware/memory-map.md).
 </details>
 
 ## 5. Kernel calls across cores
@@ -199,7 +199,7 @@ mechanisms to watch on a live camera.
 | drain the ring from CPU0 / CPU1 / CPU2 | 0x600573ee / 0x60057442 / 0x60057496 (from the doorbell handler) | [code] |
 | `syscall` shell command | 0x60057a1d | [code] |
 
-Sources: [SoC overview](../hardware/soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19).
+Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19).
 </details>
 
 ## 7. The ARM: the ISC mailbox
@@ -254,5 +254,5 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | ISC mailbox to the ARM | yes | **confirmed** | **confirmed** | not checked | not checked | not checked | — |
 
 "Confirmed (strings)" means the names are there; the code behind them wasn't compared.
-[SoC overview](../hardware/soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19),
+[SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19),
 [ARM co-processor](../hardware/arm-coprocessor.md).

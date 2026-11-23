@@ -1,4 +1,6 @@
-# The c3d GPU (DMP SMAPH-F, OpenVG)
+# c3d vector GPU
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Drawing with the vector GPU](../guides/vector-gpu.md).
 
 The camera has a second drawing engine besides the 2D OSD engine: a small **vector GPU** from DMP (Digital Media
 Professionals), core name **SMAPH-F**, driven through DMP's **OpenVG 1.1 + EGL** library. Only the colour-wheel
@@ -249,7 +251,7 @@ on each block0 (expanded images for compressed bodies). [code] 2026-11-21
 
 The OM-1 family's `VG_DMP_image_standard_format_direct_load` replaces `native_format`, so texture bytes may differ there.
 The PEN-F also carries an OpenGL ES 1.1 driver. [code]
-- **E-M5 II 4.1 / PEN-F 3.1:** the same DMP OpenVG set (`vgCreateImageDataDMP`, `vgDrawPathDataDMP`, `c3d_exe_bridge_disp_init`). **E-M5 (Mark I) 2.3:** a GPU (`play_gpu.c`, `c3d_dbg`) but no OpenVG names. [code] 2026-11-21, see [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21)
+- **E-M5 II 4.1 / PEN-F 3.1:** the same DMP OpenVG set (`vgCreateImageDataDMP`, `vgDrawPathDataDMP`, `c3d_exe_bridge_disp_init`). **E-M5 (Mark I) 2.3:** a GPU (`play_gpu.c`, `c3d_dbg`) but no OpenVG names. [code] 2026-11-21, see [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21)
 
 
 ## 4b. Objects: contexts, handles, paths, paints (2026-11-21)
@@ -398,10 +400,10 @@ Built on the camera-proven profile editors (our notes), which did exactly this f
 - **ART's band is fixed at 80 px** [code] 2026-11-21: the renderer's only path (0x60c26ee3..0x60c26f7c) is
   (0,0)-(0,80)-(W,80)-(W,0), black at 50 %, under the thumbnails. Photos of the camera's normal shooting screen and ART
   select [camera] 2026-11-21: the 80-px thumbnail band matches; live view keeps its full width and is not
-  scaled; it stops at the top of the thumbnail band (about y 400), and the thumbnails sit on black. The darker strip
-  under the "Soft Focus" title is the bottom ~50 px of live view (y ~350-400), dimmed. (An earlier note here said live
-  view shrank to ~672 x 400; that misread a photo.) The emulator has no live-view pipeline and its IMG1 area stays
-  720 x 480, so neither shows there. Which unit cuts and dims live view is [open].
+  scaled, and the thumbnails sit on black. **The translucent grey bar under the "Soft Focus" title (y ~348-398) is a
+  GUI picture, not dimmed live view** [emu]+[camera] 2026-11-22: it is a 4-bit run-length picture sent without a colour
+  table, which stock om-emu refuses (`osd-engine ERROR BMP_LUT` on stderr only). With our patch 0004 it draws in om-emu
+  and matches a photo of the camera's screen; SCN's title bar is the same kind. (Notes of 2026-11-21 here blamed live view, first as a
 
 ## 11. Driving the library yourself (2026-11-21)
 

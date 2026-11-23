@@ -1,0 +1,173 @@
+diff --git a/emu/host/olyfwenv.mjs b/emu/host/olyfwenv.mjs
+index 00d0498..889abd3 100644
+--- a/emu/host/olyfwenv.mjs
++++ b/emu/host/olyfwenv.mjs
+@@ -1,5 +1,5 @@
+ // olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): turn the optional checks on from the environment.
+-// usage: OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
++// usage: OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
+ //        node --import ./host/olyfwenv.mjs bin/session.mjs ...
+ // Writes the cache model's reports (OM_DCACHE_OUT) and the section monitor's record (OM_SECMON) as JSON at exit.
+ import { writeFileSync } from 'node:fs';
+@@ -12,8 +12,10 @@ if (env.OM_DCACHE) {
+   OLYFW.dcache = { sizeKiB: Number(kib || 8), ways: Number(ways || 2), all: env.OM_DCACHE_ALL === '1' };
+ }
+ if (env.OM_SECMON) OLYFW.secmon = true;
++if (env.OM_KCHECK) OLYFW.kcheck = true;
+ if (env.OM_HEAP_FILL) OLYFW.heapFill = parseInt(env.OM_HEAP_FILL, 16) >>> 0;
+ process.on('exit', () => {
+   if (env.OM_DCACHE_OUT && OLYFW.made.dcache) writeFileSync(env.OM_DCACHE_OUT, JSON.stringify(OLYFW.made.dcache.summary(), null, 1));
++  if (env.OM_KCHECK && OLYFW.made.kcheck) writeFileSync(env.OM_KCHECK, JSON.stringify(OLYFW.made.kcheck.summary(), null, 1));
+   if (env.OM_SECMON && OLYFW.made.secmon) writeFileSync(env.OM_SECMON, JSON.stringify(OLYFW.made.secmon.summary(), null, 1));
+ });
+diff --git a/emu/src/core/interp.mjs b/emu/src/core/interp.mjs
+index 5c258a1..40df2f9 100644
+--- a/emu/src/core/interp.mjs
++++ b/emu/src/core/interp.mjs
+@@ -66,7 +66,21 @@ let TB_PC = 0, TB_AT = 0;
+ // P_N). A single step calls it too (probeStep, from the machine's step).
+ const PROBE = new Set();
+ let PROBE_FN = null, P_PC = -1, P_N = -1;
+-function markProbes() { for (const pc of PROBE) BPH[pc & 0xffff] = 1; }
++// olyfw patch 0007: a second, standing probe set for the optional kernel checks (src/lab/kcheck.mjs), kept across the
++// debugger's setProbes: OPROBE pc -> fn(pc), called the same way as PROBE_FN. Empty by default: nothing changes.
++const OPROBE = new Map();
++let O_PC = -1, O_N = -1;
++export function setOlyProbes(map) {
++  OPROBE.clear(); O_PC = -1; O_N = -1;
++  for (const [pc, fn] of map) OPROBE.set(pc | 0, fn);
++  markProbes();
++}
++function olyProbeAt(pc) {
++  if (pc === O_PC && S.insns === O_N) return;
++  O_PC = pc; O_N = S.insns;
++  OPROBE.get(pc)(pc >>> 0);
++}
++function markProbes() { for (const pc of PROBE) BPH[pc & 0xffff] = 1; for (const pc of OPROBE.keys()) BPH[pc & 0xffff] = 1; }
+ export function setProbes(list, fn) {
+   PROBE.clear(); PROBE_FN = null; P_PC = -1; P_N = -1;
+   if (fn !== null) { for (const pc of list) PROBE.add(pc | 0); if (PROBE.size) PROBE_FN = fn; }
+@@ -80,7 +94,10 @@ function probeAt(pc) {
+   P_PC = pc; P_N = S.insns;
+   PROBE_FN(pc >>> 0);
+ }
+-export function probeStep() { if (PROBE_FN !== null && PROBE.has(R[PC])) probeAt(R[PC]); }
++export function probeStep() {
++  if (OPROBE.size !== 0 && OPROBE.has(R[PC] | 0)) olyProbeAt(R[PC] | 0);
++  if (PROBE_FN !== null && PROBE.has(R[PC])) probeAt(R[PC]);
++}
+ export function setBreakpoints(list) {
+   BP.clear(); BPH.fill(0);
+   for (const pc of list) { BP.add(pc | 0); BPH[pc & 0xffff] = 1; }
+@@ -231,7 +248,7 @@ const cslots = new Map();
+ export function resetInterp() {
+   CODECH = new Uint8Array((TOTAL >>> CHUNK) + 1);
+   cslots.clear(); ctag.fill(-1); ckind.fill(K.FB); cch0.fill(-1); cch1.fill(-1); BP.clear(); BPH.fill(0);
+-  PROBE.clear(); PROBE_FN = null; P_PC = -1; P_N = -1;
++  PROBE.clear(); PROBE_FN = null; P_PC = -1; P_N = -1; OPROBE.clear(); O_PC = -1; O_N = -1;
+   WATCH = -1; BUILTIN = new Set(); MUT = 0; ONE = false; TB_PC = 0; TB_AT = 0; SEGS = new Set([0x17]); FORCE_FB = false;
+   LOCAL_PAGE = -1; localSlots.length = 0;
+   setSmcHook(invalidateChunk);
+@@ -471,6 +488,7 @@ export function run(budget = Infinity, resumed = false) {
+       if (BPH[pc & 0xffff] !== 0) {
+         if (BP.has(pc)) return RUN_BP;
+         if (pc === WATCH && S.insns !== i0) watchArrival(pc, tbPc, tbAt);  // refusal (c): a plain arrival
++        if (OPROBE.size !== 0 && S.insns < lim && OPROBE.has(pc)) olyProbeAt(pc);   // olyfw 0007 (setOlyProbes)
+         if (PROBE_FN !== null && S.insns < lim && PROBE.has(pc)) probeAt(pc);   // before the fetch (setProbes)
+       }
+       if (S.insns >= lim && !(MUT === 4 && S.insns < bud && inlineAt(pc))) { TB_PC = tbPc; TB_AT = tbAt; return RUN_LIMIT; }
+diff --git a/emu/src/core/olyfw.mjs b/emu/src/core/olyfw.mjs
+index 799f752..5b5847b 100644
+--- a/emu/src/core/olyfw.mjs
++++ b/emu/src/core/olyfw.mjs
+@@ -3,5 +3,6 @@
+ //   dcache   null, or {sizeKiB, ways, all}: the data-cache coherence model (src/core/dcache.mjs)
+ //   secmon   false, or true: the section first-touch monitor (src/core/secmon.mjs)
+ //   heapFill null, or a 32-bit word: S-HEAP fills each block it hands out or takes back with it (src/lab/play.mjs)
++//   kcheck   false, or true: the kernel checks (src/lab/kcheck.mjs, patch 0007), installed at the native kernel's boot
+ //   made     the newest machine's model and monitor, for the host to report
+-export const OLYFW = { dcache: null, secmon: false, heapFill: null, made: { dcache: null, secmon: null } };
++export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, made: { dcache: null, secmon: null, kcheck: null } };
+diff --git a/emu/src/lab/kcheck.mjs b/emu/src/lab/kcheck.mjs
+new file mode 100644
+index 0000000..d0a818d
+--- /dev/null
++++ b/emu/src/lab/kcheck.mjs
+@@ -0,0 +1,50 @@
++// Optional kernel checks (olyfw patch 0007; MIT, see om-emu's LICENSE), for faults the camera shows and the lab hides.
++//
++// blocking-in-interrupt  a blocking service (twai_sem, wai_flg, twai_flg, loc_mtx, dly_tsk, trcv_dtq, tsnd_dtq) entered
++//                        while the running CPU is outside a task's context (the KCB +28 nesting byte is not 0, as
++//                        in_interrupt sets it): the firmware answers E_CTX, and code that then goes on as if it had
++//                        waited or holds a lock it never got fails on the camera (Live ND E2k, a lock taken in a
++//                        completion callback, 2026-10-29).
++// cross-cpu-object       the kernel's object lookup (E137 sub_60030e9d, the load at 0x60030eff of the owner CPU's
++//                        table pointer *(0x8ff00004 + 4 * cpu), cpu = id bits 12-14) on an object of another CPU. The
++//                        lab writes every CPU's pointer at boot (kernel.mjs boot), so such a lookup cannot fault here;
++//                        on the camera it faults while that CPU's kernel is not up (0x60030f01, the Live ND power-on
++//                        reset, 2026-11-22). Reported with the caller, to compare a build's sites with stock's.
++// Enabled through src/core/olyfw.mjs (host/olyfwenv.mjs: OM_KCHECK=FILE); installed when the native kernel boots.
++import { R, D0, A0, SP, MDR } from '../core/cpu.mjs';
++import { S } from '../core/cpu.mjs';
++
++const h8 = (x) => '0x' + (x >>> 0).toString(16).padStart(8, '0');
++
++export function createKernelChecks({ svc, kcb, read8, read32, lookupPc = null, max = 200 }) {
++  const counts = { 'blocking-in-interrupt': 0, 'cross-cpu-object': 0, blocking_calls: 0, lookups: 0 };
++  const reports = [], sites = new Map();
++  const ctx = () => read8(read32(kcb + 28)) !== 0;
++  const caller = () => ({ mdr: h8(R[MDR]), sp_word: h8(read32(R[SP] >>> 0)) });
++  const probes = new Map();
++  for (const name of ['twai_sem', 'wai_flg', 'twai_flg', 'loc_mtx', 'dly_tsk', 'trcv_dtq', 'tsnd_dtq']) {
++    if (svc[name] === undefined) continue;
++    probes.set(svc[name] >>> 0, () => {
++      counts.blocking_calls++;
++      if (!ctx()) return;
++      counts['blocking-in-interrupt']++;
++      if (reports.length < max) reports.push({ kind: 'blocking-in-interrupt', svc: name, insns: S.insns, d0: h8(R[D0]), ...caller() });
++    });
++  }
++  if (lookupPc !== null) {
++    probes.set(lookupPc >>> 0, () => {
++      counts.lookups++;
++      const own = read32(0x8050), cpu = (R[D0 + 2] >>> 2) & 7;        // d2 = cpu << 2 here
++      if (cpu === own) return;
++      counts['cross-cpu-object']++;
++      const c = caller(), id = R[D0] & 0xffff, key = `${cpu}:${c.sp_word}`;
++      const s = sites.get(key);
++      if (s) { s.n++; return; }
++      sites.set(key, { cpu, own, id: h8(id), first_insns: S.insns, n: 1, ...c, a2: h8(R[A0 + 2]) });
++    });
++  }
++  return {
++    probes, counts,
++    summary() { return { counts, reports, cross_cpu_sites: [...sites.values()] }; },
++  };
++}
+diff --git a/emu/src/lab/kernel.mjs b/emu/src/lab/kernel.mjs
+index 9c56968..ea9f9f9 100644
+--- a/emu/src/lab/kernel.mjs
++++ b/emu/src/lab/kernel.mjs
+@@ -8,6 +8,9 @@ import { DATA, ISR_CALLER, ISR_SP, SAVED, FirmwareError, disasm, install_core_in
+ import { SP, packRegs } from './sim.mjs';
+ import { ValueError, AssertionError } from './errors.mjs';
+ import { show } from '../util/show.mjs';
++import { OLYFW } from '../core/olyfw.mjs';
++import { setOlyProbes } from '../core/interp.mjs';
++import { createKernelChecks } from './kcheck.mjs';
+ import { hex, hexDigits as fx } from '../util/hex.mjs';
+ 
+ export const KCB_TABLE = BOARD.sram + 4;                // the kcb pointer per CPU (on-chip SRAM, src/fw/board.mjs)
+@@ -50,6 +53,12 @@ export class NativeKernel {
+     const hle = this.hle, sim = hle.sim;
+     if (this.cpu !== 0) throw new FirmwareError('only the CPU-0 init path (0x50011883) is wired; CPUs 1-3 enter at 0x50012776/0x50012826/0x500128d6');
+     install_core_index(sim, this.cpu);
++    if (OLYFW.kcheck) {                    // olyfw patch 0007: the optional kernel checks (src/lab/kcheck.mjs)
++      const at = (a, hex) => { try { return Array.from(sim.read(a, hex.length / 2), (b) => b.toString(16).padStart(2, '0')).join('') === hex; } catch { return false; } };
++      const lookupPc = at(0x60030eff, 'f002f8203c') ? 0x60030eff : null;     // E137 1.7's object lookup, checked by its bytes
++      const kc = createKernelChecks({ svc: Object.fromEntries(Object.entries(SVC).map(([k, v]) => [k, (v - 0x50000000 + IMAGE_BASE) >>> 0])), kcb: this.kcb_addr, read8: (a) => sim.read(a >>> 0, 1)[0], read32: (a) => sim.u32(a >>> 0), lookupPc });
++      setOlyProbes(kc.probes); OLYFW.made.kcheck = kc;
++    }
+     for (let other = 0; other < KCB.length; other++) {
+       if (other !== this.cpu) {
+         sim.word(KCB_TABLE + 4 * other, KCB[other]);

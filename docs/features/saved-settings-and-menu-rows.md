@@ -1,4 +1,6 @@
-# Saved mod settings and native menu rows
+# Saved settings and menu rows
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Settings and menus](../guides/settings-and-menus.md).
 
 A feature added to the camera's firmware needs somewhere to keep its settings, and a menu entry to change them. This
 page describes a method that does both on the E-M5 Mark III (firmware 1.7):
@@ -94,6 +96,53 @@ there stops the boot. [code]
 Rule that came out of this: a hook may reach code in another section only if that section becomes **ready** before
 the hook can run, or if the hook tests the section's ready bit first. Checking the read order is not enough. [camera]
 
+## A new Custom Menu letter (2026-11-22)
+
+The mod loader adds a letter **K. Mods** after J2 in the Custom Menu (gear tab): one row per mod found on the card plus
+a Wi-Fi Shell row, each with the stock Off/On list. It works in om-emu; not yet run on the camera. [emu]
+A new letter needs one entry in each of these tables. Each is a copy of the stock table plus one entry, in free space,
+with the stock code's pointer and count moved to the copy. [code]+[emu]
+
+- **Letter id lists** at 0x6106a6f4 and 0x6106a6fc (u16 ids, 21 letters): add letter id 3293, which the firmware
+  already knows but never shows. [code]+[emu]
+- **Letter glyphs** 0x610974aa {id, glyph, selected glyph} (22 entries), **letter -> page key** 0x61097456 (21; K gets
+  the unused key 103), **preview records** 0x61097270 and **open-page records** 0x610780e0 (24 each, 20 B
+  {id, rows, title kind, title, items, aux}). Title kind 5 takes 8-bit text, not UTF-16. [code]+[emu]
+- **Page row lists** 0x6106a824 {key, n, -> {cond, n, -> ids}} (24): the row count is written at run time, after the
+  card scan. [code]+[emu]
+- **Letter -> controller** 0x61070d04 {id, controller, 0} (24): the value is a controller id, not an index. The
+  controller table 0x61064b98 (169 x 36 B) gets controller 86 for key 103. Without it the page opens empty. [code]+[emu]
+- **Row kinds** 0x610783d8 {id, kind} (90): kind 1 gives the Off/On list. A row id missing here gets a +2..-2 level
+  slider. [code]+[emu]
+- **Letter pictures.** The letter cell draws one picture per letter from 32 picture lists of 16 B entries (21 used,
+  padded with zero entries) and 32 widget templates whose count byte goes 21 -> 22. K uses two retired picture ids
+  (0x129e, 0x1289) whose slots in the RAM picture table (pointer 0x61eb7628) the loader fills at start-up. Without the
+  22nd entry the cell shows the A1 picture. [code]+[emu]
+- **Values and text** use the same getter, setter and string hooks as the Live ND rows (setting ids 16100-16106,
+  string ids 4100-4109). Row names come from the mods' file headers at run time. [code]+[emu]
+- **First camera run (2026-11-22):** the loader worked, but MENU reset the camera. The cause was extending the
+  letter-cell picture lists (see [gotchas](../reference/gotchas.md)); without that edit the menu works. [camera]
+
+- **Scrolling page (2026-11-22):** one letter page holds more rows than fit on screen and scrolls natively:
+  the K page has 1 + 2 x 10 static row ids, the shown count (Wi-Fi + m mod rows + m "Load:" rows) is written at run
+  time, and the getter, setter and string hooks map row r to its mod at run time, so the shown rows are always a prefix
+  of the static list. In om-emu the page opens with the cursor on its last row. A second letter (3295/3292) shows its
+  rows but RIGHT does not open it; 3296 is not shown at all. [emu]
+- **Page opens on its last row: cause and fix (2026-11-22).** A page's controller needs an entry in the
+  controller-init table 0x6105e7fc (49 x {u16 ctl, 0, init}, one reader 0x60d59309, count byte 0x60d59330). Without
+  one it gets the default init 0x60d5939c, which hands the list constructor 0x60d620e7 the raw controller words
+  {key, items}; the list reads items != 0 as "entered from below" ((64) set -> cursor = last shown row). Stock list
+  pages (J2, ctl 0x58) use 0x60d5945c, which passes {key, direction}. Adding {ctl, 0, 0x60d5945c} makes the page
+  open on its first row. A camera run showed the bug. [code]+[emu]+[camera]
+
+- **Value column and scroll bar:** right-aligned values touch the scroll bar of a page with more than 7 rows (no stock
+  custom-menu page scrolls on this body); own "On" / "Off" strings with three trailing spaces clear it. Help strings
+  need "\r\n" line breaks (about 30 characters per line). [emu]+[camera]
+- **Letter cell:** a letter missing from the letter picture/group table 0x610782c0 (25 x {id, sel pic, normal pic,
+  group}; readers 0x60d7552a, 0x60d75749) gets a blank cell; adding it gives a cell with a stand-in picture (no K
+  picture without the letter-cell list edit, which reset MENU). A second new letter still never reaches the
+  page-open code 0x60d6cbb0 on RIGHT (tried ids 3295/3292, ctl 82/98/103/43, keys 129/107/112, group 10/11). [emu]
+
 ## Credits
 
 The idea of keeping mod settings in the unused tail of the camera's own settings image comes from the Caduceus E-P7
@@ -105,4 +154,4 @@ native menu rows, and reports the camera result.
 - **E-M5 II 4.1:** same `MODE_*` key-table design (4192 names in block 2) and the same `SubApp`/`OlyApi` layers, so the method carries; the saved-values store differs (no "acc flash write" settings image, as on the PEN-F). New addresses throughout. [code]+[inferred]
 - **E-M5 (Mark I) 2.3:** no `MODE_*` key table and an older framework (no Rhapsody OXF); a re-port from scratch. [code]
 
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

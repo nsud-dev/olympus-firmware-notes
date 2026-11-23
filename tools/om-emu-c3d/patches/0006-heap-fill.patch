@@ -1,0 +1,41 @@
+diff --git a/emu/src/lab/play.mjs b/emu/src/lab/play.mjs
+index 88f79c6..340eb83 100644
+--- a/emu/src/lab/play.mjs
++++ b/emu/src/lab/play.mjs
+@@ -46,6 +46,18 @@ import { AudioHw } from './audiohw.mjs';
+ import { Cpu2, CPU2_QUANTUM } from './cpu2.mjs';
+ import { labSoundArea, STAND_IN as SOUNDRES } from './soundres.mjs';
+ import { DisplayQueue } from './dispq.mjs';
++import { OLYFW } from '../core/olyfw.mjs';
++// olyfw patch 0006: S-HEAP's optional fill (src/core/olyfw.mjs heapFill, e.g. 0xdeadbeef: odd and outside every map, so
++// a pointer or code address read from a field nobody set faults at once); one 1 MiB pattern, blocks past it partly
++let heapFillBuf = null, heapFillWord = null;
++const heapFill = () => {
++  if (OLYFW.heapFill === null) return null;
++  if (heapFillWord !== OLYFW.heapFill) {
++    const w = heapFillWord = OLYFW.heapFill; heapFillBuf = new Uint8Array(1 << 20);
++    for (let k = 0; k < heapFillBuf.length; k += 4) { heapFillBuf[k] = w & 0xff; heapFillBuf[k + 1] = (w >>> 8) & 0xff; heapFillBuf[k + 2] = (w >>> 16) & 0xff; heapFillBuf[k + 3] = w >>> 24; }
++  }
++  return heapFillBuf;
++};
+ 
+ // base64.b64encode(bytes).decode()
+ const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+@@ -771,6 +783,9 @@ export class PlayLab extends N.NavLab {
+       this.heap_stats.add('new');
+     }
+     this.heap_sizes.set(a, size);
++    // olyfw patch 0006: OM_HEAP_FILL=HEXWORD fills each new block with that word (the camera's heap hands out blocks
++    // holding whatever was there; S-HEAP's fresh memory reads 0, which hides reads of fields nobody set)
++    if (heapFill() !== null) this.sim.write(a, heapFill().subarray(0, Math.min(size, 1 << 20)));
+     // who allocated it: malloc's caller and the running task's id (the kernel's current TCB, its id at +16)
+     this.heap_owner.set(a, [disasm(r.mdr), this.nk ? unpack('<H', this.sim.read(this.sim.u32(this.nk.kcb(96)) + K.TCB_ID, 2))[0] : null]);
+     hle.finish(regs, { a0: a });
+@@ -779,6 +794,7 @@ export class PlayLab extends N.NavLab {
+     const a = r.a0;
+     const size = this.heap_sizes.get(a);
+     if (size !== undefined) {
++      if (heapFill() !== null) this.sim.write(a, heapFill().subarray(0, Math.min(size, 1 << 20)));   // olyfw patch 0006: a use after free reads the fill
+       this.heap_sizes.delete(a);
+       this.heap_owner.delete(a);
+       if (!this.heap_free.has(size)) this.heap_free.set(size, []);

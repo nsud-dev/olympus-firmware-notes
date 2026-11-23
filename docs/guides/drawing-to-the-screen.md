@@ -117,7 +117,7 @@ Keys reach the screen as events, and the screen's controls decide what each key 
 | picture widget states | 8 at most (cached at object +172) | [camera] |
 | picture lookup | 0x60c934bb; header {14, w, h, 8, 0, size, data, 7}; data = 12-bit colour/run tokens | [code] |
 
-Sources: [profile editor](../features/pen-f-profiles.md#on-camera-editor), [settings and menus](settings-and-menus.md).
+Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor), [settings and menus](settings-and-menus.md).
 </details>
 
 ## 5. The c3d layer
@@ -153,7 +153,7 @@ The GUI is busy until c3d answers each request, so a key press waits for the whe
 | the GPU's registers and command format | DMP SMAPH-F at 0x9c200000, command lists at +0x10d0; opcodes not decoded ([c3d GPU](../hardware/c3d-gpu.md)) | [code] |
 
 Sources: [graphics pipeline: c3d and OpenVG](../hardware/graphics-pipeline.md#5b-the-second-drawing-engine-c3d-and-openvg-2026-11-20),
-[profile editor](../features/pen-f-profiles.md#on-camera-editor).
+[profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
 ## 6. How the two meet on screen
@@ -175,7 +175,7 @@ screen was still empty.
 | Color Creator | layout 4, GUI layers on | [camera] |
 | `disp get` shows which planes are on | user shell | [camera] |
 
-Sources: [profile editor](../features/pen-f-profiles.md#on-camera-editor).
+Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
 ## 7. Drawing your own: what is known to work
@@ -210,7 +210,9 @@ The Color Profile and Mono Profile editors were built in this order, and each st
    keeps only eight. The emulator read zeros there and didn't crash.
 
 The lesson for anyone drawing on this camera: the emulator runs the GUI and the 2D engine well, but it does not run
-the c3d GPU or live view, so anything involving the wheel has to be checked on the camera, with the `c3d` and `disp`
+the c3d GPU or live view, and stock om-emu skips 4-bit pictures sent without a colour table (title bars, the AF grid,
+value boxes), noting it only in its error output. Our patch 0004 draws them. Check the emulator's error output before
+trusting a screenshot. Anything involving the wheel or live view has to be checked on the camera, with the `c3d` and `disp`
 shell commands to see what happened.
 
 <details><summary>Where in the firmware</summary>
@@ -222,7 +224,7 @@ shell commands to see what happened.
 | draw-kind check that skipped the display setup | 0x607f3e38 | [camera] |
 | eight-state limit | 0x60cc9888 reads +172 + 4 × state | [camera] |
 
-Sources: [profile editor](../features/pen-f-profiles.md#on-camera-editor).
+Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
 ## How our features use this
@@ -247,5 +249,5 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | wheel artwork (texture sheets) | none (from the PEN-F) | not checked | placeholders | not checked | not checked | yes | — |
 
 "Confirmed" in the first three rows means the names are in the firmware; the code wasn't compared.
-Sources: [graphics pipeline](../hardware/graphics-pipeline.md), [profile editor](../features/pen-f-profiles.md#on-camera-editor),
+Sources: [graphics pipeline](../hardware/graphics-pipeline.md), [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor),
 [body comparison](../bodies/comparison.md).

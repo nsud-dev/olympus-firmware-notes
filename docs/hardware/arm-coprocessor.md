@@ -1,158 +1,87 @@
-# ARM co-processor and the ISC mailbox
+# ARM co-processor
 
-Besides the MN103 cores that run the camera, the SoC has one ARM core running its own copy of Linux. It looks after
-wireless (Wi-Fi, Bluetooth, the OI.Share phone app) and one piece of computation for Handheld High Res. The two sides
-talk through a hardware mailbox that Panasonic calls ISC ("Inter System Communication").
+<!-- human page -->
+> The dense reference for this page is [ARM co-processor: technical notes](arm-coprocessor-technical.md).
 
-This page covers where the ARM's software lives in the firmware file, which programs run on it and which mailbox
-channels they use, how the MN103 can start the ARM (including from files on the SD card), how to reach a root shell on
-it, and what it is and isn't fast enough for.
+Besides the MN103 processors that run the camera, the E-M5 III's chip has one ARM core running its own copy of Linux.
+It looks after wireless, which covers Wi-Fi, Bluetooth and the OI.Share phone app. It also does one piece of maths for
+Handheld High Res Shot. It does not take part in autofocus or normal shooting.
 
-Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
+## Status
+
+- **The software is mapped.** We know where the ARM's Linux lives in the firmware file and which programs it runs.
+- **We know how to talk to it.** The two sides exchange messages through a hardware mailbox.
+- **A root shell is built in.** The stock firmware can run commands on the ARM as root from the camera's debug console.
 
 ## What it is
 
-The ARM is one **Cortex-A9** (ARMv7-A, with NEON and VFPv3 maths units) next to the MN103 cores. It does **wireless and
-compute**: Wi-Fi, Bluetooth LE, the OI.Share HTTP API, Wi-Fi remote live view, and the **`hhhr`** NEON helper for
-Handheld High Res. It does **not** do autofocus. [code]
+The ARM is a single Cortex-A9 core with NEON, the ARM's vector maths unit. Linux on it sees only 36 MB of memory. It
+reaches the rest of the camera's memory through a slow, uncached window.
 
-Some hardware details from its device tree: Linux sees 36 MB of RAM at ARM-physical address 0; the interrupt controller
-(GIC) is at 0xa0001000; L2 cache at 0xa10c0000/0xa11c0000/0xa12c0000; Wi-Fi is on SDIO `mmc@9a302000`; ttyS0 at
-0x9a500400 is the console and runs a **root shell**; ttyS1 at 0x98400000 talks to the Bluetooth chip (HCI). [code]
+The firmware file carries the whole ARM system. That means a small real-time OS image, a Linux 4.4 kernel, its hardware
+description and two file systems.
 
-## Where the ARM software is in each firmware
+## Programs on it
 
-| body | location | kernel | Wi-Fi chip |
-|---|---|---|---|
-| E-M5 III 1.7 | block 2 sub-block **0x45ef4000** (no checksum of its own) | Linux 4.4.127 (2020-03-03) + a uITRON image | CYW43455 |
-| E-M1 III 1.6 | sub-block 0x46000000; `hhhr` identical apart from addresses | 4.4.127, same day | CYW43455 |
-| OM-5 1.2 | sub-block 0x44ba0000; identical DTB; the itron debug shell removed | 4.4.127 (2022-07-14) | CYW43455 |
-| OM-5 II 1.1 | sub-block 0x44640000; a single squashfs root | **5.10.197** | **CYW43439** (not drop-in) |
-| OM-1 / OM-1 II | bank 9 | **AArch64 Cortex-A53**, ATF, 4.14.222 | CYW43455 |
-| PEN-F 3.1, E-M5 II 4.1 | **none**: no ELF, kernel or device tree in any block | none; the MN103 drives Wi-Fi itself over SDIO (`wlanapi_sdio_*`) [code] 2026-11-21 | BCM43362 |
-| E-M5 (Mark I) 2.3 | none | no Wi-Fi code [code] 2026-11-21 | none |
+A start-up script launches a handful of programs.
 
-### OM-1 / OM-1 II: two Cortex-A53 cores (2026-11-19)
+| program | job |
+|---|---|
+| sccore | supervisor, starts and stops Wi-Fi, runs the debug shell |
+| hhhr | the matrix maths for Handheld High Res Shot |
+| isc_olnet | Wi-Fi control |
+| remocon | Wi-Fi remote live view |
+| isc_cgi, isc_file | the OI.Share phone app's web interface and file transfers |
+| blebridge, bsa_server | Bluetooth Low Energy |
 
-The OM-1's ARM side is a **two-core Cortex-A53** cluster as far as any software can use it. Four independent places in
-both OM-1 1.9 and OM-1 II 1.3 agree: [code]
+## The mailbox
 
-- Device tree (`seg1`, compatible `ntcj,nep1`): exactly two `cpu` nodes, `cpu@0` and `cpu@1`, `arm,cortex-a53`,
-  `enable-method = "psci"` (PSCI 1.0 over SMC). The OM-1 and OM-1 II trees are byte-for-byte the same after decoding.
-- Kernel config (embedded `IKCFG`): `CONFIG_NR_CPUS=2`, `CONFIG_SMP=y`. Linux 4.14.222 (OM-1 II build 2025-02-21).
-- ATF BL31 v2.2 (`seg0`): `plat_core_pos_by_mpidr` (file offset 0x36c) rejects any Aff1 or Aff2 and any Aff0 above 1,
-  and the PSCI power-domain tree (offset 0x5148) is `{1, 2}`: one cluster of two cores. [code]
-- GICv3 redistributor region is 0x40000 bytes at 0xa00c0000, which is two 128 KB redistributor frames, one per core. [code]+[inferred]
+The two sides talk through a hardware mailbox that Panasonic calls ISC, short for Inter System Communication. It has 48
+channels and a 128 KB shared memory area. Each ARM program uses its own channels.
 
-What firmware can't say: whether the die has more A53 cores that are fused off or held in reset. Nothing in the
-firmware addresses a third core. [inferred] The camera's other processors (four MN103 cores CPU0-3, DSP, DL block) are
-separate from this cluster. Linux on the A53 only gets 96 MB of RAM: `memory@0x40000` size 0x5100000 (81 MB) plus a
-14.75 MB RAM-disk root (`slram=mtd0,0x05140000,+0x000ec0000`). [code]
-.
+The `hhhr` helper is a good example. The main program sends it a 48-byte request naming two images. The helper maps
+them, works out how the frames line up, and sends back 112 bytes holding three 3 by 3 matrices. It has to answer within
+100 ms.
 
-[code] extracted files in
-.
+## Starting it
 
-On the E-M5 III the image is a chain of segments: a vector stub, a uITRON image (runs at 0x01000000), a Linux stub, the
-zImage kernel, the device tree `dc13.dtb`, a gzip initramfs, and an LZO squashfs mounted at `/usr`. [code]
+The main program powers the ARM up and down through a manager task. The ARM normally runs while Wi-Fi or Bluetooth is
+in use. Whether it is powered when both are off is one of the open questions for High Res Shot.
 
-## Programs running on the ARM (E-M5 III)
+The camera's debug console also has an `arm` command. One of its options boots the ARM from files on the SD card
+instead of from flash. All it does is set one memory word, so the next ARM start reads the card. The card files are
+read with no size check, so a file that is too large overwrites the main program's buffers.
 
-At boot `/etc/init.d/S99oly` starts `dc13_rtc`, `sccore start` and `hhhr`. [code] Each program uses its own mailbox
-channels:
+## A root shell
 
-| binary | job | ISC channels |
-|---|---|---|
-| sccore | supervisor, Wi-Fi start/stop, ARM debug shell | tx 27, rx 26 |
-| **hhhr** | HHHR matrix maths (`MulMat`, ~1900 NEON/VFP operations) | rx **30** (48-byte request), tx **31** to CPU0 (112-byte result = three 3×3 matrices) |
-| isc_olnet | Wi-Fi control | 17-21 |
-| remocon | Wi-Fi remote live view over UDP | 1, 2 |
-| isc_cgi, isc_file | OI.Share HTTP API / files | 11-13, 16 / 5, 6, 8 |
-| blebridge + bsa_server | Bluetooth LE | 28, 29 |
-| (all) | log / acknowledge | tx 14, rx 15 |
-| sccore shell | `:cc`/`:ccr` root shell (2026-11-07) | rx 15 (32-byte line), tx 14 (128-byte output lines) |
+Console lines starting with `:cc` or `:ccr` are passed to `sccore` on the ARM, which runs them as root. With `:ccr` the
+output comes back to the console. Commands are limited to 27 characters, and the ARM must already be running.
 
-The `hhhr` request is: +0 pointer to the Y (brightness) image, +4 another pointer, +8 a u16 frame index (0 = the
-reference path, which only maps ptr+4). It adds 0x80000000 to the addresses and maps them through `/dev/mem`. It replies
-with 112 bytes even if the mapping fails; a mailbox error makes it exit. The timeout is 100 ms. [code]
+## What it is fast enough for
 
-## The ISC mailbox
+Not much pixel work. Linux has little memory of its own, and it sees the camera's image buffers only through uncached
+access, which is slow. Even `hhhr` works on a reduced brightness image of about 1.3 MB. The ARM suits small data and
+networking. Full-size frames are a job for the image engine.
 
-- It has **48 channels**, control blocks at **0x8ff00c00**, and **128 KB of shared memory at 0x62fe0000 (MN103 view) /
-  0x22fe0000 (ARM view)**. On the ARM side it is the kernel module `iscdrv.ko` and the library `libisc.so`. [code]
-- On the MN103 side: send is 0x61205800; blocking receive is 0x6120581c (service code 3); non-blocking receive is
-  code 2 (0x6120624f, returns −5 when empty), through the dispatcher 0x61206cfe. [code] Nothing on the E-M5 III uses
-  channel 30. [code]
-- Powering the ARM: task `TSK_CA9PWR_MNGR` with `sys_util_ca9_start/stop`. Whether the ARM is powered while Wi-Fi and
-  Bluetooth are off is the first HHHR test's question. [open]
+## Bluetooth
 
-## Starting the ARM: the `arm` debug command (~0x60077d00-0x600783b8)
+On both the E-M5 III and the OM-5, the camera is a Bluetooth server. The phone or remote connects to it. The OM-5's
+Bluetooth program adds pairing and bonding, which its Bluetooth remote relies on. The E-M5 III's version understands 8
+commands and the OM-5's 19, so they are not interchangeable. The Linux kernel and shared libraries are the same, so the
+OM-5's Bluetooth programs are a candidate to swap in.
 
-The MN103's debug console has an `arm` command: `arm load` (Linux), `load2` (itron), **`load4` (Linux from the SD card:
-`C:\TARGET\bootlinux, zImage, dc13.dtb, rootfscpio, rootfssq`)**, `arm start/1/2`, `arm shell sd0|sd3d|sd3c|siodbg`
-(routes the ARM serial port to the SD-slot pins), and `arm pw on/off`. [code] How to reach the debug console on a retail
-body was unknown; since 2026-11-07 the card console (roadmap) is the route, but it would need an
-executor line for `arm`/`:cc` commands. [inferred]
+## Other cameras
 
-## The image loader and booting the ARM from SD (2026-11-07)
+| camera | ARM side |
+|---|---|
+| E-M1 III, OM-5 | the same Cortex-A9 and Linux 4.4. The `hhhr` helper is the same apart from addresses. |
+| OM-5 II | the same core, Linux 5.10 and a different Wi-Fi chip |
+| OM-1, OM-1 II | two 64-bit Cortex-A53 cores with ARM Trusted Firmware and Linux 4.14 |
+| PEN-F, E-M5 II | no ARM. The main processor runs Wi-Fi itself. |
+| E-M5 (Mark I) | no ARM and no Wi-Fi |
 
-Every native ARM start goes through **0x60058c3c**, which loads the ARM image (it is called by the CA9 power manager
-0x6005978d and by `arm load`). [code]
+## Further reading
 
-- If **0xa2624f30 == 0x77777777**, it calls 0x60058d0d and reads `C:\TARGET\bootlinux, zImage, dc13.dtb, rootfscpio,
-  rootfssq` from the card to 0xc0000000 / 0xc0008000 / 0xc0ff0000 / 0xc1000000 / 0xc2400000. It reads each whole file
-  with **no size check**, and only prints errors. Otherwise it reads segments 2-6 from flash (0x60167060). [code]
-- **`arm load4` does nothing but write 0x77777777 to 0xa2624f30.** The flag lasts until power-off, so booting the ARM
-  from SD is one RAM word plus a normal ARM start (for example the Take lease). Files that are too big overrun into the
-  MN103's buffers; missing files hang the ARM (the watchdog then spins the MN103). [code]/[inferred]
-- ARM-physical address = MN103 address & 0x3fffffff (`am_to_arm_addr` 0x600590c9), so the ARM can address all 1 GB
-  (MN 0xc0000000 = ARM 0). [code]
-
-## A root shell on the ARM from the MN103 console (2026-11-07)
-
-The stock firmware already has this. [code]
-
-- Console lines starting `:ccr <cmd>` or `:cc <cmd>` (input loop 0x600570bd) are sent as a raw 32-byte line on ISC
-  **channel 15** to `sccore`. It runs the command as root, with **popen** for `:ccr` (output comes back as 128-byte lines
-  on **channel 14**) or **system** for `:cc`. [code]
-- Commands can be at most **27 characters**.
-- MN103 task 0x60057065 prints the returned lines to the console, where the stock log tee can capture them. [code]
-- The ARM must be running (flag 0xa2624f09). [code]
-
-Other `sccore` features: `sccore ntest` is a stock VFP timing loop (1M × 8 dependent multiply-adds, counter at ARM
-0x98900000+0x14c), and on channel 26, 1 = `/etc/init.d/wifi start &`, 2 = `/etc/init.d/wifi stop` (reply on channel
-27). [code]
-
-## What the ARM is fast enough for (2026-11-07)
-
-Linux has only 36 MB. The MN103's image buffers are reachable only through `/dev/mem`, and ARM Linux 4.4 maps memory
-outside its own RAM as non-cached, so full-resolution pixel passes on the A9 will be slow. `hhhr` itself maps only
-~1.3 MB (a reduced Y image, O_SYNC). The CPU clock is unknown (the global timer runs from a 144 MHz pclk). So: use the
-ARM for small or reduced data and networking, and keep full-frame work on the image engine. [inferred]
-
-## Bluetooth LE (2026-11-07)
-
-Both the E-M5 III's and the OM-5's `blebridge` are **GATT servers only**: the camera advertises and the phone or remote
-connects. The MN103 and blebridge exchange 56-byte messages on ISC **channel 28**. The E-M5 III blebridge accepts **8**
-command codes, the OM-5's **19**, so they aren't compatible. `libbsa.so` and `bsa_server` differ too, but the kernel and
-the libraries they need are the same, so the OM-5's Bluetooth programs are a candidate set to swap in.
-[code]/[inferred]
-
-On the MN103 side the Bluetooth handler is: [code],
-
-
-- E-M5 III ~0x612f98bc-0x612fa6d3 (~3.6 KB: INIT/ADVERTISE/CONNECT, transfer modes). [code]
-- OM-5 ~0x61518fd3-0x6151c224 (~12.8 KB: ACC_PAIRING/ACC_REMOCON/ACC_RESTART/ACC_STANDBY, REMOCON/REMOCON_ONLY,
-  button status 0x6151ba0c/0x6151ba3c, button response 0x6151bb58). [code]
-
-## Leads
-
-- 2026-11-05: OM-5 1.2 vs E-M5 III programs: the same kernel 4.4.127 and an identical `iscdrv.ko`; the programs moved
-  from `/root` (initramfs) to `/usr/bin` (squashfs). The OM-5 `blebridge` (47 KB vs 35 KB) adds Bluetooth bonding and
-  pairing (`BSA_SecAddDevice`, passkey request, `oly_ble_send_security_key`, an advertise timer): the ARM half of the
-  OM-5's Bluetooth remote support. [code]
-- Webcam over Wi-Fi: `remocon` already streams live view, a fallback that needs no patch. [code]
-- A custom ARM userland would have to fit: initramfs ≤ 0x2b3800 bytes gzipped or rootfs ≤ 0x336000 bytes squashfs;
-  only the block-2 checksum changes. [inferred]
-
-,,.
+- [Handheld High Res Shot](../features/hhhr.md) explains where `hhhr` fits.
+- [SoC overview](soc-overview.md) places the ARM among the chip's other processors.
+- [Wi-Fi debug shell](../features/wifi-debug-shell.md) is one way into the debug console.

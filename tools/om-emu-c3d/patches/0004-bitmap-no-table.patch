@@ -1,0 +1,26 @@
+diff --git a/emu/src/dev/engine.mjs b/emu/src/dev/engine.mjs
+index 69d3fcb..79a724d 100644
+--- a/emu/src/dev/engine.mjs
++++ b/emu/src/dev/engine.mjs
+@@ -176,8 +176,19 @@ export class Engine {
+     const lut = (w[0] & 0x800) !== 0, inlineLut = (w[0] & 0x1000) !== 0;
+     const map = new Uint8Array(256);
+     if (bits <= 8) {                      // the run-length formats' colour index goes through the inline table
+-      if (!lut || !inlineLut) return this.fail(E.BMP_LUT, w[0], fmt);
+-      for (let i = 0; i < 16; i++) map[i] = w[4 + (i >> 2)] >>> (8 * (i % 4));
++      // 4-bit-picture patch (2026-11-22): a run-length bitmap sent with no table (bits 11 and 12 clear) draws its
++      // index straight into the plane; with the loaded table (bit 11 only) it goes through that. The E-M5 III 1.7
++      // tone-curve grid (picture 0x1039, format 0x0A, 4-bit index over a 4-bit run, command word 0x20000330) is
++      // sent so and draws on the camera (camera photos); the exact colours are inferred, not measured
++      if (inlineLut) {
++        if (!lut) return this.fail(E.BMP_LUT, w[0], fmt);
++        for (let i = 0; i < 16; i++) map[i] = w[4 + (i >> 2)] >>> (8 * (i % 4));
++      } else if (lut) {
++        if (!this.lutValid) return this.fail(E.BMP_LUT, w[0], fmt);
++        map.set(this.lut);
++      } else {
++        for (let i = 0; i < 256; i++) map[i] = i;
++      }
+     } else if (inlineLut) {
+       return this.fail(E.BMP_LUT, w[0], fmt);
+     } else if (lut) {

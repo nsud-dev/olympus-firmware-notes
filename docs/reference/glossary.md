@@ -1,4 +1,6 @@
-# Glossary (Olympus naming and our shorthand)
+# Glossary
+
+<!-- human page -->
 
 The firmware uses its own internal names (often Japanese-English abbreviations), and our notes add shorthand of their
 own. This list explains both. Terms are grouped roughly by topic: hardware, firmware structure, Live ND, other

@@ -1,4 +1,6 @@
-# Boot, section loading, flashing and recovery
+# Boot and section loading
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Boot](../guides/boot.md).
 
 When the camera powers on, its main program (block0) is not copied into RAM all at once. A small part is copied
 straight away and the rest arrives in ten "sections" that load in the background while the camera is already starting
@@ -89,12 +91,12 @@ loader 0x60045e2e, table 0x600272a4, ending in the switch at 0x60045dc5. They lo
 Section 10 ends at **0x61478000** (immediate at 0x60045e24); after it the image is 0xFF padding to 0x61800fe0 and is
 never loaded. 2026-11-05 [code]
 
-- [code] 2026-11-05: stock and our Live ND test base both: 0x61478000-0x61480000 is in block0 and all 0xFF; no direct reference to it or its 0xa147 alias (35 byte matches, all coincidental call operands or unaligned overlaps; only `fc` hit = the end immediate); section-10 length is computed from the end helper 0x60045dc5 by the loader (0x60045e33) and two cache paths (0x60045f0c, 0x60045fc6), so raising the end constant moves all three. Source: private notes results/precheck/, results/REVIEW.md
+- [code] 2026-11-05: stock and our Live ND test base both: 0x61478000-0x61480000 is in block0 and all 0xFF; no direct reference to it or its 0xa147 alias (35 byte matches, all coincidental call operands or unaligned overlaps; only `fc` hit = the end immediate); section-10 length is computed from the end helper 0x60045dc5 by the loader (0x60045e33) and two access-monitor paths (0x60045f0c, 0x60045fc6; first called "cache paths", corrected 2026-11-22: they program the 0x997000xx monitor, see below), so raising the end constant moves all three. Source: private notes results/precheck/, results/REVIEW.md
 
 **How to tell whether a section is ready.** Loaded bits are at 0xa26565c4 and **ready bits at 0xa26565c0**. The waiter
 **0x60045eb3(n)** sets a ready bit after MMU/cache setup and section init, and **0x60045d92(n)** returns 1 when section n
 is ready. Section n is bit n-1 (`1 << (n-1)`): section 4 is bit 3, section 9 is 0x100, section 10 is 0x200. [code] (2026-11-17 bit rule from 0x60045d92)
-- 2026-11-19: after finalising section n < 10 the loader programs a hardware access monitor (0x99700040/44.., driver 0x60065a6a, window from section n+1 onward, built at 0x60045f0c..0x60045f40) and turns it off after section 10 (0x60065f63, 0x60045eed); then it sets the ready bit (0x60045f95..0x60045f9d). Same as the OM-5 II (caduceus-om5 research). What it traps is unknown: another reason never to touch a later section's range before its ready bit. [code]
+- 2026-11-19: after finalising section n < 10 the loader programs a hardware access monitor (0x99700040/44.., driver 0x60065a6a, window from section n+1 onward, built at 0x60045f0c..0x60045f40) and turns it off after section 10 (0x60065f63, 0x60045eed); then it sets the ready bit (0x60045f95..0x60045f9d). 2026-11-22: the monitor's end is **inclusive** (the firmware's permanent table ends ranges at ...fff) and the loader passes the section-10 end (first byte after it), so the window also covers that next byte; after section 10, 0x60065f63 -> 0x60065991 does not just switch off but loads a permanent guard table for the unmapped gaps (0x600c07f0). [code] [Caches](../hardware/caches-technical.md#the-access-monitor-0x99700000) Same as the OM-5 II (caduceus-om5 research). What it traps is unknown: another reason never to touch a later section's range before its ready bit. [code]
 
 **How we share section 4's spare space** (our Live ND test base): 0x6079d800..0x6079e000 free; **0x6079e000..0x6079e141 Starry Sky
 AF test**; 0x6079e141..0x607a0000 free; 0x607a0000.. Live ND (0x607a0200..0x607a0400, 0x607a9cc0..0x607aa000,

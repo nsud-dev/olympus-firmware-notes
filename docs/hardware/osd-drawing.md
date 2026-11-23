@@ -1,4 +1,6 @@
-# Drawing on the GUI layers: calls, layers, colours and limits
+# Drawing on the GUI layers
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Drawing your own graphics](../guides/drawing-your-own.md).
 
 How to draw your own shapes on the E-M5 III screen with the firmware's own 2D drawing calls, what each call does, how
 the layers stack and blend, and the limits. Every recipe here was drawn and checked in om-emu on the E-M5 III 1.7 image
@@ -145,6 +147,25 @@ checked). Fill-rectangle and line calls on a gc are not mapped yet. [code] open
   [code]+[emu] 2026-11-21
 - Our own pictures: same stream format (0x0a 4 bpp runs, 0x0b 12-bit tokens; see
   UI drawing lessons), any address. [inferred]
+- **Picture formats** [code]+[emu] 2026-11-22. The stream starts with a 4-byte header {lines - 1: 12 bits,
+  width - 1: 12 bits, format byte}; the size comes from it, which is why the GUI passes w = h = 0.
+  - **0x0a, 4 bit:** one byte per run. High nibble = colour index 0..15, low nibble = run length - 1 (1..16 pixels).
+    Runs never cross a row end, so each row is encoded on its own. Example: the tone-curve grid 0x1039 (262 x 266). [code]+[camera]
+  - **0x0b, 12 bit:** 12-bit tokens, five per 64-bit word (the icons above; 0x100 checked). [code]+[emu]
+  - Other run-length formats the engine knows: 0x01, 0x02, 0x09 (not studied). [code] (om-emu)
+- **How a 4-bit picture reaches the layer** [code]+[emu] 2026-11-22: the GUI sends an engine BITMAP command
+  (opcode 0x30; the grid's word is 0x20000330: plane depth 3 = 8 bit). Bit 12 = a 16-entry colour table follows inline
+  (needs bit 11 too), bit 11 alone = use the table loaded earlier, both clear = no table. The grid is sent with no
+  table and draws on the camera [camera], so its index goes into the plane as it is: a 4-bit picture with no table
+  uses the layer's palette entries 0..15. [inferred] (exact colours not measured).
+- **Making your own:** encode rows as runs (split a run at 16 pixels and at each row end), add the 4-byte stream
+  header and the 24-byte picture header, put it anywhere in memory and pass header + 24 to `gpiDrawBitmap`. Pick
+  colours through the table, or choose indices that match the screen's palette entries 0..15. [inferred]: our own
+  4-bit pictures are not yet drawn in om-emu or on the camera.
+- **om-emu:** stock om-emu refuses a run-length bitmap sent without a table (error BMP_LUT in `emu/src/dev/engine.mjs`
+  cmdBitmap), so 4-bit pictures such as the grid were missing from its shots before 2026-11-22. Our patch 0004
+  draws them (index straight into the plane with no table, the loaded table with bit 11). With it, the grid draws in
+  om-emu. [emu] 2026-11-22
 
 ### 3c. Text (`DrawText`)
 - **`DrawText` 0x60c89f5b** (om-emu's E143 name, its port table maps it to E137): d0 = style, d1 = UTF-16 string
@@ -221,6 +242,15 @@ checked). Fill-rectangle and line calls on a gc are not mapped yet. [code] open
   screen's area lists through the table at **0x6110e548**; each area is 16 bytes {x, y, w, h halfwords, +8 hit-test
   function or 0, +12 action (255 = none)}. With no function it tests the point against the rectangle (0x60c937c9);
   a match sends the area's action on. [code] 2026-11-21
+- **Touch route into a screen** (om-emu, C4+H12c image, 2026-11-23): GUI message 107 -> 0x60e1b4a9.. reads the touch
+  handler object **(0x61ebae9c)**; null = the touch is dropped; else by kind it calls the object's vtable +4 TOUCH, +8
+  LONG, +12 RELEASE/FLICK, +16 TAP, +20 DOUBLE TAP, +24 SLIDE (0x60e1b4c0-0x60e1b52a). The shooting screen's object
+  (0x61aeb8a0) runs 0x60e39345 (reads setting 1137, then the touch dispatcher 0x60e39c08 -> filter 0x60e2dbed -> the
+  screen's areas). In the profile editor (gui SS_REC/ID_ST_SETVAL) 0x61ebae9c is **0**: a posted touch reaches no screen
+  code at all (our editor's control hook 0x60bf156a and 0x60d540de see only their usual events). So stock menus get no
+  touch; a touch feature on a menu page needs its own hook below the GUI (the HFW touch callback 0x608744a0 or the post
+  of message 107) that passes x, y to our page while it is open. Whether the panel driver still reports while a menu is
+  up (gesture mask 0x62105d3c) needs a camera probe. [code]+[emu] Source: om-emu session logs, our notes.
 - So a touch button of our own is: a box (and text) on layer 2, plus either an area entry in our screen's list (the
   GUI then hit-tests it and sends its action), or a hook on 0x9100 for our screen that tests x, y itself. Not built
   on the camera. [inferred]
@@ -266,4 +296,4 @@ order; start/end and update differ only in addresses). Drawn in om-emu with the 
 - **E-M5 II 4.1:** the same `gpiDrawOsd*` calls and DMP OpenVG names are present, so this guide's method applies with new addresses. [code]
 - **E-M5 (Mark I) 2.3:** `drawOsdStart/End` and `GPISetPalette` present, no `gpiDraw*` names and no OpenVG; a GPU exists (`play_gpu.c`). [code]
 
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).

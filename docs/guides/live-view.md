@@ -60,7 +60,7 @@ sensor goes back to the live-view mode.
 | each AF press (S-AF or C-AF) | requests mode 9 at 120 fps, then mode 0 (HSSC) at 30/60 fps | [camera] (request log) |
 | frame spacing while focusing | ~33 ms at the per-frame hook during C-AF | [camera] |
 
-Sources: [sensor](../hardware/sensor.md#sensor-mode-requests), [Live ND](../features/live-nd.md).
+Sources: [sensor](../hardware/sensor-technical.md#sensor-mode-requests), [Live ND](../features/live-nd.md).
 </details>
 
 ## 2. The raw frame in memory
@@ -161,6 +161,12 @@ picture shows through. The three layers are stacked in a fixed order on top of t
 The overlays are tied to the live picture's timing: when the GUI asks for its changes to be shown, the commit waits
 for the next live-view frame. On the rear screen the overlay is shown at 1:1, cropped to a 720 × 480 window; on the
 EVF it is drawn at 640 × 480 and scaled up to the 1024 × 768 panel area.
+
+<p class="shot">
+<a href="../images/shooting-screen.webp"><img src="../images/shooting-screen.webp" alt="The shooting screen" width="480"></a>
+</p>
+
+*The shooting screen. Everything except the landscape is overlay drawn by the GUI. The emulator does not produce a live picture, so a generated landscape stands in for it. Emulator screenshot.*
 
 <details><summary>Where in the firmware</summary>
 

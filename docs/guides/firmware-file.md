@@ -128,7 +128,7 @@ There is no rollback. If the power fails while the main program is being written
 | write order and erase/program/verify | camera's writer run in om-emu on the stock file | [code] |
 | lamp states | FIRMUP_LED 0x601fca3a (255 / 250 / 100) | [code]; solid and blink [camera] |
 
-Sources: [recovery: the card updater](../firmware/recovery.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
+Sources: [recovery: the card updater](../firmware/recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
 </details>
 
 ## 5. Why the updater needs a working camera
@@ -154,12 +154,12 @@ kind of update that our files never contain.
 | boot area | 0x40000000-0x40060000, written only by update kind BOOT | [code] |
 | what runs before block 0 | not known | open |
 
-Sources: [recovery: flash map](../firmware/recovery.md#flash-map-and-what-an-update-writes), [boot](boot.md).
+Sources: [recovery: flash map](../firmware/recovery-technical.md#flash-map-and-what-an-update-writes), [boot](boot.md).
 </details>
 
 ## 6. When the firmware is broken
 
-The camera protects itself with a **watchdog**, a timer in a sub-processor that resets the camera unless a task kicks
+The camera protects itself with a **watchdog**, a timer in an always-on part of the main chip (power block) that resets the camera unless a task kicks
 it every few seconds. Any serious fault (an exception, a deliberate "reboot") sets the watchdog to its shortest time
 and stops, so the camera resets about a second later. A fault that happens on every start becomes a **bootloop**.
 
@@ -181,10 +181,10 @@ What can be fixed, roughly:
 
 | what | where | known from |
 |---|---|---|
-| watchdog | in the sub-CPU, set via 0x600226e1; kicked every 3 s by PER_WDT | [code] |
+| watchdog | always-on power block (2026-11-23), set via 0x600226e1; kicked every 3 s by PER_WDT | [code] |
 | fault → short watchdog → reset | "COMMON Reboot" 0x6005849f, NMI handler 0x60069f5a | [code] |
 | a hang doesn't reset | Live ND test build | [camera] |
-| recovery table | [recovery](../firmware/recovery.md#which-failures-are-recoverable) | [code] + [camera] + [inferred] |
+| recovery table | [recovery](../firmware/recovery-technical.md#which-failures-are-recoverable) | [code] + [camera] + [inferred] |
 
 Sources: [recovery](../firmware/recovery.md).
 </details>

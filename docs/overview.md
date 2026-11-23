@@ -1,4 +1,4 @@
-# What this project has looked into
+# Project overview
 
 This project started with one small patch and grew into a close study of how the Olympus OM-D E-M5 Mark III's firmware
 works. The aim is right to repair and keeping an older camera useful: the E-M5 III shares its chip and sensor with
@@ -52,13 +52,14 @@ reference.
 | feature | result so far | page |
 |---|---|---|
 | Saved mod settings and native menu rows | new rows and a page that behave like the camera's own (Live ND Shooting after High Res Shot), with values kept by the camera's own settings save across power-off; works on the camera (2026-11-19) [camera] | [saved settings and menu rows](features/saved-settings-and-menu-rows.md) |
-| Focus stacking with any lens | done, working on the camera; a shot-count setting (3-8) is built and waiting for a test [camera] | [focus stacking](features/focus-stacking.md) |
-| Live ND | a full one-press Live ND shot works on the camera (ND2-ND16, frames at the set shutter speed, merged by the OM-5's own image-engine program), and the live view previews the blur; being worked on: the dark-frame pass for noise reduction, a proper menu, and a restart at every power-on in the test builds [camera] (updated 2026-11-19) | [Live ND](features/live-nd.md), [port layers](firmware/live-nd-port-layers.md) |
+| Card mod loader | loads small mods from the SD card at start-up, with an Off/On row per mod in a new Custom Menu letter "K. Mods"; nothing else flashed for each mod; works on the camera [camera] (2026-11-22) | [patching techniques](firmware/patching-techniques.md), [menu rows](features/saved-settings-and-menu-rows.md) |
+| Focus stacking with any lens | done, working on the camera; 3-8 shots and any lens also work as card mods loaded by our mod loader [camera] (2026-11-22) | [focus stacking](features/focus-stacking.md) |
+| Live ND | a full one-press Live ND shot works on the camera (ND2-ND16, frames at the set shutter speed, merged by the OM-5's own image-engine program), and the live view previews the blur; the noise-reduction dark-frame pass works at low ISO, Live ND has rows in the camera's own shooting menu, and the restart at every power-on is solved [camera] (updated 2026-11-22) | [Live ND](features/live-nd.md), [port layers](firmware/live-nd-port-layers.md) |
 | Handheld High Res (HHHR) | the OM-5's four image-engine programs load, the memory is free, and we can power the ARM helper ourselves; whether the programs compose a correct picture here is unproven [camera] | [HHHR](features/hhhr.md) |
 | USB webcam | the camera shows up as a webcam and streams its own picture (tests 1 and 2c); live view would need the camera to stay in shooting mode on USB, so it's parked [camera] | [webcam](features/webcam.md) |
 | Stock Wi-Fi debug shell | a settings file on the card turns on a debug network and shell, no flashing; works on our camera (2026-11-12) and is how we watch test runs live from a laptop [camera] | [Wi-Fi debug shell](features/wifi-debug-shell.md) |
 | Starry Sky AF | absent on the E-M5 III, present on the OM-5; a first armed test build exists [code] | [Starry Sky AF](features/starry-sky-af.md) |
-| Colour / mono profiles (PEN-F style) | the processing and saved settings are already in the E-M5 III; only the way to pick and edit them is missing [code] | [colour profiles](features/pen-f-profiles.md) |
+| Colour / mono profiles (PEN-F style) | working on the camera in our test builds: Color and Mono Profile selectable, an on-camera editor with a side bar (colour wheel, HSL row, sharpness, contrast, per-profile tone curve, live histogram) whose edits reach photos and live view [camera] 2026-11-20/22; a Free tone curve is in progress. The processing and saved settings were already in the E-M5 III [code] | [colour profiles](features/pen-f-profiles.md) |
 | Movie 29:59 limit, OM-Log400 | the time limit is one constant; much of the log profile's plumbing is present [code] | [movie](features/movie.md) |
 | Live GND | only the OM-1 II has a real one; a design for the E-M5 III on top of Live ND [inferred] | [Live GND](features/live-gnd.md) |
 | Subject / face / eye AF | face options are portable; deep-learning subject detection needs OM-1 hardware [code] | [AF detect](features/af-detect.md) |

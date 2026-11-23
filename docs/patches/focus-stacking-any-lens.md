@@ -1,8 +1,10 @@
-# Focus stacking lens check: patch (flashed and working on camera, 2026-10-19)
+# Any-lens focus stacking patch
 
 This is the byte-level description of the "focus stacking with any lens" patch: which function decides whether a lens
 may be used for in-camera focus stacking, which instruction we change, and exactly which bytes differ in the firmware
 file. The background and the follow-up work are on the focus stacking page of the knowledge base (`features/focus-stacking.md`).
+
+The patch has been flashed and working on our camera since 19 October 2026.
 
 In short: the function first checks the lens type, then checks a per-lens "supports stacking" flag. We turn the branch
 after the second check into two no-op instructions, so any lens that passes the first check is allowed.

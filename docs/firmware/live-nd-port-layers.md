@@ -1,4 +1,6 @@
-# Live ND port: layers and join points
+# Live ND port layers
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Anatomy of a feature port](../guides/port-anatomy.md).
 
 Live ND is a newer-body feature that blends many short exposures into one, like a neutral-density filter; see
 [Live ND](../features/live-nd.md) for the feature and its results. This page is the engineering log for one specific

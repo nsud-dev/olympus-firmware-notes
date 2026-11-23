@@ -30,7 +30,7 @@ Bluetooth, and a programmable **image engine**. A separate small processor drive
 - **Requests.** Parts of the program ask each other for things by sending numbered request messages. The one you'll
   meet most is the **sensor mode request** (we call it the "type-7 request"). It tells the sensor which readout mode to
   use (live view, focusing, still), at what frame rate, and with what exposure
-  ([sensor](../hardware/sensor.md#sensor-mode-requests)).
+  ([sensor](../hardware/sensor-technical.md#sensor-mode-requests)).
 
 ## Memory
 

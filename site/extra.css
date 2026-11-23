@@ -1,0 +1,6 @@
+/* Screenshots: one image at most 480 px wide, sets of two or three side by side, captions small and muted. */
+.md-typeset p.shot, .md-typeset p.shots { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .3rem; }
+.md-typeset p.shot a { flex: 0 1 480px; }
+.md-typeset p.shots a { flex: 1 1 200px; max-width: 360px; }
+.md-typeset p.shot img, .md-typeset p.shots img { display: block; width: 100%; height: auto; border-radius: 4px; }
+.md-typeset p.shot + p, .md-typeset p.shots + p { font-size: .75rem; color: var(--md-default-fg-color--light); max-width: 46rem; margin-top: 0; }

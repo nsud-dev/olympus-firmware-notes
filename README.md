@@ -1,4 +1,4 @@
-# Olympus firmware notes
+# Oly Firmware Notes and Mods
 
 Notes and tools from taking apart the firmware of the Olympus OM-D E-M5 Mark III (firmware 1.7).
 

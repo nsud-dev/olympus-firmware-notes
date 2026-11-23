@@ -126,16 +126,35 @@ All [code] + [emu] 2026-11-21.
 
 ## 5. Pictures
 
-The camera holds about 8,000 pictures: every icon on its screens. `gpiDrawBitmap` draws one at any position. You look
-the picture up by its number in the picture table, which gives a 24-byte header; the call wants the address just after
-the header, where the compressed pixel data starts. The size comes from the data.
+Every icon on the camera's screens is a stored picture, and there are about 8,000 of them. You draw one with
+`gpiDrawBitmap`, at any position on a layer.
 
-An optional colour table maps each of the picture's colours to a palette entry of your choice. Mapping every colour to
-white turned the "640" icon into a white silhouette. That is how one icon can serve as normal, highlighted and greyed
-out.
+To find a picture, look up its number in the picture table. That gives you a 24-byte header. The draw call wants the
+address just after the header, where the compressed pixels start. You don't pass a size, because the picture data
+carries its own.
 
-Your own pictures use the same compressed format and can live at any address (see
-section 3b of [Drawing on the GUI layers](../hardware/osd-drawing.md) for the format).
+You can also pass a colour table, which swaps each of the picture's colours for a palette entry you choose. Mapping
+every colour to white turned the "640" icon into a white silhouette. This is how the camera uses one icon for its
+normal, highlighted and greyed-out states.
+
+Pictures are stored in one of two compressed formats. Both start with a small header that gives the width, the height
+and the format.
+
+- **4 bit** (format 0x0a). Each byte is one run of pixels. The top four bits pick one of 16 colours, and the bottom
+  four give the length of the run, from 1 to 16 pixels. A run never crosses the end of a row. Large plain shapes,
+  such as the grid behind the tone curve, use this format because long runs pack well.
+- **12 bit** (format 0x0b). Small tokens are packed five to a 64-bit word. Detailed icons, such as the "640" icon,
+  use this format.
+
+The colour table is optional. The tone-curve grid is drawn without one, so its colour numbers 0 to 15 go straight
+into the layer and pick the layer's first 16 palette entries.
+
+To make your own 4-bit picture, cut each row into runs of at most 16 pixels and write one byte per run. Put the
+4-byte format header in front of the runs, and the 24-byte picture header in front of that. The picture can live at
+any address. Section 3b of [Drawing on the GUI layers](../hardware/osd-drawing.md) has the details.
+
+The standard om-emu skips 4-bit pictures that arrive without a colour table. Our om-emu patch 0004 draws them, and
+the tone-curve grid then looks as it does on the camera. We haven't yet drawn a 4-bit picture of our own.
 
 <details><summary>Where in the firmware</summary>
 
@@ -219,6 +238,12 @@ arrive as control events in the same way (UP, DOWN, the two dials, OK).
 om-emu can call any firmware function on a running emulated camera and take a screenshot afterwards. Our small Python
 driver wraps the calls above (`start`, `rect`, `dot`, `bitmap`, `text`, `touch`, `update`), so a test is a few lines:
 open a batch, draw, end, update, screenshot. The driver is in these notes' `tools/osdlab/` folder.
+
+<p class="shot">
+<a href="../images/own-2d-overlay.webp"><img src="../images/own-2d-overlay.webp" alt="Our own overlay on the shooting screen" width="480"></a>
+</p>
+
+*An overlay drawn with the camera's own GUI calls: a text box, a tone curve, a histogram and a dial. Emulator screenshot.*
 
 
 The emulator also runs the stock c3d vector layer under the GUI layers: the Color Creator wheel draws and redraws

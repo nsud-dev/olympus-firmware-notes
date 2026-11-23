@@ -1,4 +1,6 @@
-# Display, OSD overlays and live-view frames
+# Display and live-view frames
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Live view](../guides/live-view.md).
 
 This page is about the screen side of the camera: how the E-M5 III draws its menus and icons over the live picture,
 where the built-in histogram, highlight/shadow warning and focus peaking come from, and where our own code can find the
@@ -18,6 +20,8 @@ Started 2026-11-05.
 
 ## Display controller (VSC)
 
+Full register-level map (every register, its writer, gamma, zebra, peaking, colour blocks, other bodies): [VSC register map](vsc-display-controller-technical.md). [code] 2026-11-22
+
 The display driver is in section 1 (always loaded early). Its request switch is 0x6017f904 (`DISP_*` requests), with
 `display_update` 0x6018fe32 and `display_update_through_image` 0x601907cb. [code] (2026-11-05)
 
@@ -36,7 +40,7 @@ Per-channel: the block has a 2-bit **target element** (VSC +0x248 bits 24-25, `d
 0x60194425); the display-layer routine takes element 1-4 (check 0x6018e880) and writes element − 1. Each calculation
 returns one bin set (64/128/256 bins at VSC +0x2c00). [code] (2026-11-20) The 4 elements are probably Y + R/G/B (or Y +
 colour difference), so an RGB histogram = 3 calculations, one per element; which element live view uses, and whether
-OM-5/OM-1 do RGB, is not checked. Stock shell `disp dl hst` can set the parameters for a camera check. [inferred]
+OM-5/OM-1 do RGB, is not checked. ~~Stock shell `disp dl hst` can set the parameters for a camera check.~~ `disp dl hst` only sets the histogram debug level, and `disp histogram`/`hst` are empty stubs in this build (2026-11-22, [VSC register map](vsc-display-controller-technical.md) 6). [code]
 **RGB histograms already exist natively** (read-only pass 2026-11-20): the request handed to the driver carries 4 result
 slots and the driver runs one element per slot (0x6018ebdb..0x6018ec42 picks element 1-4 = first filled slot; state byte
 0x62105acd); the app layer starts per-channel calculations (`Disp_Start_Histogram_Calculation Y/R/G/B`, 0x608dc23b..);
@@ -49,7 +53,7 @@ one per element. [inferred] Sources: stock block0 disassembly (objdump, base 0x6
 
 **The highlight/shadow warning is display hardware too.** `display_vscdrv_set_hi_sh` 0x60194665 sets it. By the
 firmware's own register-name table its threshold registers are **HILIGHT1-4 = VSC +0x250..+0x25c**. (An earlier note said
-"+0x320/+0x324"; that was wrong, those are AREA28/29.) Exactly which fields set_hi_sh fills isn't traced. Edge peaking
+"+0x320/+0x324"; that was wrong, those are AREA28/29.) ~~Exactly which fields set_hi_sh fills isn't traced.~~ Traced 2026-11-22: thresholds in HILIGHT2, colours in HILIGHT3/4, window AREA28-30, on bits in HILIGHT1; it is a two-level zebra unit ([VSC register map](vsc-display-controller-technical.md) 4.4). Edge peaking
 ([EGPK]) is also a VSC function. [code] names / [inferred] writer (2026-11-05, corrected same day)
 
 **Register names.** The firmware carries a 422-entry table of VSC register names at 0x60253888, copied to RAM
@@ -109,7 +113,7 @@ The `disp` debug console command can already dump the OSD planes and VSC registe
 
 - **Frame lines, trap-focus or motion markers:** draw with `osddraw` line/rect into a GUI layer, from task context
   (never from an interrupt), after the GUI's own redraw so it doesn't wipe them. [inferred] (2026-11-05)
-- **Cheap "JPEG zebras":** retune the hardware highlight/shadow thresholds (HILIGHT1-4). True raw zebras or a raw
+- **Cheap "JPEG zebras":** retune the hardware highlight/shadow thresholds (HILIGHT2) and colours (HILIGHT3/4); fields in [VSC register map](vsc-display-controller-technical.md) 4.4. True raw zebras or a raw
   histogram still need raw sampling (our raw decoder). [inferred] (2026-11-05)
 - **Motion or lightning trigger:** compare a sparse grid of Y values in the current LV frame, frame by frame.
   [inferred] (2026-11-05)

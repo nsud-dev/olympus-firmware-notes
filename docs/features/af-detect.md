@@ -1,45 +1,56 @@
-# AF: subject, face and eye detection
+# Subject, face and eye detection
 
-Newer OM System bodies can recognise subjects (birds, animals, vehicles) and offer more face and eye options. This page
-compares what the E-M5 III, OM-5 and OM-5 II actually contain, and sorts the features into "already there", "portable"
-and "needs newer hardware".
+<!-- human page -->
+> The dense reference for this page is [Subject, face and eye detection: technical notes](af-detect-technical.md).
 
-The short version: face and eye detection is already on the E-M5 III. A few face and AF options from the OM-5 are
-portable. Deep-learning subject detection is not: it needs the OM-1's extra processor and AI hardware block.
+Newer OM System bodies can recognise birds, animals and vehicles, and they offer more face and eye options than the
+E-M5 III. This page sorts those features into three groups. Some are already on the E-M5 III, some could be ported,
+and some need newer hardware.
 
-Terms: **DL** = deep learning (a neural network); **MDET** = the firmware's motion-detect and tracking module; **C-AF** =
-continuous autofocus.
+## Status
 
-Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+Research is done. Nothing has been built.
 
-**Status 2026-11-05:** research done; nothing built.
+## Already there
 
-| feature | E-M5 III | OM-5 1.2 | OM-5 II | port |
-|---|---|---|---|---|
-| Face/eye detector (`TSK_FACE_FD/MAIN`, FD job) | yes | same | same | nothing to do [code] |
-| Face Selection (`MODE_FACE_SELECT`, touch on face select) | no | yes | yes | small-medium code port [code] |
-| Face priority release / custom switch | no | yes | yes | small [code] |
-| C-AF Center Start / Center Priority | no | yes | yes | medium (AF sequence) [code] |
-| New tracker (MDET "LAF", EMS1/EMS2, PDT) | old generation (`mdet_laf` 0x605e8000+) | new (0x6062c000-0x60670000, ~270 KB) | edited | big swap, own region [code] |
-| DL subject detection (`MDET_DL_*`, buffer 0x6600, `fcs_coordinate_set_af_point_dl_*`) | absent | dead code, no menu | dead code + full menu | **not portable** |
+Face and eye detection on the E-M5 III is the same as on the OM-5 and OM-5 II. There is nothing to port.
 
+## Could be ported
 
-## Why subject detection can't be ported
+These OM-5 options are missing from the E-M5 III, but they are ordinary code that could be brought over.
 
-- DL subject detect is **dead inherited code** in E-M1 III / OM-5 / OM-5 II: no network executor or weights in any image. `[TARGET_PRIORITY] SUBJECT DETECT` log = face target toggle. [code]
-- On OM-1 it runs on **CPU3 + the DML hardware block** with 5 × 9.3 MB weight blobs (block 2 bank 11). E-M5 III has no CPU3 or
-  DML. Verdict: OM-1-class hardware; E-M1X (2× TruePic VIII) was the only open case and we judged its file not useful. [code]
-- OM-5 II 1.1 in om-emu shows only AF > Face & Eye Detection, no Subject Detection item (2026-11-05); the Human/Birds/Dogs & Cats strings are shared OM-series GUI text. [code]
-- E-M1 III 1.6 does **not** ship subject detection: it has the `MODE_SUBJECT_DETECT` key, MDET_DL code and the same "Tracking Subject"/Motorsports/Trains GUI strings as OM-5 1.2 (corrected 2026-11-05: an earlier check, cut short, said it had none of them), but no shipped feature. Among Olympus/OM bodies only the E-M1X (2x TruePic VIII) and the OM-1 family shipped it. [code] for the strings, [inferred] for the product list.
-- Weight search (2026-11-05): no non-code blob >100 KB with weight-like entropy in OM-5 / OM-5 II block0 (largest is a 66 KB LUT at OM-5 0x6080f320); block4 is JPEG data; OM-5 II DSP sub-block adds only ~130 KB. The DL RGB prep is movie-recorder info item 27 `MDET_DL_SET_RGB_IMAGE_PRM`. E-M5 III does have a CPU2 (`IMGPRO_MDL_CPU2`). [code]
+| feature | size of the job |
+|---|---|
+| Face Selection, picking which face to follow by touch | small to medium |
+| Face priority release | small |
+| C-AF Center Start and Center Priority | medium, because it touches the autofocus sequence |
+| the newer subject tracker | large, it would replace the old tracker in a region of its own |
 
-## Tools and plan
+The plan, if this goes ahead, starts with face selection and face priority, then the C-AF centre options, and only then
+a study of the tracker swap.
 
-- Plan order: A face select + release priority (OM-5 donor) → B C-AF center start → C tracker swap study.
+## Needs newer hardware
 
+Subject detection for birds, animals and vehicles uses a neural network. On the OM-1 it runs on an extra processor
+core and a dedicated AI hardware block, with several large files of network weights. The E-M5 III has neither.
 
-## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+The E-M1 III, OM-5 and OM-5 II carry pieces of the subject-detection code, left over from a shared code base. None of
+them has the network itself or its weights. Their menus show the subject names because the menu text is shared across
+the range. The OM-5 II's menu offers only face and eye detection.
 
-- Face and eye detection code is present on both older bodies (`face_*`, `eye*`, `mdet_*` strings), as on the E-M5 III; neither has any deep-learning detection names. So nothing from this page's "portable" list has been checked on them, and DL subject detection is impossible there for the same hardware reason as on the E-M5 III. [code]+[inferred]
+So subject detection cannot be ported to the E-M5 III. Among Olympus and OM System bodies, only the E-M1X and the OM-1
+family have it.
 
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+## Other cameras
+
+The E-M5 II and the original E-M5 have face and eye detection, as the E-M5 III does. Neither has any subject-detection
+code. The portable options above have not been checked on them.
+
+## A rule we kept
+
+A setting name or a menu string is not a feature. Before treating something as portable, confirm there is reachable
+code behind it, or run the menu in the emulator.
+
+## Further reading
+
+- [Body comparison](../bodies/comparison.md) lists what each camera has.

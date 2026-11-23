@@ -25,6 +25,9 @@ sheets.
 That opens the Color Creator and turns the wheel. Add `BACKDROP=FILE.rgb` for a stand-in live view, and `mode:N` to turn
 the mode dial (2 = ART, 3 = SCN).
 
+At the end it prints `ENGINE_ERRORS {name: count}`: pictures the OSD engine refused, which om-emu reports only on stderr.
+Any count means the screens lack something (before patch 0004, the 4-bit title bars, AF grid and value boxes).
+
 Two more modes (the head of `c3drun.mjs` has the details):
 - `TG_OBJ=renderer.o` (entry `TG_ENTRY`, default `_tg_render`): loads your own renderer, built with
   `c3d_vg.h` from `tools/c3d_vg/`, in place of the empty Tough Gear renderer. Judge the swap files (480 x 480).

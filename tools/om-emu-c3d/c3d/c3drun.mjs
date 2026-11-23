@@ -3,7 +3,9 @@
 // swapNNN.rgba (c3d's 256x256 surface at each eglSwapBuffers, RGBA top-down) and c3d.log.
 // Env: BLOCK2 = the unpacked block2 body (block2_43f60000.bin, from tools/olyfw.py) for the sprite sheets (required);
 // BACKDROP = a 720x480 raw RGB file (backdrop.py) shown under all planes in place of live view (needs patch 0003);
-// VERBOSE=1 logs every OpenVG call. Keys: om-emu key names, or wait:MS. Color Creator:
+// MAIN = a patched main code block (unpacked block0) run in place of stock, like session.mjs --main;
+// VERBOSE=1 logs every OpenVG call. Keys: om-emu key names, down:KEY / up:KEY (hold a key; screen taken at the press),
+// wait:MS, mode:N, main_dial:N or sub_dial:N. Builds that add sprite sheets (looks H series) need their own block2. Color Creator:
 //   ok right right right ok right right right right right right right info right right
 // What it stands in for (each found on the way; notes: docs/hardware/graphics-pipeline.md 6a, docs/hardware/c3d-gpu.md):
 //  - c3d_main (task 67) and task 70 started (om-emu leaves them dormant); c3d_main's queue taken out of S-MODACK and
@@ -32,7 +34,8 @@ const { installC3dVg } = await import('./c3dvg.mjs');
 fs.mkdirSync(OUT, { recursive: true });
 const a = { ...PLAYER_PARSER, no_browser: true, idle: 'off', debug_api: true, out: OUT, no_wait_on_error: true, hdmi: 'off', audio: 'auto', rotate: 'off', take: 'stand-in', cpu2: 'stand-in', creative_dial: null, held: [], a15: 'auto', device: 'tft' };
 let frame = null;
-const env = { rom: E.loadImage(), resBlock: E.loadBlock(), nand: E.loadNand(), createHash: E.createHash, ...E.scpuEnv(), loaded: 'auto', card: memoryCard({}),
+const fw = process.env.MAIN ? E.patchedFirmware(E.readMainFile(process.env.MAIN)) : null;   // MAIN = a patched main code block (block0), as session.mjs --main
+const env = { rom: fw ? fw.rom : E.loadImage(), resBlock: fw ? fw.resBlock : E.loadBlock(), ...(fw ? { patchRanges: fw.changed } : {}), nand: E.loadNand(), createHash: E.createHash, ...E.scpuEnv(), loaded: 'auto', card: memoryCard({}),
   deflate: (b, l) => new Uint8Array(zlib.deflateSync(b, { level: l })), inflate: (b) => new Uint8Array(zlib.inflateSync(b)),
   wallClock: () => Number(process.hrtime.bigint()) / 1e9, onFrame: (w, h, raw) => { frame = { w, h, raw: raw.slice() }; }, onAudio: () => {} };
 const pl = new Player(a, env);
@@ -92,6 +95,7 @@ s.settle('c3d');
     // the unpacked file is the block's body: flash address A is file offset A - base - 32 (the 32-byte OE head);
     // group 5's own OE head sits at its flash address, its 16-byte entries {flash address, size} follow
     const fo = (a) => a - B2_BASE - 32, g = fo(b2u32(16 * 5)) + 32, at = fo(b2u32(g + 16 * r.d1)), have = b2u32(g + 16 * r.d1 + 4);
+    log(`RES ask entry ${r.d1} want ${want}`);
     const n = Math.min(want, have), dest = r.a0 >>> 0;
     lab.sim.write(dest, new Uint8Array(B2.buffer, B2.byteOffset + at, n));
     const desc = lab.alloc(new Uint8Array(new Uint32Array([dest, n]).buffer), 4);
@@ -167,7 +171,9 @@ let n = 0;
 for (const k of KEYS) {
   try {
     if (k.startsWith('wait:')) s.idle_slice(lab.lab_time() + Number(k.slice(5)) * 1e6);
+    else if (/^(main|sub)_dial:/.test(k)) { const [d, v] = k.split(':'); s.dial_input(d.replace('_dial', ''), Number(v)); s.camapp.pump(); s.idle_slice(lab.lab_time() + 600e6); }
     else if (k.startsWith('mode:')) { s.switch_input('mode_dial', Number(k.slice(5))); s.camapp.pump(); s.idle_slice(lab.lab_time() + 1500e6); }
+    else if (/^(down|up):/.test(k)) { const [e, kk] = k.split(':'); s.key(kk, e); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); }
     else { s.key(k, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(k, 'up'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 800e6); }
   } catch (e) { log(`ERROR at ${k}: ${String(e.stack || e).slice(0, 1500)}`); console.log('ERROR', k, String(e).slice(0, 500)); break; }
   console.log(String(n).padStart(2), k, 'calls', st.calls, 'swaps', st.swaps, 'gui', lab.state_names?.get?.(lab.state()) ?? '', 'busy', '0x' + lab.sim.u32(0x61600ba0).toString(16), 'frame', shot(String(n++).padStart(2, '0') + '_' + k.replace(/[^a-z0-9]/gi, '')));
@@ -182,4 +188,7 @@ if (process.env.OSD_PROBE) {   // OSD_PROBE=x,y0,y1: each OSD plane's pixel inde
       for (let y = y0; y <= y1; y += 4) { const idx = lab.sim.read(base + (y - ys) * stride + (px - xs), 1)[0]; rows.push(`${y}:${idx}`); }
       log(`OSD ch ${c} plane ${q} base ${base.toString(16)} stride ${stride} at (${xs},${ys}) ${(w1 & 0xffff)}x${m[(0xd0 + 12 * q) / 4] & 0xffff} col ${px}: ${rows.join(' ')}`); } } }
 console.log('tasks', lab.nk.state(67), lab.nk.state(70), 'unknown', [...st.unknown]);
+// Pictures the OSD engine refused (stock om-emu: 4-bit pictures sent without a colour table, BMP_LUT; patch 0004 draws
+// them) appear only on stderr, so a screenshot can look complete without them. Any count here means it is not.
+{ const t = lab.sim.stderrTail(4000000); const m = t.match(/osd-engine ERROR [A-Z_0-9]+/g) ?? []; const c = {}; for (const x of m) c[x] = (c[x] ?? 0) + 1; console.log("ENGINE_ERRORS", JSON.stringify(c)); }
 process.exit(0);

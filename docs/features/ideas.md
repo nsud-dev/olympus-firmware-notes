@@ -1,101 +1,64 @@
-# Other image-processor feature ideas
+# Feature ideas
 
-This page collects feature ideas that aren't projects yet: things the camera's hardware could probably do, ideas taken
-from other camera makers and from Magic Lantern (the Canon firmware add-on), and small shooting tweaks. Each idea has a
-first verdict; the full ranked tables with effort and blockers are in the working notes linked from each section.
+<!-- human page -->
+> The dense reference for this page is [Feature ideas: technical notes](ideas-technical.md).
 
-Most of the cheap ideas reuse what Live ND already proved: the camera can hold several raw frames and average them on
-the image engine (job 11).
+These are ideas that are not projects yet. Some are things the camera's hardware could probably do. Some come from
+other camera makers or from Magic Lantern, the firmware add-on for Canon cameras. Some are small shooting tweaks.
 
-Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
+Most of the cheap ideas reuse something Live ND already proved. The E-M5 III can hold several raw frames in memory and
+average them on the image engine.
 
-## Round 1 (2026-10-29): image-processor ideas
+## From the image engine
 
-Brainstorm from 2026-10-29, nothing built.
+- **Tripod noise reduction.** Take several full exposures and average them. Noise drops with the square root of the
+  number of frames. This is the cheapest idea on the list.
+- **Weighted averages.** Live ND already feeds the same frame in more than once, so mixing frames 3 to 1 or keeping a
+  running average looks feasible.
+- **Merging part of a frame.** This could give Live GND-style effects.
 
-Cheapest first:
+The E-M5 III's own image-engine jobs are now mapped. None of them averages, subtracts or takes the minimum of frames.
+So multiple exposures in Bright or Dark mode, dark-frame averaging and median stacks would all need a new job.
 
-1. **Tripod multi-frame noise reduction:** the Live ND path with a full exposure per frame, averaged by job 11 (√N less
-   noise). Cost S (small).
-2. **Weighted averages** using duplicate inputs in job 11 (`[acc, acc, acc, new]` = 3:1). Repeated inputs are already
-   proven on the camera with ND2/ND4, so weighted averages and running accumulators look feasible. [camera] for repeats, weights [inferred]
-3. **Band records** (merging only a sub-rectangle) for Live GND-style effects.
-4. **Identify the native jobs 0-10.** A min/max or subtract job would unlock Bright/Dark multiple exposure, dark-frame
-   averaging and median stacks. 2026-11-06: **mapped**
-   ([image engine](../hardware/image-engine.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06)): job 8 = hardware
-   memcpy, job 2 = Live Composite raw combine, job 4 = mesh warp; no average/min/subtract job found. [code]/[inferred]
+Other ideas in this group include motion trails, night live view, Live Composite with noise reduction, a hand-held
+night mode, 4-shot pixel shift in colour, star tracking by moving the sensor, a raw histogram, sweep panorama and
+dual ISO. Dual ISO is the least feasible.
 
+## From newer bodies
 
-Others on the list: average-mode multiple exposure, night live view via job 12, motion trails, Live Composite with base
-noise reduction, a handheld night mode (after HHHR), 4-shot RGB pixel shift, sensor-shift star tracking, raw
-histogram/ETTR, sweep panorama (names only, no code in any body), and Dual ISO (least feasible).
+1. Tripod noise reduction, as above.
+2. More focus-stacking shots. This is now done as a card mod.
+3. The OM-Log400 movie profile, covered on the [movie page](movie.md).
+4. Running scripts from the card through the debug shell.
+5. Running Linux on the ARM co-processor from the card, to use it for heavy maths.
+6. A Bluetooth remote, using the OM-5's remote code.
 
-## Round 2 (2026-11-05): a wider brainstorm
+The OM-5 has about 1,300 setting names that the E-M5 III lacks. Most of them are renames rather than new features.
 
+## Shooting tweaks
 
-The shortlist:
+- **Focus-stacking shot count.** The setting exists but the menu does not offer it. See [focus stacking](focus-stacking.md).
+- **AE bracketing with 9 frames.** The camera works out each frame itself. The limit of 7 frames is only in the menu
+  and the on-screen display. A 9-frame option needs the menu work done first.
+- **Holy-grail timelapse.** Interval shooting sleeps and restarts the camera between long intervals. So an exposure ramp
+  would have to keep its state in a setting or a card file.
+- **Auto ISO lowest shutter speed.** Already on the E-M5 III. Nothing to do.
 
-1. Tripod multi-frame noise reduction on the Live ND path.
-2. Focus stacking shot count 3-15 (the OM-5 and E-M1 III have `MODE_FOCUS_STACKING_NUMBER`, the E-M5 III only `_ONOFF`).
-   [code]
-3. The OM-Log400 movie profile (OM-5 `EXPANDED_CONTRAST_MODE_LOG`; E-M5 III only OFF/SUPERFLAT). [code]
-4. A card-script runner for the MN103 debug console.
-5. ARM Linux from the SD card (`arm load4`) as a NEON co-processor. [inferred]
-6. A Bluetooth remote (the OM-5's BLE accessory-remote keys plus its pairing-capable blebridge). [code]
+## From other makers
 
-- Evidence (2026-11-05): the OM-5 1.2 has 1,307 `MODE_*` keys absent from the E-M5 III, mostly renames; the real gaps
-  are listed in the write-up. [code]
-- A rule we kept: a settings key or a GUI string is not a feature. Confirm there is reachable code, or run the menu in
-  om-emu, first. [process]
+The shortlist is raw zebras, a raw histogram with an exposure-to-the-right hint, a motion or lightning trigger, trap
+focus, bulb ramping for timelapse, highlight-safe multi-frame noise reduction, tripod HDR, a manual-focus guide from the
+phase-detect pixels, and automatic horizon correction by rolling the sensor.
 
-## Shooting-mode tweaks (2026-11-05)
+Two things make most of these possible. We found how to draw on the screen and how to read a live-view frame. We also
+found the stabiliser's command set, which includes moving the sensor to a set position and rotating it.
 
+## Newer ideas
 
-**Focus-stack count:** setting 1448 exists, the menu item is missing, and more than 8 needs wider arrays; see
-[focus stacking](focus-stacking.md). [code]
+A ranked list of 26 newer ideas builds on what we learned later. That covers the display controller, the vector GPU,
+the card loader, remote button presses and the motion vectors. It lives in the project's private notes for now.
 
-**AE bracketing (more than 7 frames):**
+## Other cameras
 
-- There's no fixed EV table: 0x6044260d(count, i, step, order) computes each frame, clamped to ±7 EV; the frame count is
-  setting 5. [code]
-- 0x60308658 writes count × 6-byte entries without checking, and its GUI caller 0x607d289c has 7-entry (42 B) buffers,
-  so 9 frames needs bigger buffers first. [code] But 0x60308658's only caller is that GUI display; shooting computes
-  each frame itself in the AE module (0x60448f9a, 0x6044a127; count = property 0x8281), so the 7 cap is GUI-only
-  (2026-11-05). [code]
-- Setting 5's value is the frame count and `MODE_AUTOBKT_9` exists, but the menu lists only 2/3/5/7. A 9-frame build
-  waits for the shared menu work (add 9f, fix the GUI buffers, check 15 readers). [code]+[inferred]
-
-
-**Interval shooting (holy-grail timelapse):**
-
-- The controller is in the sequencer module (`receiveIntervalTimerCallback`, `Shoot` step 0x6099addf, sleep timer
-  0x6087502e). Long intervals sleep and re-boot the camera (`CAM_INTERVAL_SHOOTING_BOOT`), so an exposure ramp must keep
-  its state in a property or a card file. [code]+[inferred]
-- Each frame goes `Shoot` → 0x6099abdf → OPE shoot request 0x60800901 (an ordinary release); the ramp hook point is just
-  before 0x6099adf4 (2026-11-05). [code]+[inferred]
-
-**Auto-ISO lowest shutter speed:** already on the E-M5 III 1.7 (GUI "Lowest S/S Setting", `MODE_SHUTTER_ISO_LIMIT*`).
-Nothing to port. [code]
-
-## Round 3 (2026-11-05): ideas from other makers and Magic Lantern
-
-E-M5 III is [inferred].
-
-The shortlist: raw zebras, raw histogram and an ETTR hint (Magic Lantern); a motion/lightning trigger and trap focus
-(Magic Lantern, Nikon Auto Capture); holy-grail timelapse / bulb ramping (Magic Lantern, Nikon/Sony smoothing);
-highlight-safe multi-frame noise reduction and tripod HDR merge (Google HDR+); a manual-focus guide from the on-sensor
-PDAF (Canon); automatic horizon correction by rolling the sensor (Pentax SR). [inferred]
-
-What they share:
-
-- OSD draw primitives and a CPU-readable live-view frame pointer, both **found 2026-11-05**
-  ([hardware/display.md](../hardware/display.md)). [code]
-- The IBIS command interface, found 2026-11-06 (it hadn't been researched before): an IS sub-CPU with a 57-command set
-  including target-position, constant-speed and rotation drives ([hardware/stabiliser.md](../hardware/stabiliser.md),
-  verdicts in). [code]
-
-## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
-
-- Most ideas here reuse Live ND's raw-frame averaging on image-engine job 11. The E-M5 II's engine runs the same program format but has no job 11 or Live ND plumbing, so those ideas would need the same new port as Live ND there. The E-M5 Mark I has no programs of this format, so they don't apply. Shooting tweaks that are plain settings patches would need their own addresses on each body. [code]+[inferred]
-
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+Most ideas here rely on Live ND's frame averaging. The E-M5 II would need the same new port as Live ND, and the
+original E-M5 has no engine of this kind at all.

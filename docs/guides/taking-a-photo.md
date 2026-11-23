@@ -127,8 +127,8 @@ the focus task (FCS), and one of the image-engine jobs (job 0) is very probably 
 | auto exposure ids | live view 323, half-press 270 | [camera] |
 | image-engine job 0 | 0xa411f540, `FCS_IP` code cluster | [inferred] |
 
-Sources: [sensor](../hardware/sensor.md#sensor-mode-requests), [Live ND](../features/live-nd.md) (a sensor-mode test run),
-[image engine](../hardware/image-engine.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06).
+Sources: [sensor](../hardware/sensor-technical.md#sensor-mode-requests), [Live ND](../features/live-nd.md) (a sensor-mode test run),
+[image engine](../hardware/image-engine-technical.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06).
 </details>
 
 ## 2. Full press: the shot is set up
@@ -214,7 +214,7 @@ ND uses it. It is described in the Live ND section below, but it is a different 
 | raw layout | 16-byte groups of 10 pixels, stride 8384 bytes, black level ≈ 256 | [camera] |
 
 Sources: [frame pools](../hardware/memory-map.md#frame-pools),
-[raw format](../hardware/sensor.md#how-a-raw-frame-is-stored-in-ram-one-main-pool-slot).
+[raw format](../hardware/sensor-technical.md#how-a-raw-frame-is-stored-in-ram-one-main-pool-slot).
 </details>
 
 ## 5. Development
@@ -250,8 +250,8 @@ send_to_development(frame):
 | job 9 (raw development) | 0xa422d140, 0x38000 bytes | [inferred] |
 | job 5 (resize) | 0xa420b540 | [inferred] |
 
-Sources: [image engine](../hardware/image-engine.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06),
-[sensor](../hardware/sensor.md#how-a-raw-frame-is-stored-in-ram-one-main-pool-slot).
+Sources: [image engine](../hardware/image-engine-technical.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06),
+[sensor](../hardware/sensor-technical.md#how-a-raw-frame-is-stored-in-ram-one-main-pool-slot).
 </details>
 
 ## 6. JPEG and the card

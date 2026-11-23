@@ -1,0 +1,351 @@
+diff --git a/emu/host/olyfwenv.mjs b/emu/host/olyfwenv.mjs
+index 889abd3..6a2cb13 100644
+--- a/emu/host/olyfwenv.mjs
++++ b/emu/host/olyfwenv.mjs
+@@ -1,5 +1,5 @@
+ // olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): turn the optional checks on from the environment.
+-// usage: OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
++// usage: OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
+ //        node --import ./host/olyfwenv.mjs bin/session.mjs ...
+ // Writes the cache model's reports (OM_DCACHE_OUT) and the section monitor's record (OM_SECMON) as JSON at exit.
+ import { writeFileSync } from 'node:fs';
+@@ -13,9 +13,14 @@ if (env.OM_DCACHE) {
+ }
+ if (env.OM_SECMON) OLYFW.secmon = true;
+ if (env.OM_KCHECK) OLYFW.kcheck = true;
++if (env.OM_CPU2) {
++  if (!['native', 'stand-in'].includes(env.OM_CPU2)) throw new Error(`OM_CPU2: native or stand-in, not '${env.OM_CPU2}'`);
++  OLYFW.cpu2 = env.OM_CPU2;
++}
+ if (env.OM_HEAP_FILL) OLYFW.heapFill = parseInt(env.OM_HEAP_FILL, 16) >>> 0;
+ process.on('exit', () => {
+   if (env.OM_DCACHE_OUT && OLYFW.made.dcache) writeFileSync(env.OM_DCACHE_OUT, JSON.stringify(OLYFW.made.dcache.summary(), null, 1));
+   if (env.OM_KCHECK && OLYFW.made.kcheck) writeFileSync(env.OM_KCHECK, JSON.stringify(OLYFW.made.kcheck.summary(), null, 1));
++  if (env.OM_CPU2_OUT && OLYFW.made.cpu2) writeFileSync(env.OM_CPU2_OUT, JSON.stringify(OLYFW.made.cpu2.report(), null, 1));
+   if (env.OM_SECMON && OLYFW.made.secmon) writeFileSync(env.OM_SECMON, JSON.stringify(OLYFW.made.secmon.summary(), null, 1));
+ });
+diff --git a/emu/host/session.mjs b/emu/host/session.mjs
+index 51133ea..6b0b2be 100644
+--- a/emu/host/session.mjs
++++ b/emu/host/session.mjs
+@@ -57,6 +57,7 @@ import path from 'node:path';
+ import zlib from 'node:zlib';
+ import { createHash } from 'node:crypto';
+ import { UsageError, intValue } from '../checks/lib/args.mjs';
++import { OLYFW } from '../src/core/olyfw.mjs';     // olyfw patch 0008: OM_CPU2 (host/olyfwenv.mjs)
+ // c3d-layer patch (2026-11-21): OM_BACKDROP = a 720 x 480 raw RGB file shown under every plane in place of live view
+ // (src/dev/vsccompose2.mjs reads globalThis.__omBackdrop; RGB -> YCbCr by the firmware's integer BT.601)
+ if (process.env.OM_BACKDROP) {
+@@ -478,7 +479,7 @@ export async function openSession(o = {}) {
+ 
+   // the Player's options and env, as play's lab worker makes them (host/labworker.mjs), idle off
+   const a = { ...PLAYER_PARSER, no_browser: true, idle: 'off', debug_api: true, out: out ?? '<out>', no_wait_on_error: true, hdmi: 'off', audio: 'auto', rotate: 'off',
+-    take: 'stand-in', cpu2: 'stand-in', creative_dial: o.creativeDial ?? null, held: o.held ?? [], a15: a15Arg, device: deviceArg };
++    take: 'stand-in', cpu2: OLYFW.cpu2 ?? 'stand-in', creative_dial: o.creativeDial ?? null, held: o.held ?? [], a15: a15Arg, device: deviceArg };
+   let frame = null, sessionNo = 0;
+   const baseEnv = { rom: fw?.rom ?? E.loadImage(), resBlock: fw?.resBlock ?? E.loadBlock(), nand: E.loadNand(), createHash: E.createHash, ...E.scpuEnv(),
+     ...(fw ? { patch: fw.summary, patchRanges: fw.changed } : {}), loaded: o.loaded ?? 'auto',
+diff --git a/emu/src/core/cores.mjs b/emu/src/core/cores.mjs
+index fddea80..4185865 100644
+--- a/emu/src/core/cores.mjs
++++ b/emu/src/core/cores.mjs
+@@ -6,6 +6,7 @@
+ //     the halt word 0x8040, IAGR 0x8a00; cores spec 3.2, I); the lab maps the whole 64 KiB page per core (A-COREPAGE);
+ //   - page 0x5000: the second core's local RAM at 0x50000000 (its early stack 0x500027fc and the 4 KiB window it copies
+ //     to 0x50002000, cores spec 3.4, I); core 0 keeps the flash view there, as the lab always had it (A-COREPAGE).
++//     olyfw: the page is the `local` option (E137: 0x4700, the window both its CPUs' early stacks 0x470007fc share).
+ // Everything else (DRAM, the on-chip SRAM 0x97f00000, the ISC locks, every device) is one bus both cores share.
+ // The interrupt controller presents the second core's bank to it (src/dev/intc.mjs enableSecond; H-CPU2GATE: at any
+ // instruction).
+@@ -43,19 +44,19 @@ class Ctx {
+ }
+ 
+ export class Cores {
+-  constructor(m, intc, { second = 2, quantum = 2000 } = {}) {
++  constructor(m, intc, { second = 2, quantum = 2000, local = LOCAL_PAGE } = {}) {
+     if (!Number.isInteger(quantum) || quantum < 1) throw new RangeError(`cores: quantum ${quantum}: a positive instruction count`);
+-    this.m = m; this.intc = intc; this.second = second; this.quantum = quantum;
++    this.m = m; this.intc = intc; this.second = second; this.quantum = quantum; this.local = local;
+     this.cur = 0; this.q0 = 0; this.interleave = false;
+     this.ctx = { 0: new Ctx(0), [second]: new Ctx(second) };
+     this.onStop = null;
+     this.stats = { turns: 0, insns: 0, switches: 0, halts: 0, wakes: 0, skipped: 0 };
+     this.problems = [];
+     const c0 = this.ctx[0], c2 = this.ctx[second];
+-    for (const p of [CORE_PAGE, LOCAL_PAGE]) c0.pages.set(p, pageState(p));
++    for (const p of [CORE_PAGE, local]) c0.pages.set(p, pageState(p));
+     // the second core's own pages: RAM, zero but for its core number (the hardware's register, which no code writes,
+     // cores spec 2; A-COREID)
+-    for (const [p, name] of [[CORE_PAGE, `om1.cpu${second}-sysregs`], [LOCAL_PAGE, `om1.cpu${second}-local-ram`]]) {
++    for (const [p, name] of [[CORE_PAGE, `om1.cpu${second}-sysregs`], [local, `om1.cpu${second}-local-ram`]]) {
+       const keep = pageState(p), off = allocWindow(0x10000);
+       setPageState(p, { list: null, rp: -1, wp: -1, wpl: -1 });
+       addRegion({ base: p * 0x10000, size: 0x10000, kind: K_RAM, off, name });
+@@ -63,7 +64,7 @@ export class Cores {
+       setPageState(p, keep);
+       if (p === CORE_PAGE) { U8[off + CORE_ID] = second; markDirty(off, 0x10000); }
+     }
+-    setLocalPage(LOCAL_PAGE);
++    setLocalPage(local);
+     intc.setIrq = (req) => this._request(0, req);
+     intc.enableSecond(second, (req) => this._request(second, req));
+   }
+diff --git a/emu/src/core/olyfw.mjs b/emu/src/core/olyfw.mjs
+index 5b5847b..349b5ca 100644
+--- a/emu/src/core/olyfw.mjs
++++ b/emu/src/core/olyfw.mjs
+@@ -5,4 +5,4 @@
+ //   heapFill null, or a 32-bit word: S-HEAP fills each block it hands out or takes back with it (src/lab/play.mjs)
+ //   kcheck   false, or true: the kernel checks (src/lab/kcheck.mjs, patch 0007), installed at the native kernel's boot
+ //   made     the newest machine's model and monitor, for the host to report
+-export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, made: { dcache: null, secmon: null, kcheck: null } };
++export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, cpu2: null, made: { dcache: null, secmon: null, kcheck: null, cpu2: null } };
+diff --git a/emu/src/lab/cpu2.mjs b/emu/src/lab/cpu2.mjs
+index a7cb1e5..4f5ae89 100644
+--- a/emu/src/lab/cpu2.mjs
++++ b/emu/src/lab/cpu2.mjs
+@@ -1,4 +1,5 @@
+-// CPU 2 natively (--cpu2 native, E143, off by default; docs/hle-gaps.md 4.6.1): the machine's second core
++// CPU 2 natively (--cpu2 native, E143 and, olyfw patch 0008, E137; off by default; docs/hle-gaps.md 4.6.1): the
++// machine's second core
+ // (src/core/cores.mjs) run from CPU 2's entry through its kernel to its idle loop, then beside CPU 0 for the session.
+ //   H-CPU2RELEASE  the two words CPU 2 waits for before its kernel and its init task's starts, which CPU 0 writes in
+ //                  code the lab does not run: the release flag (0xa3258360) = 1 (CPU 0's reset head, 0x50000282..329)
+@@ -32,23 +33,69 @@
+ // boot's first, then the first of each context). OSD_DRAW_CPU2's queue: osd_route.
+ // Lab time does not move on core 2; at CPU 0's idle point core 2 runs until it sleeps (the idle step), and inside
+ // CPU 0's runs it takes a turn after every CPU2_QUANTUM instructions of CPU 0 (A-INTERLEAVE, cores.mjs).
+-import { A } from '../fw/model.mjs';
++import { A, MODEL } from '../fw/model.mjs';
+ import { runtime, disasm } from './hle.mjs';
+ import { FirmwareError } from './errors.mjs';
+ import { NativeKernel } from './kernel.mjs';
++import { OLYFW } from '../core/olyfw.mjs';
+ import { hexDigits as fx } from '../util/hex.mjs';
+ 
+ export const CPU2_QUANTUM = 2000;
+ const h8 = (v) => '0x' + fx(v >>> 0, 8);
+ const D = (v) => runtime(A(v));                  // a code address in the disassembly notation, at run time
+ 
+-export const CPU2_ENTRY = A(0x50008F01), RELEASE = A(0xA3258360);
++// olyfw: the E-M5 III profile. bin/port.mjs places most of the kernel and the cross-core paths (A), but not the
++// boot side of CPU 2, which differs (olyfw patch 0008, read from the E137 1.7 disassembly):
++//   - entry 0x50006771 (the run-time 0x60027791 CPU 0's reset head writes to 0x98d00144, 0x5000032a); no release-flag
++//     wait in it (the head writes the release word 0xa25e9488 before the entry, 0x500002fb); its cache write 0x5000678a;
++//     its UART mark is a call of the UART print 0x5003381e (0x50006819; port 0x50000426 -> 0x5003381e), whose
++//     character output 0x50000416 (d0; the device from 0x60024298[(u16)0x8ff0005c]) every print on the core reaches
++//   - the shared SRAM is 0x8ff00000 (the start bits (u16)0x8ff00000, the KCB table 0x8ff00004); three CPUs (0, 1, 2), so
++//     K-STARTBITS sets CPUs 0 and 1 (0x3) before core 2 its own
++//   - BOOT_CPU2 (0x5000688e) waits for 0x8ff00048 = 0x77777777 (0x50037b5b(0); CPU 0's 0x500379d3(0) writes it) and
++//     for (0x8ff0004c) >= 1 (0x50037b5b(1); 0x5003799e(2) writes it): both are written as the release (H-CPU2RELEASE)
++//   - CPU 2's idle command loop is its own copy (0x50037052, priority 70; the loop head 0x50037074), block
++//     0x8ff0008c..0x8ff000b3, halt word 0x8ff000ac (1 at init 0x50036ff2, cleared by command 0x40002); its halts
++//     0x500372d0 (the loop's) and 0x50037021 (0x5003700c's)
++const E137 = MODEL === 'E137';
++const P = E137 ? {
++  entry: 0x50006771, cache: 0x5000678a, uart: 0x50000416, startbits: 0x8ff00000, others: 0x3,
++  release_words: [[0x8ff00048, 0x77777777], [0x8ff0004c, 1]], cmd_block: 0x8ff0008c, cmd_size: 0x28,
++  idle_loop: 0x50037074, halt_word: 0x8ff000ac, halts: [0x500372d0, 0x50037021],
++  // the data-cache purge 0x5004348e on core 2: its dummy reads of the tag areas 0x28a00000/0x28a80000, the cache
++  // controller's busy waits (0x98100000 + 0x400 * core, bit 16) and the tag writes to 0x28900000/0x28980000 skipped
++  // (0x500434b1 -> 0x5004356f; the lab has no caches), CHCTR's re-enable and the unlock run natively (H-CPU2DCACHE)
++  dcache: [0x500434b1, 0x5004356f],
++  // the cross-CPU callback tables (per CPU, 12-byte {?, fn, arg} by object number: 0xa25e9474[cpu]), which CPU 0's
++  // driver bring-up 0x500240e3 sets with 0x50030316 (called at 0x500241ab) and the lab does not run on E137: unset,
++  // a callback registration for a CPU 2 object (0x500305aa) writes through a null table into CPU 0's page 0, where
++  // the DMA source map (0xa26431f8, also unset) is then read (H-CPU2XTABLES: run natively on CPU 0 before core 2)
++  xtables: { fn: 0x50030316, frame: [0, 4], words: [0xa25e9474, 0xa25e9478, 0xa25e947c] },
++  // the registry bootstrap (0x5003afc7, the PRM banks F, B, E, M) is BOOT_CPU2's (its only caller, 0x50006941; E143:
++  // CPU 0's 0x50040aeb), which the lab runs on CPU 0 (menu.mjs REGISTRY_INIT): core 2's call returns at once
++  // (H-CPU2REGISTRY; its result is not used). Run twice, the second takes the bank pool's last slots (7) and fails
++  // (DBG_PRM_BANK_NEW_BANK_ERR), and the errors it leaves reach writes through unset pointers on CPU 0.
++  registry: 0x5003afc7,
++  // CPU 0's init task starts its link tasks from the id words 0x60040c22 and 0x60040c24 (0x50031206..0x50031226; the
++  // port's 0x60040c26/0x60040c22 are one word off), CPUCALL_CPU0 at 0x50036874 (the port's 0x5003697a is CPU 2's)
++  cpu0_link_words: [0x60040c22, 0x60040c24], cpucall_cpu0: 0x50036874,
++  // core 2's own task entries the port does not place: CPUCALL2 0x5003697a (BOOT_CPU2 starts it, 0x500068d7..0x50006907),
++  // CONTEST_CPU2 0x500337b4 (the port's 0x500337aa is 10 bytes before it)
++  tasks: [[0x5003697a, 'CPUCALL2'], [0x500337b4, 'CONTEST_CPU2']],
++  // MVR_MAIN's start site (the port's 0x5017bf7a loads another word): 0x5017bcba, its init call 0x5017bc97
++  mvr_site: 0x5017bcba,
++  // not run on E137: USTART_L2 (BOOT_CPU2 starts no loader there) and OSD_DRAW_CPU2 (not placed yet)
++} : null;
++const N = (v) => runtime(v);                     // an E137 notation address (P), at run time
++
++export const CPU2_ENTRY = P ? P.entry : A(0x50008F01), RELEASE = A(0xA3258360);
+ // core 2's return trampoline: an offset of the lab's CALLER page no other harness code uses (0x400 is display.mjs's
+ // DOORBELL_STUB, 0x480 irq.mjs's STORE_STUB)
+ export const RETURN2 = A(0xA2100600);
+ export const KCB2 = A(0x60043B34);
+-const STARTBITS = A(0x97F00000), TICK_MAGIC = A(0x97F00088), MAGIC = 0x77777777;
+-export const CMD_BLOCK = A(0x97F0009C), CMD_BLOCK_SIZE = 0x78, IDLE_LOOP = A(0x5003883A);
++const STARTBITS = P ? P.startbits : A(0x97F00000), TICK_MAGIC = A(0x97F00088), MAGIC = 0x77777777;
++const OTHER_BITS = P ? P.others : 0xb;
++export const CMD_BLOCK = P ? P.cmd_block : A(0x97F0009C), CMD_BLOCK_SIZE = P ? P.cmd_size : 0x78, IDLE_LOOP = P ? P.idle_loop : A(0x5003883A);
+ // the task entries core 2 may start: its init task's starts (D: 0x50008fbb..0x50009079)
+ export const CPU2_TASKS = new Map([[A(0x50008FBB), 'BOOT_CPU2'], [A(0x5002CED4), 'CPUCONN2'], [A(0x50036489), 'CPUCALL2'],
+   [A(0x5002E2CB), 'CONTEST_CPU2'], [A(0x50024572), 'USTART_L2'],
+@@ -57,13 +104,14 @@ export const CPU2_TASKS = new Map([[A(0x50008FBB), 'BOOT_CPU2'], [A(0x5002CED4),
+   [A(0x5002CF2D), 'CPUCONN proxy (CPU 0)'], [A(0x50AAA99E), 'AUD_LEVEL_MONITOR'],
+   // the tasks CPU 0's boot stages start on CPU 2 through OlyTaSt (H-CPU2TASKS, cores spec 4)
+   [A(0x5046AAB2), 'WB_MOV'], [A(0x5045FCDD), 'MVR_MAIN'], [A(0x5050CC2A), 'SDET'], [A(0x51015F1D), 'OSD_DRAW_CPU2']]);
+-export const CPU2_STAND_INS = ['H-CPU2RELEASE', 'H-CPU2CACHE', 'H-CPU2UART', 'K-BOOTSYNC2', 'K-STARTBITS', 'H-CPU2POLL',
++if (P) for (const [e, name] of P.tasks) CPU2_TASKS.set(e, name);
++export const CPU2_STAND_INS = [...(P ? ['H-CPU2DCACHE', 'H-CPU2XTABLES', 'H-CPU2REGISTRY'] : []), 'H-CPU2RELEASE', 'H-CPU2CACHE', 'H-CPU2UART', 'K-BOOTSYNC2', 'K-STARTBITS', 'H-CPU2POLL',
+   'A-CPU2RESET', 'A-COREPAGE', 'A-COREID', 'A-INTERLEAVE', 'A-KICK', 'H-CPU2GATE', 'H-CPUCONN0', 'H-CPU2LOADER', 'H-CPU2TASKS'];
+ const BOOT_TURNS = 200, IDLE_TURNS = 500, DEVICE_LOG = 64, TASK_DEVICES = 8;
+ // CPU 0's side of the link (H-CPUCONN0): CPUCONN_CPU0 and CPUCALL_CPU0, which CPU 0's init task starts with act_tsk
+ // (0x5002cd0c..0x5002cd2d: the id words 0x60042e50, 0x60042e52), [id word, entry, name]; and the proxy CPU 0's CPUCONN
+ // creates for a call from CPU 2 (cores spec 5.1: entries 0x5002cf2d/4d/6e/8f by source)
+-export const CPU0_LINK = [[A(0x60042E50), A(0x5002CED4), 'CPUCONN_CPU0'], [A(0x60042E52), A(0x50036353), 'CPUCALL_CPU0']];
++export const CPU0_LINK = [[P ? P.cpu0_link_words[0] : A(0x60042E50), A(0x5002CED4), 'CPUCONN_CPU0'], [P ? P.cpu0_link_words[1] : A(0x60042E52), P ? P.cpucall_cpu0 : A(0x50036353), 'CPUCALL_CPU0']];
+ export const CPU0_PROXY2 = A(0x5002CF6E);
+ // USTART_L2, the overlay loader BOOT_CPU2 starts (H-CPU2LOADER)
+ export const USTART_L2 = A(0x50024572);
+@@ -76,11 +124,11 @@ export const OLY_TA_ST = A(0x5002C546);
+ // which the stage calls before FACE_MAIN's and FACE_BEAUTY's starts on CPUs 3 and 1, D), and OSD_DRAW_CPU2 (no init)
+ export const CPU2_STARTS = [
+   [A(0x60043604), A(0x501E9157), A(0x5046AAB2), 'WB_MOV', A(0x501E9150)],
+-  [A(0x600435EA), A(0x501E9233), A(0x5045FCDD), 'MVR_MAIN', A(0x501E91EE)],
++  [A(0x600435EA), P ? P.mvr_site : A(0x501E9233), A(0x5045FCDD), 'MVR_MAIN', A(0x501E91EE)],
+   [A(0x60043606), A(0x501E96F1), A(0x5050CC2A), 'SDET', A(0x501E96A0)],
+   [A(0x60043610), A(0x501EA04C), A(0x51015F1D), 'OSD_DRAW_CPU2', null]];
+ // the halt word of core 2's idle loop (0x97f000fc[core - 1], in the command block): H-CPU2POLL sleeps while it is 0
+-export const HALT_WORD2 = A(0x97F00100);
++export const HALT_WORD2 = P ? P.halt_word : A(0x97F00100);
+ // OSD_DRAW_CPU2's queue (the id word 0x60043698, 0x2013), the GUI's synchronous send to it (OSDControl::drawHistogram
+ // 0x50ae9f5f -> 0x510149a2, its send's return 0x51014a64), and OSD_DRAW_CPU2's loop: after its receive (0x51015f63,
+ // the message at sp + 72: reply queue, word, command, parameter) and at its reply's send (0x510160b8: d0 the reply
+@@ -104,8 +152,11 @@ export class Cpu2 {
+     this.polled = 0;                 // H-CPU2POLL's sleeps (only while the halt word is clear)
+     this.boot_result = null;
+     this.idle_runs = 0;
++    this.all_log = [];               // olyfw: every note, for report() (OM_CPU2_OUT)
++    OLYFW.made.cpu2 = this;
++    this.uart_line = ''; this.uart_lines = []; this.dcache_purges = 0;   // E137: core 2's UART text (H-CPU2UART)
+   }
+-  note(kind, detail) { this.log.push([kind, detail]); }
++  note(kind, detail) { this.log.push([kind, detail]); this.all_log.push([kind, detail]); }
+   take_log() { const out = this.log; this.log = []; return out; }
+   // finish the function core 2 stopped at as if it returned at once (its caller's CALL frame), with d0 = result
+   finish(api, d0 = null) {
+@@ -131,13 +182,23 @@ export class Cpu2 {
+   stops() {
+     const self = this;
+     const t = new Map();
+-    t.set(D(0x50008F1A), ['H-CPU2CACHE', (api) => { self.note('skip', 'H-CPU2CACHE: (0x98100808) = 16'); api.R[9] += 4; return 'go'; }]);
+-    t.set(D(0x50008F37), ['H-CPU2UART', (api) => { self.note('skip', `H-CPU2UART: "${String.fromCharCode(api.read(api.R[4] >>> 0, 1)[0])}"`); api.R[9] += 7; return 'go'; }]);
++    if (P) t.set(N(P.registry), ['H-CPU2REGISTRY', (api) => { self.note('skip', `H-CPU2REGISTRY: ${h8(P.registry)} (run by the lab on CPU 0)`); return self.finish(api, 0); }]);
++    if (P) t.set(N(P.dcache[0]), ['H-CPU2DCACHE', (api) => { self.dcache_purges += 1; api.R[9] = N(P.dcache[1]) | 0; return 'go'; }]);
++    t.set(P ? N(P.cache) : D(0x50008F1A), ['H-CPU2CACHE', (api) => { self.note('skip', 'H-CPU2CACHE: (0x98100808) = 16'); api.R[9] += 4; return 'go'; }]);
++    // E137: the UART's character output P.uart (d0 the character; under every print core 2 makes, the entry's mark
++    // "2" among them), finished at once; the text is kept by line (uart_lines)
++    if (P) t.set(N(P.uart), ['H-CPU2UART', (api) => {
++      const c = api.R[0] & 0xff;
++      if (c === 10) { self.uart_lines.push(self.uart_line); self.note('uart', self.uart_line); self.uart_line = ''; }
++      else if (c !== 13) self.uart_line += String.fromCharCode(c);
++      return self.finish(api);
++    }]);
++    else t.set(D(0x50008F37), ['H-CPU2UART', (api) => { self.note('skip', `H-CPU2UART: "${String.fromCharCode(api.read(api.R[4] >>> 0, 1)[0])}"`); api.R[9] += 7; return 'go'; }]);
+     t.set(D(0x50015A61), ['K-BOOTSYNC2', (api) => { self.note('skip', 'K-BOOTSYNC2: 0x50015a61'); return self.finish(api); }]);
+     t.set(D(0x50012367), ['K-STARTBITS', (api) => {
+-      const v = api.read(STARTBITS, 2), w = (v[0] | v[1] << 8) | 0xb;
++      const v = api.read(STARTBITS, 2), w = (v[0] | v[1] << 8) | OTHER_BITS;
+       api.write(STARTBITS, new Uint8Array([w & 0xff, w >> 8]));
+-      self.note('stand-in', `K-STARTBITS: (u16)0x97f00000 0x${(v[0] | v[1] << 8).toString(16)} -> 0x${w.toString(16)}`);
++      self.note('stand-in', `K-STARTBITS: (u16)${h8(STARTBITS)} 0x${(v[0] | v[1] << 8).toString(16)} -> 0x${w.toString(16)}`);
+       return 'step';
+     }]);
+     t.set(D(0x50017B86), ['kbreak', (api) => api.park(`core 2: kernel break(${api.R[0]}) from ${h8(disasm(api.R[11]))}`)]);
+@@ -155,7 +216,7 @@ export class Cpu2 {
+     t.set(D(0x5002D679), ['xcpu_conn', post('cpu_conn', (api) => ({ object: '0x' + (api.R[0] & 0xffff).toString(16), kind: api.u32(api.R[4] >>> 0) }))]);
+     // H-CPU2LOADER: USTART_L2 returns from its entry at once (to the return address the kernel's task start left at
+     // its sp); the control cpu2-loader runs it natively
+-    if (this.s.opts.mutant !== 'cpu2-loader') t.set(D(USTART_L2), ['H-CPU2LOADER', (api) => {
++    if (this.s.opts.mutant !== 'cpu2-loader' && !P) t.set(D(USTART_L2), ['H-CPU2LOADER', (api) => {
+       const ra = api.u32(api.R[8] >>> 0);
+       self.note('skip', `H-CPU2LOADER: USTART_L2 returns to ${h8(disasm(ra))}`);
+       api.R[9] = ra | 0;
+@@ -173,7 +234,7 @@ export class Cpu2 {
+   // the halt pcs, each the instruction after a store of 8 to (0x8040): OlyTaSE's halt loop and the idle command loop's
+   // halt (when its halt word 0x97f000fc[1] is set, D 0x50038b04), from which the interrupt that wakes the core returns
+   // and goes on (cores.mjs); and the idle TCB's spins (bra to itself)
+-  static halts() { return [D(0x5002C75B), D(0x50038B09), D(0x500159F3), D(0x50015A0B)]; }
++  static halts() { return P ? [D(0x5002C75B), ...P.halts.map(N), D(0x500159F3), D(0x50015A0B)] : [D(0x5002C75B), D(0x50038B09), D(0x500159F3), D(0x50015A0B)]; }
+   // H-CPUCONN0: CPU 0's CPUCONN_CPU0 and CPUCALL_CPU0 started with act_tsk as CPU 0's init task starts them, and
+   // CPUCONN's proxy for CPU 2 allowed; both then wait (CPUCONN_CPU0 on its flag, CPUCALL_CPU0 in its receive)
+   cpu0_link() {
+@@ -195,12 +256,24 @@ export class Cpu2 {
+     this.cpu0_tids = tids;
+     this.note('start', `CPU 0: ${tids.map(([t, n]) => `${n} ${t}`).join(', ')}`);
+   }
++  // H-CPU2XTABLES: the cross-CPU callback tables' init natively on CPU 0 when the lab left them unset
++  xtables() {
++    const lab = this.lab, x = P.xtables, before = x.words.map((w) => lab.sim.u32(w) >>> 0);
++    if (before.every((v) => v === 0)) {
++      lab.call(x.fn, null, null, x.frame, 200000);
++      const after = x.words.map((w) => lab.sim.u32(w) >>> 0);
++      if (after.some((v) => v === 0)) throw new FirmwareError(`H-CPU2XTABLES: ${h8(x.fn)} left ${after.map(h8).join(' ')}`);
++      this.note('stand-in', `H-CPU2XTABLES: ${h8(x.fn)} on CPU 0: ${after.map(h8).join(' ')}`);
++    } else this.note('stand-in', `H-CPU2XTABLES: already set ${before.map(h8).join(' ')}`);
++  }
+   // H-CPU2RELEASE, then core 2 from its entry until it sleeps (BOOT_TURNS turns of the quantum at most)
+   boot() {
++    if (P) this.xtables();
+     this.cpu0_link();
+     const lab = this.lab, cores = this.cores, table = this.table = this.stops();
+     lab.sim.word(RELEASE, 1);
+-    lab.sim.word(TICK_MAGIC, MAGIC);
++    if (P) for (const [a, v] of P.release_words) lab.sim.word(a, v);
++    else lab.sim.word(TICK_MAGIC, MAGIC);
+     const hw = HALT_WORD2 - CMD_BLOCK, halted = (b) => (b[hw] | b[hw + 1] | b[hw + 2] | b[hw + 3]) !== 0;
+     cores.start(runtime(CPU2_ENTRY), 0, { stops: [...table.keys()], halts: Cpu2.halts(),
+       polls: [[runtime(IDLE_LOOP), CMD_BLOCK, CMD_BLOCK_SIZE, (b) => !halted(b) && (this.polled += 1, true)]] });
+@@ -239,11 +312,11 @@ export class Cpu2 {
+       if (e.first.length < TASK_DEVICES) e.first.push([dir ? 'W' : 'R', h8(a), h8(v), w, name, h8(disasm(cores.regs()[9])), err]);
+     });
+     this.start_tasks();
+-    this.osd_route();
++    if (!P) this.osd_route();
+   }
+   // H-CPU2TASKS: each CPU 2 task of CPU2_STARTS started as its CPU 0 boot stage starts it, OlyTaSt(id) from CPU 0 (the
+   // lab task, which waits while the start goes to core 2 natively: cpu_conn kind 9, CPUCONN2's proxy, act_tsk there)
+-  start_tasks() { for (const row of CPU2_STARTS) this.start_task(row); }
++  start_tasks() { for (const row of CPU2_STARTS) if (!P || row[3] !== 'OSD_DRAW_CPU2') this.start_task(row); }
+   // one row [id word, start site, entry, name, init site]: the module init the start site's stage calls before it (the
+   // `call d32` at the init site, its target and frame read there; or null) natively on CPU 0, then OlyTaSt(id)
+   start_task([word, site, entry, name, initSite = null]) {
+@@ -318,6 +391,8 @@ export class Cpu2 {
+     }
+     throw new FirmwareError(`--cpu2 native: core 2 ran ${IDLE_TURNS} turns at one idle point without sleeping (at ${h8(disasm(cores.state().pc))})`);
+   }
++  // olyfw: the status and every note (host/olyfwenv.mjs OM_CPU2_OUT)
++  report() { return { status: this.status(), problem: this.problem(), log: this.all_log }; }
+   problem() {
+     const p = this.cores.problem();
+     return p ? `--cpu2 native: ${p.message}` : null;
+@@ -326,6 +401,7 @@ export class Cpu2 {
+     const st = this.cores.state(), intc = this.lab.sim.m.devices.intc;
+     return { ...st, pc: h8(disasm(st.pc)), boot: this.boot_result, started: this.started, posts: this.posts.length, idle_runs: this.idle_runs,
+       presented: intc.log2.presented, accepted: intc.log2.accepted, kicks: intc.kicks.length, polled: this.polled, cpu0_link: this.cpu0_tids, tasks: this.tasks_started,
+-      osd: this.osd && { routed: this.osd.routed, sent: this.osd.sent, taken: this.osd.taken.length, replies: this.osd.replies.length } };
++      osd: this.osd && { routed: this.osd.routed, sent: this.osd.sent, taken: this.osd.taken.length, replies: this.osd.replies.length },
++      ...(P ? { model: 'E137', uart: this.uart_lines, dcache_purges: this.dcache_purges } : {}) };
+   }
+ }
+diff --git a/emu/src/lab/play.mjs b/emu/src/lab/play.mjs
+index 340eb83..b5be8cf 100644
+--- a/emu/src/lab/play.mjs
++++ b/emu/src/lab/play.mjs
+@@ -1089,8 +1089,9 @@ export class PlaySession extends N.NavSession {
+     const cpu2 = opts.cpu2 ?? 'stand-in';
+     if (!['stand-in', 'native'].includes(cpu2)) throw new ValueError(`cpu2 ${show(cpu2)}: stand-in or native`);
+     if (cpu2 === 'native') {
+-      if (!ON_LAB_MODEL) throw new ValueError(`--cpu2 native: ${MODEL}'s CPU 2 addresses are not read (E143 only, src/lab/cpu2.mjs)`);
+-      env = { ...env, machine: { ...(env.machine ?? {}), cores: { second: 2, quantum: CPU2_QUANTUM } } };
++      // olyfw: E137 too (cpu2.mjs's E137 profile; its CPUs' local page is 0x4700)
++      if (!ON_LAB_MODEL && MODEL !== 'E137') throw new ValueError(`--cpu2 native: ${MODEL}'s CPU 2 addresses are not read (E143 and E137 only, src/lab/cpu2.mjs)`);
++      env = { ...env, machine: { ...(env.machine ?? {}), cores: { second: 2, quantum: CPU2_QUANTUM, ...(MODEL === 'E137' ? { local: 0x4700 } : {}) } } };
+     }
+     // defaults for the keys kw does not give (a key given as null keeps it)
+     const setdefault = (key, v) => { if (!Object.hasOwn(k, key)) k[key] = v; };

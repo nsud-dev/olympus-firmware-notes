@@ -1,5 +1,7 @@
 # Modifying the firmware
 
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Anatomy of a feature port](../guides/port-anatomy.md).
+
 This page collects the ways we have changed the E-M5 Mark III's firmware and seen them work, one technique per
 section. Each section gives the method in general terms, the pitfalls we hit, how to take it further, and a link to
 a worked example. It ends with a **checked on** table: which camera and firmware the technique has been shown on, by
@@ -239,14 +241,14 @@ pools for addresses rather than computing them.
 
 **Extend it.** A second donor program (job 12) runs on live-view frames the same way, for the Live ND preview.
 
-**Worked example:** [Live ND](../features/live-nd.md); jobs and records on the [image engine](../hardware/image-engine.md#submitting-a-job-safely-learned-on-the-camera)
+**Worked example:** [Live ND](../features/live-nd.md); jobs and records on the [image engine](../hardware/image-engine-technical.md#submitting-a-job-safely-learned-on-the-camera)
 page.
 
 | camera · firmware | status | by | notes |
 |---|---|---|---|
 | E-M5 III · 1.7 | [camera] | this project | donor merge job on held photo frames; job 12 on live-view frames |
 
-Other bodies: the job programs differ per body ([which jobs each camera has](../hardware/image-engine.md#which-jobs-each-camera-has)).
+Other bodies: the job programs differ per body ([which jobs each camera has](../hardware/image-engine-technical.md#which-jobs-each-camera-has)).
 
 ## 9. Add shooting states
 
@@ -308,10 +310,10 @@ a small log to the card.
 
 **Method.**
 - The card updater (hold OK at power-on with the update file on the card) runs before the main program's sections, so
-  it still works when a build boot-loops. Flash the last good file ([recovery](recovery.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin)).
+  it still works when a build boot-loops. Flash the last good file ([recovery](recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin)).
 - Check every build before it goes near the camera: container and checksums, the camera's own update validator,
   boot-critical bytes left alone, section load order and guards, address evidence
-  ([pre-flash checks](recovery.md#pre-flash-check-suite-every-build-2026-11-07)).
+  ([pre-flash checks](recovery-technical.md#pre-flash-check-suite-every-build-2026-11-07)).
 
 **Pitfalls.** The checks only catch what they model: one build passed a load-order check that used the read order, not
 the ready order, and boot-looped. Never cut power while the camera writes the main block.
@@ -391,7 +393,7 @@ starts after boot.
 
 **Method.** Load a modified copy of a program instead of the stock one, changing chosen fields of its microcode words,
 and run it on test data through the normal job path (technique 8). Compare the output with stock
-([image engine](../hardware/image-engine.md#camera-tests-on-job-11-2026-11-19)).
+([image engine](../hardware/image-engine-technical.md#camera-tests-on-job-11-2026-11-19)).
 
 **Pitfalls.** The format is only partly mapped; change one field per test and keep the stock program as the control.
 
@@ -453,10 +455,11 @@ on the card. A bad module costs a card edit, not a reflash, and no card (or OK h
 | camera · firmware | status | by | notes |
 |---|---|---|---|
 | OM-5 II · 1.1 | [camera] | OMKit (necrostaz) | loader on the owner's camera since 2026-10-30; Wi-Fi and USB start paths not checked |
+| E-M5 III · 1.7 | [camera] | this project | loader running on the camera since 2026-11-22 (focus-stacking and display mods loaded from the card); adds a native Custom Menu letter K "K. Mods" with an Off/On row per mod and a Wi-Fi Shell row (`features/saved-settings-and-menu-rows.md`): hook FastEndCb 0x6019c68c, base in section-1 slack 0x6022d800 (section-1 end raised to 0x6022e800), mods in RAM 0x61500000-0x61a00000, on/off table in the store-50 tail +0x39E00, OK held = skip; also runs in om-emu private notes |
 
 ## Rules for every build
 
-The pre-flash checks in [recovery](recovery.md#pre-flash-check-suite-every-build-2026-11-07) test most of these
+The pre-flash checks in [recovery](recovery-technical.md#pre-flash-check-suite-every-build-2026-11-07) test most of these
 automatically.
 
 1. Every absolute address has native evidence.

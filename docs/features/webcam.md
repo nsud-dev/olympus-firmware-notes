@@ -1,49 +1,54 @@
 # USB webcam
 
-The OM-5 has a built-in USB webcam mode and the older E-M5 Mark II could be used as a webcam, but the E-M5 III
-can't. This was the first feature the project tried to bring over.
+<!-- human page -->
+> The dense reference for this page is [USB webcam: technical notes](webcam-technical.md).
 
-**Status: parked.** Webcam test 1 passed (the camera enumerates as a UVC webcam) and test 2c passed (it streams its own
-picture over UVC and survives a replug). Streaming the real live view failed, because the camera turns its shooting
-pipeline off while USB is connected; fixing that is a large change, so the work is parked.
+The OM-5 can act as a USB webcam on its own. Plug it into a computer and it shows up like any other webcam. The
+E-M5 III cannot. A webcam mode was the first feature this project tried to bring over.
 
-Terms: **UVC** = USB Video Class, the standard webcam protocol; **UAC** = USB Audio Class; **iso / bulk** = USB transfer
-types (webcams normally stream isochronously); **MVR** = the movie recorder module; **PID** = the USB product id.
+## Status
 
-Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
+Parked. The E-M5 III can now appear to a computer as a webcam and stream a picture of its own. Streaming the real live
+view did not work, and fixing that would be a large change.
 
-Parked on 2026-10-20. Section 9 lower 0x613bb000-0x613d4000 stays reserved for it.
+## On the OM-5
 
-## What we learned
-- The E-M5 III never had USB webcam support. camecon (PID 0x130) has no command handler; the orphaned PTP mode 6 does file
-  and remote ops only; no OM-D live-view ops (0x948x). It has to be ported. [camera] (USB tests 1-4)
-- Donor: OM-5 1.2 native **UVC 1.0 MJPEG 1280×720 29.97/25 fps**, iso EP 0x85 (3×1024), UAC1 stereo 48 kHz EP 0x86;
-  descriptors 0x60f76da4, builder 0x60cdb87f, `LINK_PROTOCOL_WEB_CAMERA = 8`, PID 0x139. Frames come from the **movie
-  recorder (MVR)** via a 6-slot ring (0x60ce02cb/0x60ce0304/0x60ce0374). [code]
-- E-M5 III DWC3 driver has no iso path, so we streamed over **bulk IN 0x86** (UVC allows it). [code]
+The OM-5 streams 1280 by 720 video at about 30 frames per second as Motion JPEG, with stereo sound. It uses the standard
+webcam protocol, so computers need no driver. The frames come from the movie recorder, which is why the picture matches
+what the camera would record.
 
-## Builds and results
+## The port
 
-Tests 2 to 2d were built with another tool; we reviewed them and checked the bytes.
+The E-M5 III never had webcam support. Its USB code covers file transfer and remote control only.
 
-| build | what | result |
-|---|---|---|
-| webcam test 1 | PID 0x139 + UVC config descriptor via wrapper 0x613bb000 | **passed**: Mac lists a UVC camera [camera] |
-| test 2 / 2b / 2c (another tool) | probe/commit, SET_INTERFACE, bulk fixed 160×120 JPEG; 2b status-mask fix; 2c EndTransfer on reset | **2c passed**: own picture over UVC, survives replug [camera] |
-| test 2d | 34 ms native timer pacing | 21.6 fps [camera] |
-| live-view 2 | native movie USB output, 320×240 JPEG | **failed**: Photo Booth froze, camera shows "One moment..." (USB-connected state turns the shooting pipeline off) [camera] |
-- uvc.log (2026-10-20): first open streams unpaced (~2400 fps, many packets dropped as `MissingFIDFlip`); on Photo Booth reopen the
-  host never calls startStream, so the black picture is host-side; app restart/sleep needs camera deselect/reselect. The picture
-  appeared only in movie mode. [camera]
-- Bugs found in review and fixed: DEPEVT status mask, EndTransfer on reset/disconnect, pacing gate = period (see [gotchas](../reference/gotchas.md)). [camera]
-- 0x60022e5c clock = 1 µs; timer create 0x6006be97 takes ms; native periodic timer type 128 → USB msg 0x03fe0001 → worker detour 0x60c2e2d6 (2d). [code]
-- Fix would need keeping the camera in shooting mode while USB is connected (big UI/state work). Best flashed states: 2d / 2c.
-- No-patch fallback: Wi-Fi live view (OI.Share `remocon`) into a virtual webcam on the Mac. [inferred]
+The tests went in steps.
 
+| test | result |
+|---|---|
+| appear to a computer as a webcam | worked |
+| stream a small test picture, and survive unplugging | worked |
+| pace the stream with the camera's own timer | worked, about 22 frames per second |
+| stream the real live view | failed |
 
-## Other bodies (2026-11-20)
+The last test failed because the camera switches its shooting pipeline off while USB is connected. The screen shows
+"One moment..." and there is no live view to send. Keeping the camera in shooting mode while connected would mean
+large changes to how it handles USB and its modes, so the work was parked.
 
-UVC interface descriptors (video control + streaming) are in block0 of the OM-5 1.2, OM-5 II 1.1 and OM-1 II 1.3, with
-`WEB_CAMERA` strings; the E-M1 III 1.6, OM-1 1.9 and PEN-F 3.1 have neither (any webcam use on those goes another way,
-not checked). [code] [body comparison](../bodies/comparison.md#our-features-on-the-other-bodies-2026-11-20)
-- **E-M5 II 4.1 (2026-11-21):** no UVC descriptors (same as the PEN-F); the PC tether (`camecon`) code is present. [code] See [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+## Lessons
+
+- Most of what went wrong on the computer side, such as a black picture after reopening an app, was the computer
+  waiting for the camera to start again. It was not a camera fault.
+- Without proper pacing, the camera sent far too many frames and the computer dropped most of them.
+
+## Other cameras
+
+The OM-5, OM-5 II and OM-1 II have a webcam mode. The E-M1 III, OM-1, PEN-F, E-M5 II and E-M5 III do not.
+
+## Without changing the firmware
+
+The camera's Wi-Fi remote live view can be turned into a webcam on the computer with a virtual-camera tool. That needs
+no firmware change. It has not been tried.
+
+## Further reading
+
+- [USB](../hardware/usb.md) covers the camera's USB modes.

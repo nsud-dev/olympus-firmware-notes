@@ -1,80 +1,85 @@
-# Movie: recording limit and OM-Log400
+# Movie recording limit and OM-Log400
 
-Two movie questions are covered here. First, the E-M5 III stops recording at 29 minutes 59 seconds; where is that limit,
-and could it be lifted as on the OM-5? Second, the OM-5 has a flat "OM-Log400" picture profile for colour grading; how
-much of it already exists on the E-M5 III?
+<!-- human page -->
+> The dense reference for this page is [Movie recording limit and OM-Log400: technical notes](movie-technical.md).
 
-The short answers: the time limit is a single constant, and much of the log-profile plumbing is already present but
-the part that picks the log curve is missing.
+This page covers two movie questions. The E-M5 III stops recording after 29 minutes 59 seconds, while the OM-5 records
+for longer. The OM-5 also has a flat "OM-Log400" picture profile for colour grading, which the E-M5 III lacks.
 
-Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+The recording limit turns out to be one number in the firmware. The log profile is harder. Much of what it needs is
+already in the E-M5 III, but the piece that picks the log curve is missing.
 
-Status: read-only research 2026-11-07, nothing built. Roadmap: recording limit,
-OM-Log400.
+## Status
 
-## How a movie is made (pipeline facts, 2026-11-21)
+- **Recording limit.** Found and understood. A card mod that lifts it works in the emulator but has not been tried on
+  the camera.
+- **OM-Log400.** Researched. Nothing has been built yet.
 
-- Sensor modes per movie size and the crop/scale table: see [sensor modes](../hardware/sensor.md#sensor-modes-2026-11-21).
-  4K = 1:1 centre crop, C4K = full width, FHD = 2x2 binned band. [code]+[inferred]
-- The movie scaler is the fixed image pipeline set from that table (non-integer ratios such as 5184 → 4096). DSP job 10 is
-  not part of it (its caller is the still task). [code]+[inferred]
-- **Encoder:** H.264 only, Panasonic-style AVpi framework (`CAvpiVenH264*`, `SAvScaEncVideoParam` with Hsize/Vsize/MaxHsize/
-  MaxVsize). Rate control's level table (jump at 0x6117e4ba) stops at **Level 5.1** (983040 macroblocks/s, 36864 per
-  frame). No HEVC (the OM-1 adds it). [code]
-- **Where the recording size is set:** switch at 0x603ecf4b in the record-init chain. Resolution byte 5 → 4096 x 2160,
-  6 → 3840 x 2160, 2 → 1280 x 720, 3 → 640 x 480, 4 → 640 x 360, anything else → 1920 x 1080 (Hsize +16, Vsize +20, size
-  word +56). Max size +24/+28 is 4096 x 2160 for 5 and 6, else 1920 x 1080. Bitrate rows of 80 bytes per code from
-  0x6053a584. The same size constants recur in many other movie modules (pipeline setup, YC buffers, display, metadata). [code]
-- About 21 encoder branches test `height == 2160` for 4K special cases; two test `>= 2160`. [code]
-- The encoder's video-source stage (CAvpiVsoVideoSource 0x6118ce61..0x6118d0ff) knows a fixed size list: 720 x 480 to
-  1920 x 1088, **2048 x 1536, 2560 x 1920**, 3840 x 2160, 4096 x 2160; other sizes get a small default class. [code]
-- In-camera playback (CAvpiVdeCodec 0x6116ac26) rejects width > 4096 or height > 2160. [code]
-- Movie YC 4:2:0 pool 0x2f00 (`IMGBUFF_ALOC_MOV_YC420`): 9 slots of 0xca8000 = 4096 x 2160 x 1.5. [code]
-- Pipeline load today: 4K30 about 288 Mpx/s, C4K24 about 350 Mpx/s; C4K has no 30p. Same tables in the E-M1 III, so this
-  looks like a processor limit, not segmentation. [inferred]
+## The 29:59 limit
 
-## The 29:59 recording limit
+When a recording starts, the camera hands the movie encoder a maximum recording time in milliseconds. On the E-M5 III
+that time is 30 minutes, unless the recording type is one that already gets two hours. The encoder stops when the time
+runs out.
 
-The limit is a maximum recording time in milliseconds that the movie encoder is given when recording starts.
+The OM-5 and OM-5 II have no 30-minute case at all. They always pass two hours. The E-M1 III and PEN-F carry the same
+30-minute number as the E-M5 III.
 
-- Enforced by the encoder record-init parameter `ulMaxRecTime` (+68 of `SAvScaEncAVParam`, **milliseconds**). Filler
-  **0x603ecd04**: if the caller's max time (cfg+16) is 0, kind (cfg+22) 3 or 4 → 7200000 (2 h), else **1800000 (30:00) at
-  0x603ecdb3** (`fc cc 40 77 1b 00`). Chain: `MovmidApi_cmd_rec_init` 0x603eb4a1 → 0x603ecb57 → 0x603ecc0f → 0x603ecd04. [code] 2026-11-07
-- Request built at 0x6033e00a (msg 0x1001): cfg+16 = src+8 (caller 0x6032b4a8 passes 0), cfg+22 from src+2 (4→4, unknown→3).
-  Which recording kind already gets 2 h is open. [code]/[inferred] 2026-11-07
-- OM-5 1.2 / OM-5 II 1.1 have **no 30-minute branch** (always 7200000 when the caller passes 0; OM-5 0x604034d4). E-M5 III,
-  E-M1 III 1.6 and PEN-F 3.1 carry the 1800000 constant; OM-1/OM-1 II neither. [code] 2026-11-07
-- No second limit constant found (1799/1800 hits are trace ids, error records, 90 kHz frame durations). UI remaining-time
-  display not traced. [code]/[inferred] 2026-11-07
+Lifting the limit means changing that single number to the OM-5's two hours. No other limit was found in the movie
+code. Three things are still unknown. The remaining-time display on screen may have its own cap. It is not known how
+the camera handles the 4 GB file split on a longer recording. Heat over a long recording has not been tested either.
+
+As a card mod, the change is made while the camera runs and undone when the menu row is switched off.
+
+## How a movie is recorded
+
+The sensor runs in a different mode for each movie size. 4K is a crop from the middle of the sensor. Cinema 4K uses the
+full width, and Full HD reads a band of the sensor at half resolution. A fixed scaler brings each mode to the
+recording size.
+
+The encoder handles H.264 only, up to level 5.1. That level caps how many pixels per second it can take. 4K at 30
+frames needs about 288 million pixels a second, and Cinema 4K at 24 needs about 350 million. There is no Cinema 4K at
+30, and the same tables appear in the E-M1 III. So this looks like a limit of the processor rather than a product
+decision. HEVC arrived later, on the OM-1.
 
 ## OM-Log400
 
-A log profile records a very flat tone curve to keep more highlight and shadow detail for grading later.
+A log profile records a very flat tone curve. The picture looks washed out straight from the camera, but it keeps more
+detail in the highlights and shadows for grading later.
 
-- OM-5 implements it as **colortone (picture mode) 24 `M_LOG`** (23 = `SUPERFLAT`), plus settings `MODE_EXPANDED_CONTRAST_MODE`
-  (HLG/SUPERFLAT/LOG) and `MODE_EXPANDED_CONTRAST_LV` (View Assist); GUI "OM-Log400" (OM-5 English 3846), "View Assist" (3575). [code] 2026-11-07
-- E-M5 III colortone values 0-22 match OM-5; 23-60 print "NOT SUPPORTED!!" (debug table 0x60af9f14), PLACAME = 61 vs OM-5 62.
-  E-M5 III settings: `MODE_EXPANDED_CONTRAST` = OFF/SUPERFLAT only. [code] 2026-11-07
-- **AE plumbing already in E-M5 III:** the through-image exposure tag has `+82 mode_expanded_contrast` and `+83
-  mode_expanded_contrast_mode`, filled at 0x60427b6a exactly like OM-5 0x60440b8f (idle default 0/254). [code] 2026-11-07
-- Missing on E-M5 III: the selection of the log curve in the develop/movie parameter builder, View Assist, a setting/menu
-  value (via the menu route). We first thought the data might live in block 2 sub E-M5 0x45b20000 ↔ OM-5 0x44860000 (70 % match);
-  corrected 2026-11-07: that sub is bank 6 (DSP jobs), and its difference is jobs 11-18. [code]
-- **Image-engine resource banks 0-4 and 7 are byte-identical in E-M5 III 1.7, E-M1 III 1.6 and OM-5 1.2** (bank 5 E-M5 = OM-5).
-  If the log tone data is resource data, E-M5 III already has it. [code] 2026-11-07
-- No new tone-curve LUT in OM-5 block0 (monotone u16/u32 scan, 63-entry picture-mode table test): the curve is parameters in
-  the shared banks picked by code, or computed. [code]/[inferred] 2026-11-07
-- Picture-mode values: OM-5 inserted M_LOG at 24, so E-M5 III values ≥ 24 = OM-5 − 1 (icon switches E-M5 0x60cb12d7, OM-5
-  0x60d722a4). E-M5 III already handles value 23 (likely SUPERFLAT). A port must give M_LOG another E-M5 number and map it in
-  the builder, not renumber. [code]/[inferred] 2026-11-07
-- Next: follow OM-5 frame_param `mode_colortone` (+32) into the develop-parameter builder and its resource-loader calls
-  (OM-5 loader 0x60178a66) to the bank entry chosen for 23/24; then a cheap forced picture-mode-23 movie test on E-M5 III.
-  [inferred] 2026-11-07
+On the OM-5, OM-Log400 is a picture mode. It sits next to a "super flat" mode and comes with a View Assist setting
+that shows a normal-looking picture on screen while recording the flat one.
 
-## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+What the E-M5 III already has:
 
-- **Recording limit:** the 1800000 ms (30-minute) constant is present on both the E-M5 II 4.1 and the E-M5 Mark I 2.3, next to 7200000; where it is used was not traced. [code]
-- **OM-Log400:** neither has the `expanded_contrast` plumbing the E-M5 III kept, so the cheap route on this page doesn't exist there. [code]
-- Their movie code is a different, older stack (the E-M5 II shares the PEN-F's `movp_*` files; the E-M5 Mark I has QuickTime/MJPEG writers), so nothing here carries over directly. [code]+[inferred]
+- the same picture-mode numbering as the OM-5 up to the point where the log mode was added
+- the exposure code that records which contrast mode is active, filled in exactly as on the OM-5
+- the image-engine data that the OM-5 most likely draws its curves from, which is byte for byte the same
 
-Full comparison: [older bodies](../bodies/comparison.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+What it lacks:
+
+- the code that chooses the log curve when a movie's picture settings are built
+- View Assist
+- a setting and menu value to switch it on
+
+The OM-5 slotted its log mode into the middle of the picture-mode list. A port should give it a new E-M5 III number
+instead of renumbering the existing modes.
+
+The next step is to follow the OM-5's log mode into the code that builds the picture settings. A cheap test would be to
+force the existing super flat mode in a movie on the E-M5 III and see what comes out.
+
+## Other cameras
+
+| camera | 30-minute limit | log profile |
+|---|---|---|
+| E-M5 III 1.7 | yes | no, but most of the groundwork is there |
+| E-M1 III 1.6 | yes | no |
+| PEN-F 3.1 | yes | no |
+| OM-5 1.2, OM-5 II 1.1 | no, two hours | OM-Log400 |
+| OM-1, OM-1 II | no 30-minute number found | not checked here |
+| E-M5 II, E-M5 (Mark I) | yes | no, and an older movie system without the groundwork |
+
+## Further reading
+
+- [Sensor and calibration](../hardware/sensor.md#sensor-modes) lists the sensor modes per movie
+  size.
+- [Color and Monochrome Profiles](pen-f-profiles.md) covers the other picture modes we added.

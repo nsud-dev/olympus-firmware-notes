@@ -1,4 +1,6 @@
-# Graphics pipeline (GUI, OSD engine, VSC, live view)
+# Graphics pipeline
+
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Drawing to the screen](../guides/drawing-to-the-screen.md).
 
 This page follows a pixel from the camera's software to the rear screen or EVF. In short: the GUI (menus, icons,
 shooting info) is drawn into OSD buffers by a small hardware 2D engine, and the display controller (VSC) lays those
@@ -101,8 +103,9 @@ number means "transparent" so the live picture shows through.
   mask bit 0/1 → ch 0 and bits 0xff000004 → ch 1. Corrects "one channel each for TFT/EVF/HDMI". [code] (2026-11-05)
 - Six planes per channel: IMG1..IMG3 (YC images; IMG1 = live view) and OSD1..OSD3; enable bits in DMA7 (+0x30).
   Registers have latched copies at +0x400 (`*_VL`) that take effect at the frame boundary; INTST1 bit 0 = frame IRQ.
-- Histogram (HIST1-3), highlight/shadow (HILIGHT1-4), peaking (PEAK1-14), colour matrix (COLMAT), gamma (GAM), rotation
-  (ROT) and resize (RSZ) are VSC blocks, so they act on the displayed YC image, not on raw. [code] (2026-11-05)
+- Histogram (HIST1-3), highlight/shadow (HILIGHT1-4), peaking (PEAK1-14), colour matrix (COLMAT), gamma (GAM), ~~rotation~~
+  colour gains (ROT; corrected 2026-11-22: saturation for the display colour mode, not rotation) and resize (RSZ) are VSC blocks, so they act on the displayed YC image, not on raw. [code] (2026-11-05)
+  Register-level map with writers and fields: [VSC register map](vsc-display-controller-technical.md). [code] 2026-11-22
 - Background BG1 = 0x80800b (black in YCbCr); plane level OSD7-9 = 2×floor(p×128/100). [code] (om-emu) (2026-11-05)
 
 ## 4. When the screen updates
@@ -121,7 +124,7 @@ number means "transparent" so the live picture shows through.
 
 Besides the 2D OSD engine, the camera has a vector-graphics GPU used by the `c3d` task for the colour wheels (Color
 Creator, and the Color/Mono Profile editors we added). How the GUI starts it and how its layer reaches the screen is on
-[profile editor](../features/pen-f-profiles.md#on-camera-editor).
+[profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 
 - Block0 carries an **OpenVG 1.x** library with **EGL**, from DMP: 95 `vg*` names (vgCreatePath, vgDrawPath, vgCreateImage,
   vgCreatePaint, vgClear, ...), EGL calls (eglCreateContext, eglCreateWindowSurface, ...) and DMP extensions
@@ -212,7 +215,7 @@ Read of om-emu `ccfe2e0` (2026-11-19) for the E-M5 III. om-emu facts are [code] 
     (0xa46ce6c0 + 0x80000, 0xa474e6c0 + 0x680000), and allocations (0x611beb7b) come from the second.
   - Not modelled: gradient paints, dashes, blend modes other than source-over, masks. No stock-vs-camera pixel
     comparison yet: the camera dump in private notes is from the ported editor, not stock Color Creator.
-- Other om-emu limits met while building the profile editors (no 4-bpp pictures, histogram drawn as a stand-in block,
+- Other om-emu limits met while building the profile editors (4-bpp pictures without a colour table, fixed 2026-11-22 by patch 0004, see [OSD drawing 3b](osd-drawing.md); histogram drawn as a stand-in block,
   editor closes after ~6 s without keys) and the tools that worked: UI drawing lessons.
   First test for step 2: the traced CC2/MC/SC renderer draw streams, which stop at the final c3d submit. [emu] 2026-11-21
 - **More screens and a stand-in live view** [emu] 2026-11-21:
@@ -220,6 +223,19 @@ Read of om-emu `ccfe2e0` (2026-11-19) for the E-M5 III. om-emu facts are [code] 
   - Patch 0003 adds `OM_BACKDROP` (session.mjs) and `BACKDROP` (c3drun.mjs). These draw a 720 x 480 RGB picture
     (`c3d/backdrop.py`: a generated lake-at-dusk landscape by default, a hard-edged test scene with `--test`, or a photo) under every plane, so OSD and IMG2 transparency show.
   - `mode:N` turns the mode dial (2 ART, 3 SCN). SCN screens get START and END but no UPDATE: [open].
+  - **Screens made before patch 0004 (2026-11-22) lack some pictures** [emu] 2026-11-22. Stock om-emu refuses every
+    run-length picture sent without a colour table and reports it only on stderr (`osd-engine ERROR BMP_LUT`), so the
+    screen looks complete. Re-run with 0004: ART select lost 7 (the translucent title bar under the art name), SCN 2
+    (title bar), Color Creator 1, the shooting screen's exposure-value box, and the AF target screen its whole grid
+    and the boxes under its icons. The shooting screen alone had none. `c3drun.mjs` now prints
+    `ENGINE_ERRORS {name: count}` at the end; any count means the picture is incomplete.
+- [code] (om-emu) **Upstream check (2026-11-21):** om-emu's `main` is still `ccfe2e0` (2026-11-19), the base our three
+  patches are made against, and they apply to it cleanly in order. Nothing upstream overlaps them: no commit since
+  2026-11-14 touches IMG planes on kind 2, a live-view picture, c3d/OpenVG, object loading or a VSC write log (its last
+  commits are menu, TAKE-fill and setting-name work; its `lv` token switches the display, not a picture). Its six open
+  pull requests touch none of the patched files (`vsc.mjs`, `vsccompose2.mjs`, `lab/display.mjs`, `host/session.mjs`);
+  one (2026-11-02, docs only) names the OM-3 colour wheel as C3D's user feature, already in its `docs/hle-gaps.md` 4.12.
+  Risk: upstream commits several times a day and edits `host/session.mjs` often, so re-check before moving the base.
 
 How to draw on the GUI layers ourselves (calls, arguments, palettes, layer order, animation, other bodies): [Drawing on the GUI layers](osd-drawing.md). [emu] 2026-11-21
 

@@ -1,55 +1,43 @@
 # USB
 
-This page covers the camera's USB hardware and the different USB modes it can present to a computer (storage, MTP,
-remote control and so on). It matters mainly for the webcam work: the OM-5 can act as a USB webcam (UVC, "USB Video
-Class") and the E-M5 III can't, and this page records what the E-M5 III's USB side has and lacks.
+<!-- human page -->
+> The dense reference for this page is [USB: technical notes](usb-technical.md).
 
-Terms used here:
-
-- **PID** (product id) and **VID** (vendor id) are the numbers a USB device reports so the computer knows what it is.
-  Olympus's VID is 0x07b4, and each USB mode has its own PID. [camera]
-- **PTP** is the Picture Transfer Protocol that cameras use for tethering; it works through numbered "operations".
-- **TPC** is the firmware's name for its USB "personality" classes (storage, MTP, camera control, ...).
-- **Bulk / isochronous / EP0**: USB transfer types. Video streaming normally uses isochronous transfers.
-
-Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
+This page covers the camera's USB hardware and the different devices it can appear as when plugged into a computer. It
+matters mainly for the webcam work, because the OM-5 can act as a USB webcam and the E-M5 III cannot.
 
 ## The controller
 
-- The USB controller is a Synopsys **DWC3** (DWC_usb3) at **0x98f0c000** (GCTL 0xc110, DCFG 0xc700, DCTL 0xc704, DSTS
-  0xc70c, DEPCMD 0xc80c+16n), at the same address on the E-M5 III, OM-5 and E-M1 III. [code]
-- The E-M5 III driver supports **bulk and EP0 only**; there is no isochronous code. The OM-5 adds the isochronous path
-  and the UVC/UAC (video/audio) classes: ~78 OM-5-only functions, ~22 KB in 0x60cd0000-0x60ce9000. [code]
-- The OM-5 and E-M1 III add USB-C / USB-PD (power delivery) code and registers 0x98f10044-4c that the E-M5 III, with
-  its micro-USB port, never touches. [code]
+The USB controller is a standard Synopsys design, at the same address on the E-M5 III, OM-5 and E-M1 III. The difference
+is in the software. The E-M5 III's driver handles only bulk transfers, the kind used for files. Video normally uses a
+different kind, isochronous transfers, and the OM-5's driver adds that, along with the webcam and audio classes.
 
-## USB modes and their PIDs (E-M5 III, VID 0x07b4)
+The OM-5 and E-M1 III also have code for USB-C power delivery. The E-M5 III has a micro-USB port and never uses it.
+The OM-5 has a micro-USB port too, so its copy is inherited from the E-M1 III. The OM-5 II adds the
+USB-C hardware.
 
-| what | PID | notes |
-|---|---|---|
-| Storage | 0x012e | |
-| MTP | 0x012f | |
-| camera control (camecon) | 0x0130 | enumerates as "Olympus E-M1"; every PTP operation returns 0x2005 [camera] |
-| hidden USB Mode value 1 | 0x0132 | a **HID** PC remote (zoom frame, AFL), not tethering [camera] |
-| OM-5 webcam | 0x0139 | UVC; we injected it on the E-M5 III (webcam test 1) [camera] |
+## USB modes
 
-How a menu choice becomes a USB device: the menu value goes to internal 0x621de554 (0x60c56ccc), then to a TPC class
-(api_comm 0x602d78b0 / 0x602d79b7), then to a PID (TPC_ON switch 0x6129ece5), then to a config descriptor (dispatcher
-0x60c31082/0x60c31090). Forcing camecon TPC 6/7 fell through to a junk PID 0xf102. [code]
+Each USB mode makes the camera report a different product number, so the computer knows what kind of device it is.
 
-Other tables and details:
+| mode | what the computer sees |
+|---|---|
+| Storage | a memory card reader |
+| MTP | a media device |
+| camera control | a camera, but it answers no commands |
+| a hidden mode | a simple PC remote control, not tethering |
+| OM-5 webcam | a webcam. We made the E-M5 III announce itself this way in the webcam tests. |
 
-- USB Mode option table 0x61074fd2: Auto 0, Storage 4, MTP 1, icon-only 2, Print 6, PCM Recorder 85. A runtime filter
-  hides some of these slots; we never found it. [code]
-- The debug console's `usb tpc` table 0x60e5c868: storage 0, mtp 4, camecon 7, print 1, pcmlink 8. [code]
-- 2026-11-05: the `tpc` PTP responder registers two vendor operations, **0x94B5** (receive a console line, then run it or
-  post it to the user shell) and **0x94B6** (return the captured output), gated on session flag 0x62358c58. A lead only;
-  USB work stays parked. [code]
-- The PTP mode index is 0x6235a002. An orphaned DeviceInfo list 6 (0x613ae1f6) has vendor operations 0x9116-0x9125 and
-  0x902c-0x902f. There are no OM-D 0x948x (live view / capture) operations anywhere, so there is no hidden tethered live
-  view to unlock. [camera] (test 4)
-- Endpoints: EP0, bulk OUT 0x05, **bulk IN 0x86**, interrupt 0x83. [code]
-- A USB firmware update is started by block0 itself (`start_usb_firmup` 0x609ee601). [code]
-- On macOS 15 and later, list USB devices with `system_profiler SPUSBHostDataType` (SPUSBDataType comes back empty).
-  [camera]
+There is no hidden tethered live view to unlock. The commands other OM-D bodies use for it are not in the E-M5 III's
+firmware.
 
+A firmware update over USB is started by the main program itself, so it is not an independent rescue path.
+
+## Status
+
+Read-only. We analyse the USB side but do not build changes to it.
+
+## Further reading
+
+- [USB webcam](../features/webcam.md) describes the webcam tests.
+- [Recovery](../firmware/recovery.md) explains why USB updates are no rescue for a camera that will not start.

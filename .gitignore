@@ -6,3 +6,4 @@
 *.sla
 unpacked/
 __pycache__/
+_site/

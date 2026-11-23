@@ -1,0 +1,350 @@
+diff --git a/emu/host/olyfwenv.mjs b/emu/host/olyfwenv.mjs
+new file mode 100644
+index 0000000..00d0498
+--- /dev/null
++++ b/emu/host/olyfwenv.mjs
+@@ -0,0 +1,19 @@
++// olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): turn the optional checks on from the environment.
++// usage: OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
++//        node --import ./host/olyfwenv.mjs bin/session.mjs ...
++// Writes the cache model's reports (OM_DCACHE_OUT) and the section monitor's record (OM_SECMON) as JSON at exit.
++import { writeFileSync } from 'node:fs';
++import { OLYFW } from '../src/core/olyfw.mjs';
++
++const env = process.env;
++if (env.OM_DCACHE) {
++  const [mode, kib, ways] = env.OM_DCACHE.split(':');
++  if (mode !== 'report') throw new Error(`OM_DCACHE: only 'report' is implemented, not '${mode}'`);
++  OLYFW.dcache = { sizeKiB: Number(kib || 8), ways: Number(ways || 2), all: env.OM_DCACHE_ALL === '1' };
++}
++if (env.OM_SECMON) OLYFW.secmon = true;
++if (env.OM_HEAP_FILL) OLYFW.heapFill = parseInt(env.OM_HEAP_FILL, 16) >>> 0;
++process.on('exit', () => {
++  if (env.OM_DCACHE_OUT && OLYFW.made.dcache) writeFileSync(env.OM_DCACHE_OUT, JSON.stringify(OLYFW.made.dcache.summary(), null, 1));
++  if (env.OM_SECMON && OLYFW.made.secmon) writeFileSync(env.OM_SECMON, JSON.stringify(OLYFW.made.secmon.summary(), null, 1));
++});
+diff --git a/emu/src/core/dcache.mjs b/emu/src/core/dcache.mjs
+new file mode 100644
+index 0000000..2e138d7
+--- /dev/null
++++ b/emu/src/core/dcache.mjs
+@@ -0,0 +1,132 @@
++// Optional data-cache coherence model for CPU 0 (olyfw patch 0005; MIT, see om-emu's LICENSE).
++//
++// om-emu maps the cached DRAM view (0x6xxxxxxx) and the uncached view (0xAxxxxxxx) onto the same bytes and has no
++// cache (emu/FIDELITY-NOTES.md 4.1), so code that mixes the two views runs clean in the lab and can fail on the camera.
++// This model keeps a copy of what a write-back, write-allocate, set-associative data cache would hold, next to the
++// lab's memory, and reports where the camera would see different bytes than the lab. It does not change what the
++// program reads (report mode): the run goes on exactly as without it.
++//
++// Reports (kind):
++//   stale-read      a cached load hits a line whose copy differs from memory (memory was changed through the
++//                   uncached view or by a device since the line was filled): the camera reads the old bytes
++//   lost-write      a dirty line leaves the cache (eviction or flush) while memory under its dirty bytes was changed
++//                   through the uncached view or by a device: the camera's write-back undoes that change
++//   uncached-stale  an uncached load of bytes that a cached store changed and that are still only in the cache:
++//                   the camera reads the bytes from before that store
++// The cache flush the lab answers (K-CFLUSH) writes back and invalidates every line (the E-M5 III's routine
++// 0x600644ae does that for the whole cache).
++//
++// Enabled through src/core/olyfw.mjs (host/olyfwenv.mjs: OM_DCACHE=report[:SIZE_KIB[:WAYS]], default 8 KiB, 2 ways,
++// 16-byte lines: the E-M5 III's flush routine cleans 2 x 1024 words and clears two tag arrays in 16-byte lines).
++// By default only bytes a CPU store through the uncached view changed are reported (all: also devices and stand-ins,
++// which the lab writes directly and which the camera's firmware covers with its own cache maintenance).
++// Cached view: virtual 0x60000000-0x7fffffff; uncached view: 0xa0000000-0xdfffffff; nothing else is modelled.
++
++const LINE = 16;
++
++export function createDataCache({ sizeKiB = 8, ways = 2, all = false, U8, pc, insns, max = 400 }) {
++  const lines = (sizeKiB * 1024) / LINE, sets = lines / ways;
++  if (!Number.isInteger(sets) || sets < 1) throw new Error(`OM_DCACHE: ${sizeKiB} KiB / ${ways} ways is not a whole number of sets`);
++  const tag = new Int32Array(lines).fill(-1);          // physical line number (offset >> 4) per slot
++  const dirty = new Uint16Array(lines);                // byte mask of cached stores not written back
++  const data = new Uint8Array(lines * LINE);           // what the cache holds
++  const base = new Uint8Array(lines * LINE);           // what memory held when the line was filled or written back
++  const age = new Float64Array(lines);                 // LRU stamp
++  const unc = new Uint16Array(lines);                  // byte mask of CPU uncached stores into the line since its fill
++  const ALL = all;                                     // also report changes made by devices and lab stand-ins
++  const lastUnc = new Map();                           // physical line -> {pc, insns} of the last uncached/device change seen
++  let clock = 0;
++  const counts = { 'stale-read': 0, 'lost-write': 0, 'uncached-stale': 0, fills: 0, evictions: 0, flushes: 0, cachedLoads: 0, uncachedStores: 0 };
++  const reports = [], seen = new Set();
++  const h8 = (x) => '0x' + (x >>> 0).toString(16).padStart(8, '0');
++  const hex = (u) => Array.from(u, (b) => b.toString(16).padStart(2, '0')).join('');
++
++  function report(kind, a, o, slot, extra) {
++    counts[kind]++;
++    const key = kind + ':' + (pc() >>> 0) + ':' + (o >>> 4);
++    if (seen.has(key) || reports.length >= max) return;
++    seen.add(key);
++    const l = tag[slot], s = slot * LINE, m = l * LINE;
++    const w = lastUnc.get(l);
++    reports.push({ kind, pc: h8(pc()), insns: insns(), addr: h8(a), line_phys: h8(l * LINE),
++      cache: hex(data.subarray(s, s + LINE)), memory: hex(U8.subarray(m, m + LINE)),
++      last_uncached_change: w ? { pc: h8(w.pc), insns: w.insns } : null, ...extra });
++  }
++  function find(l) {
++    const s0 = (l % sets) * ways;
++    for (let i = s0; i < s0 + ways; i++) if (tag[i] === l) return i;
++    return -1;
++  }
++  function writeBackCheck(slot, why) {
++    const d = dirty[slot];
++    if (d === 0) return;
++    const s = slot * LINE, m = tag[slot] * LINE;
++    for (let b = 0; b < LINE; b++) {
++      if ((d & (1 << b)) && (ALL || (unc[slot] & (1 << b))) && U8[m + b] !== base[s + b] && U8[m + b] !== data[s + b]) {
++        report('lost-write', 0x60000000 + 0, m + b, slot, { why, byte: b });   // addr unknown (eviction): physical given
++        break;
++      }
++    }
++  }
++  function fill(l) {
++    const s0 = (l % sets) * ways;
++    let v = s0;
++    for (let i = s0; i < s0 + ways; i++) { if (tag[i] === -1) { v = i; break; } if (age[i] < age[v]) v = i; }
++    if (tag[v] !== -1) { counts.evictions++; writeBackCheck(v, 'eviction'); lastUnc.delete(tag[v]); }
++    tag[v] = l; dirty[v] = 0; unc[v] = 0; counts.fills++;
++    data.set(U8.subarray(l * LINE, l * LINE + LINE), v * LINE);
++    base.set(U8.subarray(l * LINE, l * LINE + LINE), v * LINE);
++    return v;
++  }
++  const cachedView = (a) => a >= 0x60000000 && a < 0x80000000;
++  const uncachedView = (a) => a >= 0xa0000000 && a < 0xe0000000;
++
++  return {
++    counts, reports, sets, ways, sizeKiB,
++    // before the load reads memory (o: physical offset)
++    ld(a, o, w) {
++      if (cachedView(a)) {
++        counts.cachedLoads++;
++        const l = o >>> 4;
++        let slot = find(l);
++        if (slot < 0) slot = fill(l);
++        else {
++          const s = slot * LINE + (o & 15);
++          for (let b = 0; b < w; b++) if (data[s + b] !== U8[o + b] && (ALL || (unc[slot] & (1 << ((o & 15) + b))))) { report('stale-read', a, o, slot, { size: w }); break; }
++          // the lab goes on with memory's bytes: resynchronise the clean bytes so one change reports once
++          for (let b = 0; b < LINE; b++) if (!(dirty[slot] & (1 << b))) { data[slot * LINE + b] = U8[l * LINE + b]; base[slot * LINE + b] = U8[l * LINE + b]; }
++          unc[slot] &= dirty[slot];
++        }
++        age[slot] = ++clock;
++      } else if (uncachedView(a)) {
++        const slot = find(o >>> 4);
++        if (slot >= 0 && dirty[slot]) {
++          const s = slot * LINE + (o & 15);
++          for (let b = 0; b < w; b++) if ((dirty[slot] & (1 << ((o & 15) + b))) && base[s + b] !== U8[o + b]) { report('uncached-stale', a, o, slot, { size: w }); break; }
++        }
++      }
++    },
++    // before the store writes memory (v: the value stored, w bytes little-endian)
++    st(a, o, w, v) {
++      const l = o >>> 4;
++      if (cachedView(a)) {
++        let slot = find(l);
++        if (slot < 0) slot = fill(l);                     // write-allocate: the line comes in with memory's old bytes
++        const s = slot * LINE + (o & 15);
++        for (let b = 0; b < w; b++) { data[s + b] = (v >>> (8 * b)) & 0xff; dirty[slot] |= 1 << ((o & 15) + b); }
++        age[slot] = ++clock;
++      } else if (uncachedView(a)) {
++        counts.uncachedStores++;
++        const slot = find(l);
++        if (slot >= 0) { lastUnc.set(l, { pc: pc(), insns: insns() }); for (let b = 0; b < w; b++) unc[slot] |= 1 << ((o & 15) + b); }
++      }
++    },
++    // the whole cache written back and invalidated (K-CFLUSH)
++    flush() {
++      counts.flushes++;
++      for (let i = 0; i < tag.length; i++) if (tag[i] !== -1) { writeBackCheck(i, 'flush'); tag[i] = -1; dirty[i] = 0; unc[i] = 0; }
++      lastUnc.clear();
++    },
++    summary() { return { model: `${sizeKiB} KiB, ${ways}-way, ${LINE}-byte lines, write-back, write-allocate`, counts, reports }; },
++  };
++}
+diff --git a/emu/src/core/mem.mjs b/emu/src/core/mem.mjs
+index 8d26abd..18fbd5b 100644
+--- a/emu/src/core/mem.mjs
++++ b/emu/src/core/mem.mjs
+@@ -40,6 +40,10 @@ export let CODEPG = null;                                                // 4 Ki
+ let winNext = 0;
+ let stub = null;                                                         // the lab stub (src/dev/stub.mjs)
+ let smcHook = (o) => {};
++// The optional data-cache model (src/core/dcache.mjs, olyfw patch 0005): null, the default, and nothing changes; set, every
++// CPU data access takes the slow path and RAM loads and stores are shown to it.
++export let DC = null;
++export function setDataCache(c) { DC = c; }
+ export function setSmcHook(f) { smcHook = f; }
+ export const ctx = { pc: () => 0, insns: () => 0 };                      // current_cpu pc / insns for device logs
+ // ---- debug hooks (src/debug/, machine.mjs): off unless a debugger installs them, and tested only on slow paths.
+@@ -120,7 +124,7 @@ export function initMemory(dramBytes) {
+   }
+   RP.fill(-1); WP.fill(-1); WPL.fill(-1);
+   PAGES = new Array(65536).fill(null);
+-  MT = null; WON = false; WL = []; WPG.fill(0); WHIT = null; WHOOK = { stop() {}, log() {} };
++  MT = null; DC = null; WON = false; WL = []; WPG.fill(0); WHIT = null; WHOOK = { stop() {}, log() {} };
+   CODEPG = new Uint8Array((TOTAL >>> 12) + 1);
+   winNext = DRAM_OFF + dramBytes;
+   stub = null;
+@@ -210,6 +214,7 @@ function slowLd(a, w) {
+     throw new Fault(2, a);
+   }
+   if (r.kind !== K_MMIO) {
++    if (DC !== null && r.kind === K_RAM) DC.ld(a >>> 0, r.off + ((a >>> 0) - r.base), w);
+     if (!WON) return ramRead(r.off + ((a >>> 0) - r.base), w);
+     const v = ramRead(r.off + ((a >>> 0) - r.base), w);
+     watchCheck(a, w, 0, v);
+@@ -246,6 +251,7 @@ function slowSt(a, v, w) {
+       DIRTY[o >>> 16] = 1;
+       if (WPL[p] >= 0 && WPG[p] === 0) WP[p] = WPL[p];   // a whole RAM page, not watched: its fast store path from now on
+       if (WON) watchCheck(a, w, 1, w === 4 ? v : v & (w === 2 ? 0xffff : 0xff));
++      if (DC !== null) DC.st(a >>> 0, o, w, v);       // before the store: the model sees the old bytes too
+       ramWrite(o, v, w);
+       return;
+     }
+@@ -261,29 +267,29 @@ function slowSt(a, v, w) {
+     throw new Fault(2, a);                      // ROM outside the flash view: none in this map
+   } catch (e) { if (e === BUS) throw new Fault(2, a); throw e; }
+ }
+-export function ld8(a) { const b = RP[a >>> 16]; return b >= 0 ? U8[b + (a & 0xffff)] : slowLd(a, 1) & 0xff; }
++export function ld8(a) { const b = DC === null ? RP[a >>> 16] : -1; return b >= 0 ? U8[b + (a & 0xffff)] : slowLd(a, 1) & 0xff; }
+ export function ld16(a) {
+   if (a & 1) throw new Fault(3, a);
+-  const b = RP[a >>> 16]; return b >= 0 ? U16[(b + (a & 0xffff)) >> 1] : slowLd(a, 2) & 0xffff;
++  const b = DC === null ? RP[a >>> 16] : -1; return b >= 0 ? U16[(b + (a & 0xffff)) >> 1] : slowLd(a, 2) & 0xffff;
+ }
+ export function ld32(a) {
+   if (a & 3) throw new Fault(3, a);
+-  const b = RP[a >>> 16]; return b >= 0 ? I32[(b + (a & 0xffff)) >> 2] : slowLd(a, 4);
++  const b = DC === null ? RP[a >>> 16] : -1; return b >= 0 ? I32[(b + (a & 0xffff)) >> 2] : slowLd(a, 4);
+ }
+ export function st8(a, v) {
+-  const b = WP[a >>> 16];
++  const b = DC === null ? WP[a >>> 16] : -1;
+   if (b < 0) return slowSt(a, v, 1);
+   const o = b + (a & 0xffff); if (CODEPG[o >>> 12] !== 0) cpuStore(o); U8[o] = v;
+ }
+ export function st16(a, v) {
+   if (a & 1) throw new Fault(3, a);
+-  const b = WP[a >>> 16];
++  const b = DC === null ? WP[a >>> 16] : -1;
+   if (b < 0) return slowSt(a, v, 2);
+   const o = b + (a & 0xffff); if (CODEPG[o >>> 12] !== 0) cpuStore(o); U16[o >> 1] = v;
+ }
+ export function st32(a, v) {
+   if (a & 3) throw new Fault(3, a);
+-  const b = WP[a >>> 16];
++  const b = DC === null ? WP[a >>> 16] : -1;
+   if (b < 0) return slowSt(a, v, 4);
+   const o = b + (a & 0xffff); if (CODEPG[o >>> 12] !== 0) cpuStore(o); I32[o >> 2] = v;
+ }
+diff --git a/emu/src/core/olyfw.mjs b/emu/src/core/olyfw.mjs
+new file mode 100644
+index 0000000..799f752
+--- /dev/null
++++ b/emu/src/core/olyfw.mjs
+@@ -0,0 +1,7 @@
++// olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): settings for the optional checks, set by the host before a
++// machine is made (host/olyfwenv.mjs reads them from the environment); every default leaves the lab unchanged.
++//   dcache   null, or {sizeKiB, ways, all}: the data-cache coherence model (src/core/dcache.mjs)
++//   secmon   false, or true: the section first-touch monitor (src/core/secmon.mjs)
++//   heapFill null, or a 32-bit word: S-HEAP fills each block it hands out or takes back with it (src/lab/play.mjs)
++//   made     the newest machine's model and monitor, for the host to report
++export const OLYFW = { dcache: null, secmon: false, heapFill: null, made: { dcache: null, secmon: null } };
+diff --git a/emu/src/core/secmon.mjs b/emu/src/core/secmon.mjs
+new file mode 100644
+index 0000000..bb9fd33
+--- /dev/null
++++ b/emu/src/core/secmon.mjs
+@@ -0,0 +1,33 @@
++// Optional section first-touch monitor (olyfw patch 0005; MIT, see om-emu's LICENSE).
++//
++// On the camera block0's ten sections become usable one after another while the boot goes on, and until section n is
++// finalised a hardware access monitor covers [start of section n .. end of section 10]; om-emu has every section in
++// place from the reset (emu/FIDELITY-NOTES.md 7.18) and does not run the start-up stages. Stock code never touches a
++// section before it is ready, so in a stock run the first touch of each section is a lower bound for when the camera
++// has it ready. This monitor records, per section, the first instruction fetches and data accesses into it (instruction
++// clock t, pc, address). Compare a build's run with stock's (tools: private notes): a
++// touch of section n before stock's first touch is a boot-order risk the lab cannot show by itself.
++//
++// Enabled through src/core/olyfw.mjs (host/olyfwenv.mjs: OM_SECMON=FILE). Windows come from the image's section table.
++export function createSectionMonitor({ windows, insns, pc, keep = 48 }) {
++  const first = windows.map(() => []);
++  let t = 0;                                       // events seen (loads, stores, first decodes): the run's clock here
++  const n = windows.length;
++  const which = (a) => { for (let i = 0; i < n; i++) if (a >= windows[i][0] && a < windows[i][1]) return i; return -1; };
++  const fromSec = (p) => which(p >>> 0) + 1;     // 0: outside every section (always-ready code, stubs)
++  const blocks = new Map();                        // 256-byte block -> its first touch {t, kind, pc}
++  function note(kind, a) {
++    const i = which(a >>> 0);
++    if (i >= 0 && !blocks.has(a >>> 8)) blocks.set(a >>> 8, [t, kind, pc() >>> 0]);
++    if (i < 0 || first[i].length >= keep) return;
++    const p = pc() >>> 0;
++    if (kind !== 'f' && which(p) === i) return;   // a section's own code touching its own data says nothing
++    first[i].push({ t, insns: insns(), kind, pc: '0x' + p.toString(16), from_section: fromSec(p), addr: '0x' + (a >>> 0).toString(16) });
++  }
++  return {
++    fetch(p) { t++; note('f', p); },
++    ld(a) { t++; note('r', ((a >>> 0) & 0x1fffffff) | 0x60000000); },
++    st(a) { t++; note('w', ((a >>> 0) & 0x1fffffff) | 0x60000000); },
++    summary() { return { blocks: Object.fromEntries([...blocks].map(([b, [tt, k, p]]) => ['0x' + (b << 8 >>> 0).toString(16), [tt, k, '0x' + p.toString(16)]])), windows: windows.map(([lo, hi], i) => ({ section: i + 1, lo: '0x' + lo.toString(16), hi: '0x' + hi.toString(16), first: first[i] })) }; },
++  };
++}
+diff --git a/emu/src/lab/menu.mjs b/emu/src/lab/menu.mjs
+index 1dd9164..51dc4f0 100644
+--- a/emu/src/lab/menu.mjs
++++ b/emu/src/lab/menu.mjs
+@@ -4,6 +4,7 @@
+ // H-CONNECT; persist_ids, state_names, inputs_for). Addresses are disassembly notation unless marked run-time.
+ import { A, isUnmapped, refuseUnmapped, MODEL_INFO, IMAGE_BASE, ON_LAB_MODEL, fact, knob } from '../fw/model.mjs';
+ import { BOARD } from '../fw/board.mjs';
++import * as memcore from '../core/mem.mjs';
+ import * as D from './display.mjs';
+ import * as K from './kernel.mjs';
+ import * as M from './menudata.mjs';
+@@ -922,6 +923,7 @@ export class MenuLab extends T.TextDisplayLab {
+       if (!this.patch_flushes.includes(k)) this.patch_flushes.push(k);
+     }
+     this.store_log.cflush.set(k, (this.store_log.cflush.get(k) ?? 0) + 1);
++    memcore.DC?.flush?.();                              // olyfw patch 0005: the data-cache model's write-back + invalidate
+     hle.finish(r);
+   }
+   _k_crt_134d(hle, r) {
+diff --git a/emu/src/machine.mjs b/emu/src/machine.mjs
+index 6d87e0d..23a4f0a 100644
+--- a/emu/src/machine.mjs
++++ b/emu/src/machine.mjs
+@@ -27,6 +27,9 @@ import { Imgpro } from './dev/imgpro.mjs';
+ import { ImgPipe } from './dev/imgpipe.mjs';
+ import { DpcTriggers } from './dev/dpc.mjs';
+ import { Cores } from './core/cores.mjs';
++import { createDataCache } from './core/dcache.mjs';
++import { createSectionMonitor } from './core/secmon.mjs';
++import { OLYFW } from './core/olyfw.mjs';
+ 
+ export { Unported, TbUndecidable };
+ export class HostStopped extends Error {       // a run or write call after a host error stopped the machine mid-instruction
+@@ -211,6 +214,24 @@ export function createMachine({ rom, dramBytes = BOARD.dram_size, insnLimit = 10
+     mem.U8.fill(unloaded.fill, copy + (g.lo - IMAGE_BASE), copy + (g.hi - IMAGE_BASE));
+   }
+   mem.markDirty(copy, rom.length);
++  // olyfw patch 0005: the optional data-cache model (src/core/dcache.mjs) and section first-touch monitor
++  // (src/core/secmon.mjs), from the first instruction on (src/core/olyfw.mjs); both see every CPU RAM load and store
++  const olyObs = [];
++  if (OLYFW.secmon) {
++    const u32 = (a) => (mem.U8[copy + a - IMAGE_BASE] | (mem.U8[copy + a - IMAGE_BASE + 1] << 8) | (mem.U8[copy + a - IMAGE_BASE + 2] << 16) | (mem.U8[copy + a - IMAGE_BASE + 3] << 24)) >>> 0;
++    const tab = OLYFW.secTable ?? 0x600272a4, end10 = OLYFW.sec10End ?? 0x61478000, windows = [];   // E-M5 III 1.7
++    for (let i = 0; i < 10; i++) windows.push([u32(tab + 12 * i + 8), i < 9 ? u32(tab + 12 * i + 12) : end10]);
++    const sm = createSectionMonitor({ windows, insns: () => S.insns, pc: () => R[PC] >>> 0 });
++    olyObs.push(sm); OLYFW.made.secmon = sm;
++    const prevCv = coverage === null ? null : coverage.mark;
++    setCoverage((p) => { if (prevCv) prevCv(p); sm.fetch(p >>> 0); });
++  }
++  if (OLYFW.dcache) {
++    const dc = createDataCache({ ...OLYFW.dcache, U8: mem.U8, pc: () => R[PC] >>> 0, insns: () => S.insns });
++    olyObs.push(dc); OLYFW.made.dcache = dc;
++  }
++  if (olyObs.length === 1) mem.setDataCache(olyObs[0]);
++  else if (olyObs.length > 1) mem.setDataCache({ ld(a, o, w) { for (const x of olyObs) x.ld(a, o, w); }, st(a, o, w, v) { for (const x of olyObs) x.st(a, o, w, v); }, flush() { for (const x of olyObs) x.flush?.(); } });
+   setFetchGuard(unloaded?.gaps.length ? fetchGuard(unloaded) : null);
+   // The flash library's window (src/fw/board.mjs; E143 has none, its lab never reaches one): RAM holding the part of
+   // the main block the boot copies there, which later builds call by address (E147: the image head at 0x3FFDEFE0,

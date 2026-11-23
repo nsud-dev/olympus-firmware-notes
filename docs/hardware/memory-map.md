@@ -1,5 +1,7 @@
 # Memory map
 
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Frame pools and memory](../guides/frame-pools-and-memory.md).
+
 This page is a guide to where things are in the E-M5 III's flash and RAM: how much memory each camera has, how the
 128 MB flash chip is divided, the RAM regions that matter when patching, how the camera hands out frame buffers
 ("frame pools"), and which spare regions we use for our own code.
@@ -45,6 +47,7 @@ The flash is 128 MB at 0x40000000 (also visible at 0x80000000):
 | 0x47180000-0x47a80000 | block4 PIC |
 | 0x47a80000-0x48000000 | data windows (0x47a80000, 0x47b80000) |
 
+
 Outside a firmware update, any write outside the three data windows trips a guard, sub_600c463a, which starts the
 watchdog and spins until the camera resets. [code] 2026-11-07
 
@@ -57,7 +60,7 @@ watchdog and spins until the camera resets. [code] 2026-11-07
 | 0x62000000+ | RAM globals (the Ghidra RAM block; size assumed) |
 | 0x62fe0000 (+128 KB) | memory shared with the ARM (ISC) |
 | 0x8ff00c00 | ISC control blocks |
-| 0x8fe00000-0x8fe0003f | 64 cross-core lock bits (`bset`/`bclr`) ([SoC overview](soc-overview.md#how-the-cores-talk-to-each-other-2026-11-19)) |
+| 0x8fe00000-0x8fe0003f | 64 cross-core lock bits (`bset`/`bclr`) ([SoC overview](soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19)) |
 | 0x99200400 / 0x99300400 / 0x99b00400 | inter-core interrupt (doorbell) registers of CPU0 / CPU1 / CPU2 |
 | 0xa2623fdc-0xa26249f4 | cross-core call rings (9 × 32 entries) |
 | 0xa0000000-0xdfffffff | uncached image window (cached alias 0x6xxxxxxx for the low parts) |
@@ -127,15 +130,18 @@ raise that section's end constant in the loader switch (section 4 at 0x60045deb,
 | 0x61478000-0x61480000 (after section 10) | 32 KB | **card console** | works, see below [camera] 2026-11-06 |
 | 0x61480000-0x61483000 (after the card console) | 12 KB | **dev settings page DM1** (0x61480000-0x61481550; section-10 end raised to 0x61483000; boots and works) [camera] 2026-11-17 | see below |
 | 0x61123c5c-0x61124000 (section-6 tail) | 932 B | **DM1 stubs + J2 table copies** 0x61123c60-0x61123d70 (0xFF and unreferenced in stock) [code] 2026-11-17 | same section as the menu hooks |
-| 0x61485000-0x61a00000 | ~5.5 MB RAM | none | see below |
+| 0x61500000-0x61a00000 | ~5 MB RAM | **mod RAM window**: card mods loaded by the mod loader, 256 KB or 64 KB per mod; checked free on the camera (sampled every 4 KB, all 0xFF and unchanged after 5 minutes) [camera] 2026-11-22; 0x61600000-0x6163ffff left unused (GUI busy word 0x61600ba0 inside it) | see below |
 | flash gap block0→block1 (≤ 2 MB) | | none | unverified |
-| 0x6022d800-0x60250000 (after section-1 end, before the data at 0x60250000) | 138 KB | none | 0xFF, not loaded; one `fc` immediate 0x60d42cd5 → 0x60243980 to rule out first [code] 2026-11-18 |
+| 0x6022d800-0x6022e800 (after the stock section-1 end) | 4 KB | **mod loader base** (hook stub, MODLOAD task, loader, API table 0x6022d800-0x6022dfd8; runtime words 0x6022e7f0-0x6022e800 written through 0xa022e7f0); section-1 end 0x60045ddd raised 0x6022d800 -> 0x6022e800 [code] 2026-11-21, runs on the camera [camera] 2026-11-22 private notes | loaded with section 1 once raised; no stock references into it (listing search) |
+| 0x6022e800-0x60250000 (after section-1 end, before the data at 0x60250000) | 134 KB | none | 0xFF, not loaded; one `fc` immediate 0x60d42cd5 → 0x60243980 to rule out first [code] 2026-11-18 |
 | 0x605d4000-0x605da800 (after section-3 end, end immediate at 0x60045e1d) | 26 KB | **native menu rows** 0x605d4000-0x605da000 Live ND menu code + tables (section-3 end raised to 0x605da000; camera-proven 2026-11-19); 0x605da000-0x605da800 free [code] 2026-11-19 private notes | 0xFF, only reference is the end constant [code] 2026-11-18 |
 | 0x60bef800-0x60c17000 (after section-5 end, 0x60045df5) | 158 KB | none | 0xFF; one `fc` hit 0x6136f60b → 0xa0bf8c9d, probably chance [code] 2026-11-18 |
 | 0x61124000-0x61125000 (after section-6 end, 0x60045dfd) | 4 KB | none | 0xFF, only the end constant refers to it [code] 2026-11-18 |
 | 0x611d4800-0x611dc800 (section-7 gap) | 32 KB | none (a menu test build used it and boot-looped 2026-11-19: section 7 is ready last, behind the access monitor; don't place boot-reached code here) [camera] 2026-11-19 | `fc` hits 0x605b5e5e (movbu disp) and 0x6139551d checked: chance |
 | 0x611dc800-0x61205800 (rest of the section-7 gap) | 164 KB | none | 0xFF [code] 2026-11-18 |
+| store-50 image tail +0x39E00-0x39E87 (RAM 0x6240ae00) | 136 B | **mod loader state table** (marker `MDS\x01`, 16 entries {tag, on, flags, version}) [emu] 2026-11-21 private notes | saved whole with the settings at power-off (as +0x39F00) |
 | store-50 image tail +0x39F00-0x39F7F (RAM 0x6240af00) | 128 B | **saved mod settings** block (marker `MOD\x01`, Live ND bytes, 16 dev words); adjacent to the looks LOOKS block at +0x3A000 (agreed 2026-11-19) [emu] | saved whole with the settings at power-off |
+| store-50 image tail +0x3A3C0-0x3A3FF (RAM 0x6240b3c0) | 64 B | **looks CRV block** (Free tone curve points: `CRV\x01`, Color Profile {x, y} x 5 at +4, Mono at +14; read checked: marker and x rising by 8 or more, else a straight line) [emu] 2026-11-22 private notes | saved with the tail at power-off (by compare) |
 | 0x61208800-0x61209800 (after section-8 end, 0x60045e0d) | 4 KB | none | 0xFF, only the end constant [code] 2026-11-18 |
 | `sdk api` handlers (section 5, near 0x60810d6b) | ~200 KB (E-P7 figure) | none | stock code, freed only by cutting the `sdk`/`api` table words (loses those shell commands); see linked projects [inferred] 2026-11-18 |
 

@@ -127,6 +127,13 @@ The menus are not drawn by code that knows about High Res Shot. They are built f
 - **Pages.** Some rows open a page of their own (Bracketing, for example). That goes through three more tables: a
   screen table, a controller table (which keys open what), and a page record with the page's rows, title and help.
 
+<p class="shots">
+<a href="../images/menu-shooting-2-help.webp"><img src="../images/menu-shooting-2-help.webp" alt="Shooting Menu 2 with a help text" width="360"></a>
+<a href="../images/menu-custom-a1.webp"><img src="../images/menu-custom-a1.webp" alt="The A1 page of the Custom Menu" width="360"></a>
+</p>
+
+*Left, Shooting Menu 2 with the help text for its Bracketing row. Its last row, Live ND Shooting, is one of ours (section 7). Right, page A1 (AF/MF) of the Custom Menu, the tab with the gear icon. Its rows are split into lettered groups, picked from the column of letters on the left. Emulator screenshots.*
+
 The same tables are often kept in two copies, and the code that walks them has the table length written in as a number
 in several places. Both points matter when you add to them.
 
@@ -228,6 +235,13 @@ entry each, and change every place in the code that holds their length or addres
 
 **Step 6. Give the pickers their choices.** Add option-value records for your ids (two values for Off/On, four for
 ND2-ND16) and link them into the picker's hash table. Do it on first menu use, not at boot.
+
+<p class="shots">
+<a href="../images/live-nd-page.webp"><img src="../images/live-nd-page.webp" alt="The Live ND Shooting page" width="360"></a>
+<a href="../images/live-nd-nd-picker.webp"><img src="../images/live-nd-nd-picker.webp" alt="Picking the ND number" width="360"></a>
+</p>
+
+*The result. Left, the new page with its three rows. Right, the ND Number picker with its four values. Emulator screenshots.*
 
 **Step 7. Put the code where boot can't trip on it.** This is the step that failed first, so it gets its own section.
 
