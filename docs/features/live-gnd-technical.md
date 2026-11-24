@@ -1,5 +1,6 @@
 # Live GND: technical notes
 
+
 > **Technical notes.** This page is the dense reference. For a readable introduction, start with [Live GND](live-gnd.md).
 
 A graduated ND filter darkens the sky while leaving the foreground alone. "Live GND" does that in the camera, by

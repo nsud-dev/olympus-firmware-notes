@@ -1,5 +1,6 @@
 # Handheld High Res Shot: technical notes
 
+
 > **Technical notes.** This page is the dense reference. For a readable introduction, start with [Handheld High Res Shot](hhhr.md).
 
 High Res Shot combines several frames, taken with the sensor shifted by tiny amounts, into one 50 MP picture. The

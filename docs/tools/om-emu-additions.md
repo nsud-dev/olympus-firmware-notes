@@ -4,7 +4,7 @@
 > The dense reference for this page is [om-emu additions: technical notes](om-emu-additions-technical.md).
 
 [om-emu](https://github.com/flatpanda/om-emu) is an emulator for Olympus and OM System cameras, written by the om-emu
-contributors. It boots the E-M5 III firmware 1.7 through its menus, half-press, shutter and playback. We added ten
+contributors. It boots the E-M5 III firmware 1.7 through its menus, half-press, shutter and playback. We added eleven
 small patches to it. They ship as plain patch files in `tools/om-emu-c3d/patches/` with om-emu's MIT licence and
 credit, and apply to a fixed om-emu commit.
 
@@ -38,6 +38,10 @@ camera. Each one had to fail that build and pass the fixed build and the stock f
 - **Writes into the program itself.** The camera resets when code writes into its own program through the cached view
   of memory. The emulator now fails such a build. One test build kept its data inside the program and gave a black
   screen. This check fails it and passes its fix, which boots on the camera.
+- **Messages with no address.** Every message the firmware sends to a chip over its serial bus is logged. A message
+  with no device address fails. A run can also be compared with the stock firmware's. One test build used a driver
+  copied from another camera and sent empty messages to the port expander, so USB never worked. Both checks fail
+  that build and pass its fix.
 
 ## Second and third CPUs
 

@@ -159,7 +159,7 @@ Sources: [recovery: flash map](../firmware/recovery-technical.md#flash-map-and-w
 
 ## 6. When the firmware is broken
 
-The camera protects itself with a **watchdog**, a timer in an always-on part of the main chip (power block) that resets the camera unless a task kicks
+The camera protects itself with a **watchdog**, a timer in an always-on part of the main chip ([power block](../hardware/power-block.md)) that resets the camera unless a task kicks
 it every few seconds. Any serious fault (an exception, a deliberate "reboot") sets the watchdog to its shortest time
 and stops, so the camera resets about a second later. A fault that happens on every start becomes a **bootloop**.
 

@@ -92,7 +92,8 @@ with 112 bytes even if the mapping fails; a mailbox error makes it exit. The tim
 
 The MN103's debug console has an `arm` command: `arm load` (Linux), `load2` (itron), **`load4` (Linux from the SD card:
 `C:\TARGET\bootlinux, zImage, dc13.dtb, rootfscpio, rootfssq`)**, `arm start/1/2`, `arm shell sd0|sd3d|sd3c|siodbg`
-(routes the ARM serial port to the SD-slot pins), and `arm pw on/off`. [code] How to reach the debug console on a retail
+(routes an ARM serial port to the card-slot pins (sd0), SD channel 3 or the siodbg pins; `arm jtag` puts the ARM JTAG on
+five card-slot pins, 2026-11-23, see os-and-framework "Debug serial port"), and `arm pw on/off`. [code] How to reach the debug console on a retail
 body was unknown; since 2026-11-07 the card console (roadmap) is the route, but it would need an
 executor line for `arm`/`:cc` commands. [inferred]
 

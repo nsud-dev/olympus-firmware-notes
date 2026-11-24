@@ -17,8 +17,12 @@ Conventions used throughout:
 | [Guides](guides/README.md) | how processes on the camera work, explained without the reference detail; the place to learn |
 | [Overview](overview.md) | everything investigated so far, with the state of each feature |
 | [Body comparison](bodies/comparison.md) | E-M5 III, OM-5, OM-5 II, E-M1 III, OM-1, OM-1 II, PEN-F, E-M5 II, E-M5 Mark I side by side ([technical notes](bodies/comparison-technical.md)) |
+| [E-M5 III, OM-5 and OM-5 II hardware compared](bodies/om5-family-hardware.md) | what the three bodies share, where they differ, and which parts of a program are model-specific |
+| [I/O expander driver swap](bodies/expander-driver-swap.md) | report on one bug of our own from moving a driver between firmware versions, and the checks that catch it |
+| [Settings map E-M5 III ↔ OM-5](bodies/settings-map-om5.md) | which settings the two cameras share, which differ, and how a saved settings image converts ([technical notes](bodies/settings-map-om5-technical.md)) |
 | [Glossary](reference/glossary.md) | Olympus naming and our shorthand |
 | [Gotchas](reference/gotchas.md) | things that cost a flash or a day ([technical notes](reference/gotchas-technical.md)) |
+| [Failure patterns](reference/failure-patterns.md) | ways a changed firmware failed on the camera: symptom, cause and the check that catches it |
 
 ## Hardware
 | page | what |
@@ -33,6 +37,7 @@ Conventions used throughout:
 | [USB](hardware/usb.md) | controller, USB modes and product ids ([technical notes](hardware/usb-technical.md)) |
 | [Stabiliser (IBIS)](hardware/stabiliser.md) | the IS sub-CPU, its command set, IS Level ([technical notes](hardware/stabiliser-technical.md)) |
 | [Image-stabiliser controller](hardware/is-controller.md) | the stabiliser's own two-core chip: its program, the commands it handles, the OM-5 version ([technical notes](hardware/is-controller-technical.md)) |
+| [Power and watchdog block](hardware/power-block.md) | the always-on part of the main chip: power-on causes, clock, alarm, watchdog ([technical notes](hardware/power-block-technical.md)) |
 | [Sensor](hardware/sensor.md) | size, raw format, calibration, sensor modes ([technical notes](hardware/sensor-technical.md)) |
 
 ## Firmware
@@ -67,4 +72,6 @@ Conventions used throughout:
 | [Subject, face and eye detection](features/af-detect.md) | what is portable and what needs newer hardware ([technical notes](features/af-detect-technical.md)) |
 | [Live GND](features/live-gnd.md) | how the OM-1 II does it and a design for the E-M5 III ([technical notes](features/live-gnd-technical.md)) |
 | [Sync IS with Panasonic lenses](features/sync-is-panasonic.md) | why there is no flag-only patch ([technical notes](features/sync-is-panasonic-technical.md)) |
+| [Open gate video](features/open-gate.md) | could the camera record the whole 4:3 sensor area as video: sensor, pipeline and encoder limits ([technical notes](features/open-gate-technical.md)) |
+| [Histogram](features/histogram.md) | where the histogram comes from, why it measures one channel at a time, live RGB and raw histograms |
 | [Ideas](features/ideas.md) | other feature ideas, with first verdicts ([technical notes](features/ideas-technical.md)) |

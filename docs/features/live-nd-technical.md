@@ -1,5 +1,6 @@
 # Live ND: technical notes
 
+
 > **Technical notes.** This page is the dense reference. For a readable introduction, start with [Live ND](live-nd.md).
 
 Live ND is a "digital ND filter": instead of one long exposure through a dark filter, the camera takes several shorter

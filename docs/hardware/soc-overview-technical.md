@@ -185,7 +185,7 @@ Read off the E-M5 III 1.7 disassembly (static only). [code] unless marked. Sourc
   (header address 0x08000000, type 0x107, strings `Scpu` and PBH). The E-M1 III also has a block 5 at 0x08000000. The
   E-M5 III has no block 5. [code] 2026-11-23: the E-M5 III and OM-5 have no power MCU at all. Clock, wake, power-off
   and watchdog live in the always-on block 0x98e00000 of the main chip, which all four bodies share
-  (power block). [code]+[inferred]
+  ([power block](power-block-technical.md)). [code]+[inferred]
 - **Wi-Fi and Bluetooth module.** Cypress CYW43455 on the E-M5 III, OM-5, E-M1 III and OM-1; CYW43439 on the OM-5 II.
   [code]
 - **Image stabiliser (IS) controller.** The sensor-shift stabiliser has its own IS sub-CPU on a serial link, driven by a

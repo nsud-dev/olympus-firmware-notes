@@ -14,7 +14,7 @@ Each row: what the camera did, why, and the rule we follow since.
 
 | what happened | cause | rule now | when |
 |---|---|---|---|
-| MENU reset the camera anywhere, with or without a card (first mod loader versions; om-emu tests passed) | [camera] 2026-11-22: extending the Custom Menu letter-cell picture lists (entry 22 written into the 16 zero bytes after each list, 32 widget template counts 21 -> 22). NMI on CPU0 in the list copy routine 0x60c944b6 (PC 0x60c94831, Wi-Fi shell capture); The same build without those edits works; an earlier cache theory was wrong | don't extend fixed-size picture lists or counts the firmware sized itself; a new menu letter uses the stand-in glyph; for a crash, capture the NMI dump over the Wi-Fi shell (`nc ... \| tee`) before bisecting. Source repo:private notes | 2026-11-22 |
+| MENU reset the camera anywhere, with or without a card (first mod loader versions; om-emu tests passed) | [camera] 2026-11-22: extending the Custom Menu letter-cell picture lists (entry 22 written into the 16 zero bytes after each list, 32 widget template counts 21 -> 22). NMI on CPU0 in the list copy routine 0x60c944b6 (PC 0x60c94831, Wi-Fi shell capture); The same build without those edits works; an earlier cache theory was wrong | don't extend fixed-size picture lists or counts the firmware sized itself; a new menu letter uses the stand-in glyph; for a crash, capture the NMI dump over the Wi-Fi shell (`nc ... \| tee`) before bisecting. | 2026-11-22 |
 | Reset on press across 4 flashes | pool table typo 0x60539158 vs real 0x6053e158, copied into sims too | every address through `check_addrs.py`; sims don't use note values | 2026-10-29 |
 | 32 MB written outside a frame slot | main pool is two blocks (ids 9-20 at 0xc4000000); we computed a linear stride | ask the pool (vtable of the actual object) | 2026-10-30 |
 | Reboot when CPU read the 0xc4000000 block | that block isn't CPU-readable the way we read it | CPU samples only below 0xc0000000 | 2026-10-30 |
@@ -45,6 +45,7 @@ Each row: what the camera did, why, and the rule we follow since.
 - Unloaded gaps between sections hold leftover RAM on the camera, not the file's 0xFF; emulators that map the whole file hide this (camera-stuff `research/NOTES.md` GX1/GX2 probe, 2026-11-07). [camera]
 
 - Writing firmware code in RAM through the cached address resets the camera (memory protection); OMKit installs its hooks through the uncached alias, byte by byte, first byte last, each inside one 16-byte line (OM-5 II, 2026-11-21 read). [camera] (OMKit `docs/architecture.md` §6)
+  Checks (2026-11-23): om-emu patch 0010 `OM_CODEWRITE` (run time) and preflash C1 (static) flag any store into the always-loaded code; one of our test images hit exactly this (black screen). [emu]+[code]
 - **Section end flush against another CPU's buffer = one reset at every power-on** (every Live ND test build until 2026-11-22; gone once the section end went back to stock): section-10 end raised to 0x61483000 = first byte of the CPU 1/2 code buffer 0xa1483000. Rule: keep at least a cache line (better 4 KB; 12 KB is camera-proven) between any section end or our region and memory other CPUs use. [camera] (features/live-nd.md)
 
 ## Wrong beliefs we corrected

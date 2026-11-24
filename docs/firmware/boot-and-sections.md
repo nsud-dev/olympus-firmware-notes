@@ -28,7 +28,7 @@ Read off the stock disassembly from the entry point (static only). [code] unless
   vector registers is [inferred]), runs two RAM set-up calls 0x60021486 over 0x61f22900-0x61f27670 and
   0x62527100-0x626b0888 (probably clearing them, [inferred]), sets sp = 0x470007fc and jumps to 0x600210f9. [code]
 - **Stub 0x600210f9** prints three-letter trace marks around each step: `RCS`/`RCE` (0x600213a9, writes registers at
-  0x8ff0005c, 0x988001xx, 0x987000xx: memory/clock set-up, [inferred]); **`F0S`/`F0E`: six copies through 0x60022180**;
+  0x8ff0005c, 0x988001xx, 0x987000xx: debug UART set-up, [code] 2026-11-23, see os-and-framework "Debug serial port"); **`F0S`/`F0E`: six copies through 0x60022180**;
   `GIS`/`GIE` (0x6006783d); `DSS`/`DSE` (0x600547de); `OIS`, then `jmp` 0x6003009c → **0x60032696** in the always-ready
   code (OS start, [inferred]). [code]
 - **The six copies (F0):** flash 0x4078f000 → 0xa0030000, 0xa0800 bytes (the always-ready code); four

@@ -1,0 +1,162 @@
+diff --git a/emu/host/olyfwenv.mjs b/emu/host/olyfwenv.mjs
+index 7a52ba2..773e737 100644
+--- a/emu/host/olyfwenv.mjs
++++ b/emu/host/olyfwenv.mjs
+@@ -1,5 +1,5 @@
+ // olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): turn the optional checks on from the environment.
+-// usage: OM_CODEWRITE=FILE (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
++// usage: OM_SERTAP=FILE (patch 0011) OM_CODEWRITE=FILE (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
+ //        node --import ./host/olyfwenv.mjs bin/session.mjs ...
+ // Writes the cache model's reports (OM_DCACHE_OUT) and the section monitor's record (OM_SECMON) as JSON at exit.
+ import { writeFileSync } from 'node:fs';
+@@ -14,6 +14,7 @@ if (env.OM_DCACHE) {
+ if (env.OM_SECMON) OLYFW.secmon = true;
+ if (env.OM_KCHECK) OLYFW.kcheck = true;
+ if (env.OM_CODEWRITE) OLYFW.codewrite = true;
++if (env.OM_SERTAP) OLYFW.sertap = true;
+ if (env.OM_CPU2) {
+   if (!['native', 'stand-in'].includes(env.OM_CPU2)) throw new Error(`OM_CPU2: native or stand-in, not '${env.OM_CPU2}'`);
+   OLYFW.cpu2 = env.OM_CPU2;
+@@ -29,5 +30,6 @@ process.on('exit', () => {
+   if (env.OM_KCHECK && OLYFW.made.kcheck) writeFileSync(env.OM_KCHECK, JSON.stringify(OLYFW.made.kcheck.summary(), null, 1));
+   if (env.OM_CPU2_OUT && OLYFW.made.cpu2) writeFileSync(env.OM_CPU2_OUT, JSON.stringify(OLYFW.made.cpu2.report(), null, 1));
+   if (env.OM_CODEWRITE && OLYFW.made.codewrite) writeFileSync(env.OM_CODEWRITE, JSON.stringify(OLYFW.made.codewrite.summary(), null, 1));
++  if (env.OM_SERTAP && OLYFW.made.sertap) writeFileSync(env.OM_SERTAP, JSON.stringify(OLYFW.made.sertap.summary(), null, 1));
+   if (env.OM_SECMON && OLYFW.made.secmon) writeFileSync(env.OM_SECMON, JSON.stringify(OLYFW.made.secmon.summary(), null, 1));
+ });
+diff --git a/emu/src/core/interp.mjs b/emu/src/core/interp.mjs
+index 40df2f9..649902f 100644
+--- a/emu/src/core/interp.mjs
++++ b/emu/src/core/interp.mjs
+@@ -68,11 +68,17 @@ const PROBE = new Set();
+ let PROBE_FN = null, P_PC = -1, P_N = -1;
+ // olyfw patch 0007: a second, standing probe set for the optional kernel checks (src/lab/kcheck.mjs), kept across the
+ // debugger's setProbes: OPROBE pc -> fn(pc), called the same way as PROBE_FN. Empty by default: nothing changes.
+-const OPROBE = new Map();
++// Patch 0011: the probes come in named groups (the kernel checks 'kcheck', the serial tap 'sertap'), so setting one
++// group keeps the others; two groups on one pc are both called.
++const OPROBE = new Map(), OGROUPS = new Map();
+ let O_PC = -1, O_N = -1;
+-export function setOlyProbes(map) {
++export function setOlyProbes(map, group = 'kcheck') {
++  OGROUPS.set(group, map);
+   OPROBE.clear(); O_PC = -1; O_N = -1;
+-  for (const [pc, fn] of map) OPROBE.set(pc | 0, fn);
++  for (const g of OGROUPS.values()) for (const [pc, fn] of g) {
++    const prev = OPROBE.get(pc | 0);
++    OPROBE.set(pc | 0, prev ? (p) => { prev(p); fn(p); } : fn);
++  }
+   markProbes();
+ }
+ function olyProbeAt(pc) {
+diff --git a/emu/src/core/olyfw.mjs b/emu/src/core/olyfw.mjs
+index 2fc1ab7..afeccb0 100644
+--- a/emu/src/core/olyfw.mjs
++++ b/emu/src/core/olyfw.mjs
+@@ -5,5 +5,6 @@
+ //   heapFill null, or a 32-bit word: S-HEAP fills each block it hands out or takes back with it (src/lab/play.mjs)
+ //   kcheck   false, or true: the kernel checks (src/lab/kcheck.mjs, patch 0007), installed at the native kernel's boot
+ //   codewrite false, or true: the code-write monitor (src/core/codewrite.mjs, patch 0010)
++//   sertap   false, or true: the serial-bus tap (src/core/sertap.mjs, patch 0011)
+ //   made     the newest machine's model and monitor, for the host to report
+-export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, codewrite: false, cpu2: null, core: 2, made: { dcache: null, secmon: null, kcheck: null, cpu2: null, codewrite: null } };
++export const OLYFW = { dcache: null, secmon: false, heapFill: null, kcheck: false, codewrite: false, sertap: false, cpu2: null, core: 2, made: { dcache: null, secmon: null, kcheck: null, cpu2: null, codewrite: null, sertap: null } };
+diff --git a/emu/src/core/sertap.mjs b/emu/src/core/sertap.mjs
+new file mode 100644
+index 0000000..f36c5a9
+--- /dev/null
++++ b/emu/src/core/sertap.mjs
+@@ -0,0 +1,51 @@
++// Optional serial-bus tap (olyfw patch 0011; MIT, see om-emu's LICENSE).
++//
++// Logs every transfer and receive the firmware starts through its serial controller driver (PER_SIO's driver, the
++// starts src/fw/facts.mjs sioDriver finds, fact 'sio' tx_start/rx_start), for every channel, whether the lab serves
++// that channel (src/lab/sio.mjs S-SIOIIC) or not. Nothing about the transfer changes: the tap only reads the
++// registers and the bytes at the start's entry.
++//
++// Why: a driver grafted from another body can run every instruction stock runs and still send the wrong bytes. A
++// test build with an expander driver grafted from another body (2026-11-23) sent a buffer nothing had filled at
++// every expander transfer, because one helper was mapped to the wrong body's routine; the chip never answered, USB
++// was dead and the Wi-Fi start reset the camera. om-emu has no expander chip, but the bytes handed to the driver show
++// the fault at the first transfer (it sent 00 00 01 where the OM-5's own run sends 1c 08 1d). The FAIL rule here: a
++// transfer whose first byte, the IIC address byte, is 0x00 (the general-call address, which none of the camera's
++// device drivers use). Comparing a build's transfers with a stock run's is the host's job (summary().transfers).
++//
++// Each start, at its entry (d0 the controller index, a0 the bytes, d1 their count, a1 the mode; the receive start:
++// a0 the buffer, a1 the count, d1 the transfer's length; mdr the caller's return address):
++// {kind: 'tx'|'rx', n, insns, index, count, mode, caller, buf, bytes (hex, up to 64), addr (the first byte)}.
++//
++// Enabled through src/core/olyfw.mjs (host/olyfwenv.mjs: OM_SERTAP=FILE writes summary() as JSON at exit).
++const h8 = (x) => '0x' + (x >>> 0).toString(16).padStart(8, '0');
++const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
++
++export function createSerialTap({ tx, rx = null, regs, read, insns, keep = 400, maxBytes = 64 }) {
++  const transfers = [], counts = { tx: 0, rx: 0, no_addr: 0 }, bad = [];
++  function at(kind) {
++    const r = regs();
++    const index = r.d0 & 0xff, buf = r.a0 >>> 0;
++    const count = (kind === 'tx' ? r.d1 : r.a1) >>> 0, mode = kind === 'tx' ? r.a1 >>> 0 : r.d1 >>> 0;
++    counts[kind]++;
++    const bytes = kind === 'tx' ? read(buf, Math.min(count, maxBytes)) : null;
++    const e = { kind, n: counts.tx + counts.rx, insns: insns(), index, count, mode, caller: h8(r.mdr), buf: h8(buf) };
++    if (bytes) { e.bytes = hex(bytes); e.addr = bytes.length ? bytes[0] : null; }
++    if (kind === 'tx' && count > 0 && bytes && bytes.length && bytes[0] === 0) {
++      counts.no_addr++;
++      if (bad.length < 32) bad.push(e);
++    }
++    if (transfers.length < keep) transfers.push(e);
++  }
++  const probes = new Map([[tx >>> 0, () => at('tx')]]);
++  if (rx !== null) probes.set(rx >>> 0, () => at('rx'));
++  return {
++    probes, counts,
++    summary() {
++      const byIndex = {};
++      for (const t of transfers) if (t.kind === 'tx') (byIndex[t.index] ??= { first: t.bytes, caller: t.caller, n: 0 }).n++;
++      return { starts: { tx: h8(tx), rx: rx === null ? null : h8(rx) }, counts, verdict: counts.no_addr ? 'FAIL' : 'PASS',
++        rule: 'a transfer whose IIC address byte is 0x00 FAILs', bad, by_index: byIndex, transfers };
++    },
++  };
++}
+diff --git a/emu/src/machine.mjs b/emu/src/machine.mjs
+index 4bd1260..b3ca081 100644
+--- a/emu/src/machine.mjs
++++ b/emu/src/machine.mjs
+@@ -3,11 +3,11 @@
+ // 's' (no breakpoint, no interrupt), debugger memory 'm'/'M'. One machine per realm: createMachine() replaces the
+ // previous one, whose object then refuses every call.
+ import { BOARD, boardKnows } from './fw/board.mjs';
+-import { IMAGE_BASE } from './fw/model.mjs';
++import { IMAGE_BASE, fact } from './fw/model.mjs';
+ import * as mem from './core/mem.mjs';
+ import { Fault, Unported, TbUndecidable, K_RAM, K_ROM, K_ROMD, K_MMIO, BUS, addRegion, allocWindow } from './core/mem.mjs';
+ import { R, S, PC, PSW, UNDEF, HAZ, HI, UC, UD, UV, resetCpu, execInterrupt, getRegs, setRegs, limitFault, trapLines, admits, setExecTrace, setCoverage, setFetchGuard } from './core/cpu.mjs';
+-import { run, resetInterp, configureInterp, setBreakpoints, setWatch, windowRemapped, stepAny, setForceHelper, flushDecode, interpState, setInterpState, setProbes, probeStep, RUN_VISIT, RUN_LIMIT, RUN_FAULT, RUN_BP } from './core/interp.mjs';
++import { run, resetInterp, configureInterp, setBreakpoints, setWatch, windowRemapped, stepAny, setForceHelper, flushDecode, interpState, setInterpState, setProbes, probeStep, setOlyProbes, RUN_VISIT, RUN_LIMIT, RUN_FAULT, RUN_BP } from './core/interp.mjs';
+ import { Intc, setIrqTrace } from './dev/intc.mjs';
+ import { snapshotDevices, restoreDevices, devicesBytes } from './debug/snapshot.mjs';
+ import { Clock, Timer } from './dev/timer.mjs';
+@@ -30,6 +30,7 @@ import { Cores } from './core/cores.mjs';
+ import { createDataCache } from './core/dcache.mjs';
+ import { createSectionMonitor } from './core/secmon.mjs';
+ import { createCodeWriteMonitor, sectionStarts } from './core/codewrite.mjs';
++import { createSerialTap } from './core/sertap.mjs';
+ import { OLYFW } from './core/olyfw.mjs';
+ 
+ export { Unported, TbUndecidable };
+@@ -233,6 +234,15 @@ export function createMachine({ rom, dramBytes = BOARD.dram_size, insnLimit = 10
+     const cw = createCodeWriteMonitor({ lo: IMAGE_BASE, hi: starts[0], secHi: IMAGE_BASE + rom.length, pc: () => R[PC] >>> 0, insns: () => S.insns });
+     olyObs.push(cw); OLYFW.made.codewrite = cw;
+   }
++  if (OLYFW.sertap) {                   // olyfw patch 0011: the serial-bus tap (src/core/sertap.mjs)
++    const f = fact('sio', null);
++    if (!f) throw new Error('OM_SERTAP: this model has no serial driver fact (fact \'sio\')');
++    const v = (a) => (a - 0x50000000 + IMAGE_BASE) >>> 0;     // the driver's starts, flash view -> run-time view
++    const read = (a, n) => { const o = mem.DRAM_OFF + ((a & 0x1fffffff) >>> 0); return a >= 0x60000000 && (a & 0x1fffffff) + n <= dramBytes ? mem.U8.slice(o, o + n) : null; };
++    const st = createSerialTap({ tx: v(f.tx_start), rx: f.rx_start ? v(f.rx_start) : null, insns: () => S.insns, read,
++      regs: () => ({ d0: R[0], d1: R[1], a0: R[4], a1: R[5], mdr: R[11] }) });
++    setOlyProbes(st.probes, 'sertap'); OLYFW.made.sertap = st;
++  }
+   if (OLYFW.dcache) {
+     const dc = createDataCache({ ...OLYFW.dcache, U8: mem.U8, pc: () => R[PC] >>> 0, insns: () => S.insns });
+     olyObs.push(dc); OLYFW.made.dcache = dc;

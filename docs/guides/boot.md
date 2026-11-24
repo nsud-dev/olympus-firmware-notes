@@ -112,7 +112,7 @@ described by what their code touches, not by their names.
 |---|---|---|
 | boot stub | 0x600210f9 | [code] |
 | trace print | 0x60023bbc | [code] |
-| step 1, memory/clock set-up (marks RCS/RCE) | 0x600213a9; registers 0x8ff0005c, 0x988001xx, 0x987000xx | [code]; purpose [inferred] |
+| step 1, debug serial port set-up (marks RCS/RCE) | 0x600213a9; registers 0x8ff0005c, 0x988001xx, 0x987000xx | [code] (corrected 2026-11-23: it sets up the debug UART, see os-and-framework) |
 | step 2, the copy (marks F0S/F0E) | copy routine 0x60022180 | [code] |
 | always-ready code | flash 0x4078f000 → RAM 0xa0030000 (VMA 0x60030000-0x600d0800); length immediate at 0x600211af | [code] |
 | initialised data | 0x409af000 → 0xa1e8b540 (0x32d10), 0x409e7000 → 0xa1ec3540 (0x48c4), 0x409ef000 → 0xa1ecb540 (4), 0x409f3000 → 0xa1ecf540 (0x2d2c) | [code]; "initialised data" [inferred] |
@@ -132,7 +132,7 @@ The main program runs **μITRON**, a real-time operating system, with Olympus's 
 **Stage 0** initialises the drivers and debug support, then starts the first tasks. Their names say what they are
 for:
 
-- **PER_WDT**, the watchdog keeper. The watchdog itself lives in a small always-on part of the main chip (the power block) and resets the camera if it
+- **PER_WDT**, the watchdog keeper. The watchdog itself lives in a small always-on part of the main chip (the [power block](../hardware/power-block.md)) and resets the camera if it
   isn't "kicked" regularly. Boot sets its timeout (the value 10; the unit isn't confirmed) and PER_WDT kicks it every 3 seconds.
 - **PER_PCONT**, power control.
 - **BCHK_MAIN**, battery check.

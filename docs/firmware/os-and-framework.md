@@ -150,6 +150,42 @@ The external caduceus-ep7 project (E-P7) documents a 0x99700000 NMI monitor and 
 E-M5 III. [inferred]
 
 
+### Debug serial port (2026-11-23) [code]
+
+- The system shell and every `putc` use one UART at **0x98700000**. putc 0x60021436 busy-waits on status
+  0x9870001c and writes the byte to 0x98700018 (pointer table 0x60024298, index = shared word 0x8ff0005c, set to 0). [code]
+- The block0 stub sets the port up in its first step (0x600213a9, called from 0x60021145, trace marks `RCS`/`RCE`),
+  before any section is copied. It writes 0x98800150 = 8 and 0x98800158 = 0x80 (role unknown, the 0x988001xx block holds interrupt registers),
+  pads 0x9b801990 and 0x9b8019b0 = 0x01000001 (the `siodbg` pins, see below), 0x98700004 = 25,
+  0x98700000 = 3, 0x98700040 = 0xc083 (likely the baud divisor) and 0x98700020 = 8. [code]
+- The baud rate is unknown because the UART clock is not known. Measuring it needs a scope or a logic
+  analyser on the pin. [inferred]
+- Nothing in block0 polls this port for a command during boot. Its input is read only by the shell task, after the OS is
+  up. Whether the boot-area loader (flash 0x40000000) listens is unknown until the flash dump is read. [code]
+- Where the pins come out on the board is not documented anywhere we found (iFixit E-M10 II board guide, hidden-menu
+  pages, an E-100RS service manual that used a serial cable on its USB port and jumpered test pads). [inferred]
+- **The port can be moved to other pins** (2026-11-23). The system shell has `am shell sd3` (0x600569a7: pads 0x9b801c10
+  and 0x9b801c30 = 0x01030101, route register 0x9b802030 = 1, prints "siodbg setting sd3") and `am shell siodbg`
+  (0x600569e8: pads 0x9b801990/0x9b8019b0 = 0x01000001, as at boot). The pads 0x9b801bd0-0x9b801c70 are SD channel 3
+  of the SD pad routine 0x6064acab (channel 0 = 0x9b80174c-0x9b8017f0, the card slot [inferred]; channel 2 = Wi-Fi).
+  So the main console can go to channel 3's data 0/1 pins, not to the card slot. What channel 3 is wired to on this
+  body is unknown (a second slot on two-slot bodies or a factory connector are guesses). [code]+[inferred]
+- **The ARM side's ports, from the same `arm` command** (0x60059000-0x60059420) [code]:
+
+  | command | pads written | route register |
+  |---|---|---|
+  | likely `arm start1` / `arm shell siodbg` (0x60059142, ARM uart0 on the siodbg pins) | 0x9b801990, 0x9b8019b0 | 0x9b802020 |
+  | `arm shell sd3c` (ARM uart1, "set sd3clk+cmd") | 0x9b801bd0, 0x9b801bf0 (channel 3) | 0x9b802024 |
+  | `arm shell sd3d` (ARM uart0) | 0x9b801c10, 0x9b801c30 (channel 3) | 0x9b802020 |
+  | `arm shell sd0` (ARM uart1 on "sd0clk+cmd") | 0x9b801750, 0x9b801770 (channel 0, card slot) | 0x9b802024 |
+  | `arm jtag` | 0x9b801750-0x9b8017d0, five pads (channel 0, card slot) | 0x9b80202c |
+
+  So the card slot can carry the ARM's serial port and its JTAG (five pins fit TCK/TMS/TDI/TDO/TRST [inferred]), but
+  no route puts the main processor's console or a JTAG for it there. All of these need the main program running and a
+  shell command, so none helps a start that fails early. [code]+[inferred]
+- Use: a serial tap would show the boot trace marks and NMI register dumps of a start that fails before the Wi-Fi shell
+  is up. It would not by itself be a way to rewrite the flash. [inferred]
+
 ### Why shell output can't simply be captured from the console log (audit, 2026-11-06) [code]
 
 We looked at whether shell commands' output could be read back through the 8 KB console log. Mostly it can't:

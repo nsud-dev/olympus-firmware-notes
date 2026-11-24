@@ -3,8 +3,8 @@
 > **Technical notes.** This page is the dense reference. For a readable introduction, start with [om-emu additions](om-emu-additions.md).
 
 Base: [om-emu](https://github.com/flatpanda/om-emu) commit `ccfe2e0` (MIT since 18a8162, 2026-11-14), node 22 or
-newer. Patches are `git diff` files in `tools/om-emu-c3d/patches/`. `sh apply.sh OM_EMU_CLONE` applies 0001-0010 in
-order. The checks are off by default. With all ten applied, upstream `bin/test-pure.mjs` still passes [code]. Checks
+newer. Patches are `git diff` files in `tools/om-emu-c3d/patches/`. `sh apply.sh OM_EMU_CLONE` applies 0001-0011 in
+order. The checks are off by default. With all eleven applied, upstream `bin/test-pure.mjs` still passes [code]. Checks
 are switched on with `node --import ./host/olyfwenv.mjs bin/session.mjs ...` plus the variables below. Each check
 roughly doubles run time (every CPU load and store takes the slow path). Settings live in `src/core/olyfw.mjs`.
 Page made 2026-11-23.
@@ -23,6 +23,7 @@ Page made 2026-11-23.
 | 0008 cpu2-e137 | `OM_CPU2=native OM_CPU2_OUT=FILE` | om-emu's native CPU 2 (OM-1 only) gets an E-M5 III profile: entry 0x50006771, shared SRAM 0x8ff00000, idle loop 0x50037052 | core 2 idles after 35,725 instructions; WB_MOV, MVR_MAIN and SDET start on it; stock reaches MENU [emu] |
 | 0009 cpu1-e137 | `OM_CPU1=native OM_CPU2_OUT=FILE` | CPU 1 profile: entry 0x500062fc, idle loop 0x50036c9c, tasks CPUCONN1, CPUCALL1, CONTEST_CPU1; CPU 1's memory clear 0x50000466 skipped; per-core KCB (0x8ff00004 + 4 * cpu) for 0007 | core 1 idles after 56,929 instructions [emu]; neither second CPU's start-up reproduces the power-on restart |
 | 0010 code-write-monitor | `OM_CODEWRITE=FILE` | `src/core/codewrite.mjs`: CPU stores into [image base, section 1 start), the range read from the section table after "BCS\0"; cached view = FAIL, uncached = WARN; section stores counted per 4 KB page | stock E-M5 III 1.7 and OM-5 II 1.1: 0 stores. A test build with driver data in a 0xFF gap at 0x6002ad80: 31 cached and 55 uncached stores during boot, black screen on the camera; its fix 0 stores and boots [camera] |
+| 0011 serial-bus-tap | `OM_SERTAP=FILE` | `src/core/sertap.mjs`: every transfer and receive started through the serial controller driver (fact `sio` tx_start / rx_start), any channel: index, bytes, count, caller; FAIL on an IIC address byte 0x00. 0007's standing probes become named groups | a test build whose grafted expander driver sent its unfilled buffer: `00 00 01` where the OM-5's own driver sends `1c 08 1d`; USB dead and a Wi-Fi start reset on the camera; its fix sends `1c 08 1d` and works [camera] |
 
 ## Another body or a sleeping task
 
@@ -30,7 +31,9 @@ Page made 2026-11-23.
   II). `session.mjs --main` refuses a block0 whose bytes under the lab's hooks changed.
 - [code] A dormant task: read its id from the halfword the boot reads, add its entry to `lab.lt.allow` (the lab runs only
   allowed task entries), then `lab.nk.svc('act_tsk', {d0: tid})`. OM-5 II 1.1 port-expander task 133: id word
-  0x6004144e. It starts and waits (state 4) [emu].
+  0x6004144e. It starts and waits (state 4) [emu]. On the OM-5 1.2 the same driver is task 133 too (`--start-tid 133`).
+- [code] Comparing transfers: `sertap_run.mjs --ref STOCK.json` lines up the started task's first transfers with a
+  stock run's by position and compares address byte and length.
 
 ## Limits
 

@@ -35,7 +35,7 @@ as a **group** with its own bit image, one bit per key:
 | adc | keys read through an analogue input (several keys share a line, told apart by voltage) |
 | dial | the mode dial position |
 | ext | keys on an external input chip |
-| power | the power switch, read through the always-on power block (wake input 0) |
+| power | the power switch, read through the always-on [power block](../hardware/power-block.md) (wake input 0) |
 
 Each key has a 4-letter name and a number in a table. Some examples: `Trg1` (0x100) is the shutter button half-pressed,
 `Trg2` (0x101) fully pressed, `Ok` (0x4), `Menu` (0x89), `Play` (0x87), `Info` (0x1205). Cables, card doors and the

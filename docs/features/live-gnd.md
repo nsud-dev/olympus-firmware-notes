@@ -1,5 +1,6 @@
 # Live GND
 
+
 <!-- human page -->
 > The dense reference for this page is [Live GND: technical notes](live-gnd-technical.md).
 

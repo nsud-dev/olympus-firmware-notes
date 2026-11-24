@@ -78,7 +78,7 @@ The IS controller is a **separate chip**, not more cores inside the main SoC. [c
 - LUKE calls the main chip the "ASIC" (`rs_data_num_2_asic`).
 
 So the main SoC has three MN103 cores (CPU0-CPU2) and the camera has **five** MN103-family cores across two chips. The
-power and watchdog block is not a processor (see Power and watchdog block).
+power and watchdog block is not a processor (see [Power and watchdog block](power-block.md)).
 
 ## Rates and the servo loop
 
