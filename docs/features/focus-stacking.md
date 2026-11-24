@@ -49,6 +49,6 @@ one-byte change should work on all of them. We have not tried it on any of those
 
 ## Further reading
 
-- [Focus stacking: technical notes](focus-stacking-technical.md) has the addresses, the changed bytes and the shot-count study.
-- The "Any-lens focus stacking patch" page, next to this one in the public notes, has the byte-level description.
+- [Focus stacking: technical notes](focus-stacking-technical.md) has how to find the lens check, the change, and the shot-count study.
+- The "Any-lens focus stacking patch" page, next to this one in the public notes, walks through the change step by step.
 - [Image engine](../hardware/image-engine.md) explains the programs that align and merge the frames.

@@ -1,5 +1,6 @@
 # Live ND
 
+
 <!-- human page -->
 > The dense reference for this page is [Live ND: technical notes](live-nd-technical.md).
 
@@ -7,13 +8,14 @@ Live ND is a digital ND filter. Instead of one long exposure through a dark glas
 shorter exposures and averages them into one photo. Moving water and clouds blur as they would behind a real ND filter,
 but nothing goes on the lens.
 
-The OM-5 has Live ND. The E-M5 Mark III has the same image chip and sensor but not the feature. Bringing it over is the
-main goal of this project. Everything here runs on test builds on one camera, and nothing is released to install.
+The OM-5 has Live ND. The E-M5 Mark III has the same image chip and sensor but not the feature. Bringing it over was
+the first big goal of this project. The research closed on 24 November 2026 with Live ND working on test builds, as
+described below. Nothing is released to install.
 
 
 ## Status
 
-As of 22 November 2026, on the E-M5 III:
+Where it stood when the research closed (last camera run 22 November 2026), on the E-M5 III:
 
 - **One press takes a Live ND photo.** The camera takes 2, 4, 8 or 16 frames at the shutter speed you set (ND2 to
   ND16) and merges them into one photo. It works at slow and fast shutter speeds, and several presses in a row.
@@ -26,8 +28,9 @@ As of 22 November 2026, on the E-M5 III:
 - **The camera starts normally.** Early test builds restarted the camera once at every power-on. The cause is found
   and fixed (see Lessons below).
 
-Three things are still to come. Live ND will switch on from those menu rows instead of a hidden settings page. It will
-work in silent single-shot drive. And the point where the preview restarts after a camera move still needs tuning.
+Three things were left when the work stopped. Live ND should switch on from those menu rows instead of a hidden
+settings page. It should work in silent single-shot drive. And the point where the preview restarts after a camera
+move needed tuning. Builds for the first two were made but never tried on the camera.
 
 <p class="shots">
 <a href="../images/live-nd-menu-row.webp"><img src="../images/live-nd-menu-row.webp" alt="The Live ND Shooting row in Shooting Menu 2" width="360"></a>
@@ -36,6 +39,16 @@ work in silent single-shot drive. And the point where the preview restarts after
 </p>
 
 *Left, the Live ND Shooting row in the shooting menu, with its help text. Middle, the Live ND page with the on switch, the ND number and LV Simulation. Right, picking the ND number. Emulator screenshots.*
+
+## Where we stopped
+
+We closed the Live ND research on 24 November 2026, with the feature working on test builds. A photo, the live-view
+preview, noise reduction at low ISO and the menu rows all worked on the camera. What was left was finishing work, not
+open questions. Each remaining item already had a known cause and, for two of them, a built fix.
+
+We were satisfied with how it worked. So we stopped here, and put the time into documenting the camera's systems and
+studying how far this hardware shares its design with newer bodies. The pages here stay as a record of how the feature
+works and how it was brought over.
 
 ## On the OM-5
 

@@ -6,7 +6,9 @@ Olympus ships firmware updates as one `.BIN` file per camera model. This page ex
 the blocks inside it, the light obfuscation over each block (it is not encryption), the checksum the camera checks, and
 what each block holds on the E-M5 III. It is the first thing you need to understand before patching anything.
 
-Our tool `olyfw.py` does all of this: unpack, repack and fix checksums. See the tools page.
+Our tool `olyfw.py` lists the blocks, checks the checksums and unpacks the decoded payloads. The public copy only
+reads. Tools that repack are listed by other projects on the OM Firmware Atlas.
+
 
 Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
 
@@ -24,7 +26,7 @@ The file is a series of blocks placed back to back. Each block is: [code]
   pattern. There is no key. [code] In code:
   `P = {0:[2,0,3,1], 4:[1,3,0,2], 8:[3,2,1,0], 12:[2,0,1,3]}`, `enc[base+j] = ~plain[base+P[base][j]]`.
 - Block 2 contains nested sub-blocks with the same header format, but they aren't obfuscated a second time. Only the
-  E-M5 sub-block 0x452e0000 has its own checksum (`olyfw.py repack` fixes it). [code]
+  E-M5 sub-block 0x452e0000 has its own checksum, which has to be fixed too after a change. [code]
 - The camera accepted every repacked image we gave it, including ones with the same version number as the installed
   firmware. [camera]
 

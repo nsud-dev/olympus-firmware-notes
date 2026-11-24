@@ -34,8 +34,8 @@ index 0000000..e22cab3
 +//
 +// The camera resets when a CPU writes program code in RAM through the cached view (memory protection; OMKit, which
 +// patches code on the OM-5 II, writes it only through the uncached view, KB reference/gotchas-technical.md) [camera on
-+// OM-5 II]. om-emu has no such protection, so a build that keeps data inside code runs clean here (XF2-r1, 2026-11-23:
-+// a grafted driver's state in a 0xFF gap at 0x6002ad80 gave a black screen on the E-M5 III).
++// OM-5 II]. om-emu has no such protection, so a build that keeps data inside code runs clean here (one of our test
++// builds, 2026-11-23: a driver kept its state in a 0xFF gap of the code and the camera showed a black screen).
 +//
 +// What is watched: the always-loaded code of the run-time image, from the image base to the first section's start
 +// (read from the image's section table after "BCS\0"; E137 1.7: 0x60021020..0x600de000, E148 1.1: ..0x600eb000).

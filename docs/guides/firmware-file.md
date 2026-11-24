@@ -70,7 +70,7 @@ an Olympus one. That is how all our test builds get onto the camera.
 | header and trailer layout (8 words) | [container format: blocks](../firmware/container-format.md#blocks) | [code] |
 | scramble pattern and checksum | same | [code] |
 | repacked files accepted, also with the same version number | every build we flashed | [camera] |
-| our tool | `olyfw.py` unpack / repack / checksum | [code] |
+| our tool | `olyfw.py` lists and unpacks the blocks and checks the checksums | [code] |
 
 Sources: [container format](../firmware/container-format.md), tools.
 </details>

@@ -1,5 +1,6 @@
 # Handheld High Res Shot
 
+
 <!-- human page -->
 > The dense reference for this page is [Handheld High Res Shot: technical notes](hhhr-technical.md).
 
@@ -13,7 +14,7 @@ Nothing works end to end yet. This page says which pieces are proven and which a
 
 ## Status
 
-As of 13 November 2026, on the E-M5 III:
+Where it stood when the research closed on 24 November 2026, on the E-M5 III:
 
 - **The image-engine programs load.** Hand-held High Res needs four programs for the camera's image engine, which
   compose, fill, convert and resize the picture. All four come from the OM-5, and all four load onto the E-M5 III
@@ -25,7 +26,22 @@ As of 13 November 2026, on the E-M5 III:
 - **Not proven:** whether those four programs actually compose a correct picture on this camera. They have been loaded,
   never run on real frames.
 
-Next is a test build that sends one request to the ARM helper, then a run of the compose program on a test pattern.
+The next two steps were built or planned. One test build sends a single request to the ARM helper. After that the
+compose program would run on a test pattern.
+
+## Where we stopped
+
+We closed the hand-held High Res research on 24 November 2026. Most of the hard unknowns were behind us. The
+image-engine programs load, the memory they need is free, and the ARM helper can be switched on and off safely. Any
+of those could have ended the port. None of them did.
+
+One open question remained. Do the four programs compose a correct picture on this camera? After that came wiring.
+One request to the ARM helper, then the compose program on real frames, then the hand-held flow in the shooting
+sequence. The same methods had already worked for Live ND.
+
+
+We stopped here to put the time into documenting the camera's systems and studying how far this hardware shares its
+design with newer bodies. The pages here stay as a record of how the feature works and how far the port got.
 
 ## On the OM-5
 

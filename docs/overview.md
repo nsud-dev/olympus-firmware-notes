@@ -75,6 +75,6 @@ reference.
   it goes near the camera. See [recovery](firmware/recovery.md).
 - After every camera run we write down what happened before designing the next build. The mistakes that cost a flash
   are collected in [gotchas](reference/gotchas.md).
-- We wrote a Ghidra processor module for the MN103, with decompiler support, and an unpack/repack tool for the firmware
+- We wrote a Ghidra processor module for the MN103, with decompiler support, and an unpack tool for the firmware
   container.
 

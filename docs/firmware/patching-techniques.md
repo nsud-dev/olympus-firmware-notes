@@ -57,7 +57,7 @@ In the checked-on tables, rows from other projects are their reports, credited a
 
 **Method.**
 - Unpack the update file, change the bytes in the decoded block, repack, and fix the block and file checksums
-  ([container format](container-format.md); `olyfw.py` does all three).
+  ([container format](container-format.md) describes the wrapper and checksum; our public `olyfw.py` does the unpacking).
 - Flash it from the card like an official update.
 
 **Pitfalls.** The camera checks the checksums, not whether the code makes sense; a correct checksum says nothing about

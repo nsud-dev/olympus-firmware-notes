@@ -143,7 +143,7 @@ On the E-M5 Mark I very little carries over beyond the container tools and the C
 
 | our work (E-M5 III) | E-M5 II 4.1 | E-M5 (I) 2.3 |
 |---|---|---|
-| firmware tools (`olyfw_any.py` unpack/repack, checksum) | **as-is**: unpacks, checksums verify [code] | **as-is**: unpacks, checksums verify [code]; the camera accepting a repack is untested |
+| firmware tools (unpack, checksum check) | **as-is**: unpacks, checksums verify [code] | **as-is**: unpacks, checksums verify [code]; the camera accepting a repack is untested |
 | MN103 tools (objdump, Ghidra module, eqsim) | **as-is** for decoding [code]; symbols and decomp don't carry over | decoding works [code]; use base 0x7e421020; whether the CPU has AM33-2-only instructions not checked |
 | focus stacking with any lens | **re-port**: in-camera stacking code is present (`MODE_FOCUS_STACKING_ONOFF`, `MODE_FOCUS_STACKING_ENABLED_LENS`, "Wait For Combining Finish") [code]; the E-M5 III-shaped lens check was not found (best shape match 13/25), so the gate needs its own trace; whether the menu offers stacking not checked | **impossible as a patch**: no stacking or focus-bracket strings [code] |
 | Live ND | **re-port, large; feasibility open**: no ND code; the engine runs the same program format, so OM-5 jobs 11/12 *might* load, but the parameter setters, pools, sensor modes and capture path are all different code on a different chip. Native Live Time/Live Bulb exist [code]. First step would be running one OM-5 job on the E-M5 II (camera) | **very likely impossible**: no programmable-engine programs to run the merge; a CPU merge of full frames would be far too slow [inferred] |

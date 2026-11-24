@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Olympus E-M5 Mark III (OLY_E_137_*.BIN) firmware unpack / repack.
+"""Olympus E-M5 Mark III (OLY_E_137_*.BIN) firmware reader: lists and unpacks the blocks.
 
 Container: a sequence of blocks. Each block is
     0x20-byte plain header | payload (obfuscated) | 0x20-byte plain trailer
@@ -15,7 +15,9 @@ version, type, id, checksum (0 in the header copy).
 Usage:
     olyfw.py info   FW.BIN
     olyfw.py unpack FW.BIN OUTDIR     # writes blockN_<addr>.bin (decoded) + layout.json
-    olyfw.py repack OUTDIR NEW.BIN    # re-encodes, recomputes checksums
+
+This copy only reads. It does not write firmware files. The container-format notes describe the
+checksum, and tools that repack are listed by other projects on the OM Firmware Atlas.
 """
 import json, os, struct, sys
 import numpy as np
@@ -41,24 +43,8 @@ def decode(buf):
     return out.tobytes()
 
 
-def encode(buf):
-    _check16(len(buf))
-    b = np.frombuffer(buf, np.uint8).reshape(-1, 16)
-    out = np.empty_like(b)
-    for base, p in P.items():
-        for j in range(4):
-            out[:, base + j] = b[:, base + p[j]]
-    return (~out).tobytes()
-
-
 def sum32(buf):
     return int(np.frombuffer(buf, '<u4').astype(np.uint64).sum()) & 0xffffffff
-
-
-def fix_checksum(hdr, plain_payload, trl):
-    """Return trailer with its last word set so the block sums to zero."""
-    s = sum32(hdr + plain_payload + trl[:-4])
-    return trl[:-4] + struct.pack('<I', (-s) & 0xffffffff)
 
 
 def parse_hdr(h):
@@ -114,31 +100,6 @@ def cmd_unpack(path, outdir):
     print(f'wrote {len(layout)} blocks to {outdir}')
 
 
-def cmd_repack(outdir, path):
-    layout = json.load(open(os.path.join(outdir, 'layout.json')))
-    out = bytearray()
-    for blk in layout:
-        plain = open(os.path.join(outdir, blk['file']), 'rb').read()
-        hdr, trl = bytes.fromhex(blk['header']), bytes.fromhex(blk['trailer'])
-        if len(plain) != parse_hdr(hdr)['size']:
-            raise ValueError(f'{blk["file"]}: size changed; keep patches in place')
-        # nested sub-blocks that carry a checksum get it recomputed too
-        plain = bytearray(plain)
-        j = plain.find(MAGIC)
-        while j != -1:
-            sub = parse_hdr(plain[j:j + HDR]); k = j + HDR + sub['size']
-            if k + HDR > len(plain) or plain[k:k + 4] != MAGIC:
-                break
-            if parse_hdr(plain[k:k + HDR])['checksum'] != 0:
-                plain[k:k + HDR] = fix_checksum(bytes(plain[j:j + HDR]), bytes(plain[j + HDR:k]), bytes(plain[k:k + HDR]))
-            j = plain.find(MAGIC, k + HDR)
-        plain = bytes(plain)
-        out += hdr + encode(plain) + fix_checksum(hdr, plain, trl)
-    open(path, 'wb').write(out)
-    print(f'wrote {path} ({len(out)} bytes)')
-
-
 if __name__ == '__main__':
     c = sys.argv[1:]
-    {'info': lambda: cmd_info(c[1]), 'unpack': lambda: cmd_unpack(c[1], c[2]),
-     'repack': lambda: cmd_repack(c[1], c[2])}[c[0]]()
+    {'info': lambda: cmd_info(c[1]), 'unpack': lambda: cmd_unpack(c[1], c[2])}[c[0]]()
