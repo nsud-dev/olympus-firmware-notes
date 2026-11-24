@@ -1,4 +1,4 @@
-# The image-stabiliser controller
+# Stabiliser controller
 
 <!-- human page -->
 > The dense reference for this page is [Image-stabiliser controller: technical notes](is-controller-technical.md).

@@ -1,7 +1,7 @@
 # Frame pools and memory
 
 *Guide 14 · E-M5 III firmware 1.7 · accepted 2026-11-19. New to these guides? Read
-[Before you start](before-you-start.md) and [An MN103 primer](mn103-primer.md) first. Open questions:
+[Before you start](before-you-start.md) and [MN103 primer](mn103-primer.md) first. Open questions:
 research gaps.*
 
 This guide covers how the camera's memory is laid out and handed out: the address space, the small heap for ordinary
@@ -9,7 +9,7 @@ objects, the frame pools that hold every image buffer, and the spare space we us
 feature that needs image memory (Live ND, handheld high res) works with pools from day one.
 
 How sure we are varies by part, so each section says it. How a pool works and how to borrow from one is proven on the
-camera: our Live ND builds do it on every shot. The full list of pools is read from the code, not measured. The size of
+camera. Our Live ND builds do it on every shot. The full list of pools is read from the code, not measured. The size of
 the RAM is inferred from the pool layout, since nobody has opened the camera to read the chip.
 
 ## 1. The address space
@@ -24,15 +24,15 @@ The MN103 cores see one 32-bit address space. The parts that matter:
 | 0x8xxxxxxx / 0x9xxxxxxx | hardware registers and small shared areas (locks, doorbells) |
 
 The same RAM appears twice. 0x6xxxxxxx goes through the CPU's cache and 0xaxxxxxxx doesn't, so an address and the same
-address with 0x6 changed to 0xa are the same bytes. The rule is simple: data only the CPU touches is read through the cached view; anything a
+address with 0x6 changed to 0xa are the same bytes. As a rule, data only the CPU touches is read through the cached view. Anything a
 hardware block (the image engine, the display, the card controller) also reads or writes is used through the uncached
 view, so the CPU never works from a stale cached copy.
 
-How much RAM is there? The firmware's image buffers span about 924 MB, so the camera almost
-certainly has **1 GB**. The OM-5 and OM-5 II use the same span; the E-M1 III and OM-1 lay out about twice as much,
+The firmware's image buffers span about 924 MB, so the camera almost
+certainly has **1 GB**. The OM-5 and OM-5 II use the same span. The E-M1 III and OM-1 lay out about twice as much,
 which is why the OM-5 is our donor (its buffer design fits).
 
-One trap, found the hard way: plain CPU reads from the main pool's second block (section 6) **rebooted the camera**, even
+Plain CPU reads from the main pool's second block (section 6) **rebooted the camera**, even
 though the image engine uses that memory without trouble. We treat that block as image-engine only.
 
 <details><summary>Where in the firmware</summary>
@@ -147,7 +147,7 @@ Two details caught us early on, both now proven on the camera:
 Sources: [memory map: frame pools](../hardware/memory-map.md#frame-pools).
 </details>
 
-## 5. Pools share memory
+## 5. Shared pool memory
 
 The pools are not carved out of RAM once and for all. The constructors that run at every start build **64 pools**,
 and their slots add up to about **4.4 GB**, nearly five times the memory they live in. Most of the buffer area belongs
@@ -158,7 +158,7 @@ movie recording uses, and the slots a special mode uses overlap, and the camera 
 A pool's memory is safe to use only while the camera is in a mode that uses that pool and not its neighbours.
 
 This is the part we know least well. We have the full list of pools with their base, slot size and count, read from
-the constructor calls. What we don't have is which pools are live in which mode; that has to be worked out pool by pool,
+the constructor calls. What we don't have is which pools are live in which mode. That has to be worked out pool by pool,
 or measured.
 
 <details><summary>Where in the firmware</summary>
@@ -194,7 +194,7 @@ which is why the rule is to always ask it.
 Sources: [Live ND](../features/live-nd.md), [memory map: frame pools](../hardware/memory-map.md#frame-pools).
 </details>
 
-## 7. Some other pools
+## 7. Other pools
 
 A few pools that come up often:
 
@@ -221,7 +221,7 @@ A few pools that come up often:
 Sources: [memory map: frame pools](../hardware/memory-map.md#frame-pools), [display](../hardware/display.md).
 </details>
 
-## 8. Room for our own code
+## 8. Free space
 
 The program is loaded into RAM in sections (see [Boot](boot.md)), and each section is followed by unused space, filled
 with 0xFF in the firmware file. That space is where our code goes. The loader copies each section up to an end address
@@ -250,23 +250,23 @@ tried on the camera.
 Sources: [memory map](../hardware/memory-map.md#spare-space-for-our-code), [boot and sections](../firmware/boot-and-sections.md).
 </details>
 
-## How our features use this
+## Our features
 
-- **Live ND borrows main frames.** The capture takes its frames from the main pool and gives them back at the end; the
-  live preview keeps a window of recent frames in main-pool slots too. The OM-5 has dedicated pools for this; on the
+- **Live ND borrows main frames.** The capture takes its frames from the main pool and gives them back at the end. The
+  live preview keeps a window of recent frames in main-pool slots too. The OM-5 has dedicated pools for this. On the
   E-M5 III we use the native main pool through its own functions rather than adding pools.
 - **No new pool ids.** The table size (87) is written into at least ten places in the code, and the donor's ids don't
-  fit it, so a donor's extra pools can't simply be added. A port writes small adapters over the existing pools instead.
+  fit it, so a donor's extra pools can't be added as they are. A port writes small adapters over the existing pools instead.
 - **Handheld high res** on the OM-5 uses its own buffers (a 12-frame pool and three more, about 640 MB). The port plan
-  lays out its own buffers in the main-pool memory through the same kind of adapter; which pools are free while it
+  lays out its own buffers in the main-pool memory through the same kind of adapter. Which pools are free while it
   runs still needs a camera census.
-- **The second-block rule.** Our code never reads the main pool's second block with the CPU; only the image engine touches it.
+- **The second-block rule.** Our code never reads the main pool's second block with the CPU. Only the image engine touches it.
 - **Each feature its own region** of spare space, recorded in the memory map, so two features never overwrite each
   other's code.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|

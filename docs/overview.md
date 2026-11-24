@@ -1,33 +1,33 @@
 # Project overview
 
 This project started with one small patch and grew into a close study of how the Olympus OM-D E-M5 Mark III's firmware
-works. The aim is right to repair and keeping an older camera useful: the E-M5 III shares its chip and sensor with
+works. The aim is right to repair and keeping an older camera useful. The E-M5 III shares its chip and sensor with
 newer bodies such as the OM-5, so features those bodies have could, in principle, run on it too.
 
 This page is a tour of everything we've investigated, grouped by area, with a one-line result and a link to the page
 with the detail. Dates are 2026 unless stated. Tags: **[camera]** tested on a real E-M5 III, **[code]** read in the
 firmware, **[inferred]** follows from the evidence but not tested.
 
-## A note on pace
+## Pace
 
 This is a spare-time project. Progress comes in bursts and can be slow, because of family commitments,
 and every change has to be tested by flashing a real camera. Several test builds are ready and waiting in the flash
 queue, so some "built, not yet run" items below will stay that way for a while.
 
-## How it started
+## Background
 
 This project grew out of an earlier patch to the focus-stacking lens check, made with an old IDA Pro, re-signed and
 flashed; it worked. That raised the question of what else could be enabled. From 19 October we cracked the
 firmware container, rebuilt it byte for byte, and began comparing the E-M5 III with newer bodies. See
 [focus stacking](features/focus-stacking.md) and [container format](firmware/container-format.md).
 
-## Firmware we've taken apart
+## Firmware studied
 
 Eight firmware files from seven bodies: E-M5 III 1.7 (the target), OM-5 1.2 (the main donor), OM-5 II 1.1, E-M1 III 1.4
 and 1.6, OM-1 1.9, OM-1 II 1.3 and PEN-F 3.1. They all share the same file format, control CPU and load address, which
 is what makes moving code between them possible. [code] See [body comparison](bodies/comparison.md).
 
-## How the camera works
+## Camera systems
 
 For a start-to-finish read, the [guides](guides/README.md) follow one process at a time (taking a photo, boot, a
 button press, live view, the operating system, how the cores talk) through the firmware. The table below is the
@@ -66,9 +66,9 @@ reference.
 | Sync IS with Panasonic lenses | no simple flag; a split body/lens mode is the best bet [code] | [Sync IS](features/sync-is-panasonic.md) |
 | Other ideas | multi-frame noise reduction, bracketing, timelapse ramping, ideas from other makers | [ideas](features/ideas.md) |
 
-## How we work
+## Method
 
-- Every absolute address in a build must appear in Olympus's own code; a script checks it. Every hook stays switched off
+- Every absolute address in a build must appear in Olympus's own code. A script checks it. Every hook stays switched off
   unless the user asks for the feature, so the camera behaves as stock otherwise. See
   [patching techniques](firmware/patching-techniques.md).
 - Each build passes a pre-flash check (container, boot path, section loading, address evidence, an emulated boot) before

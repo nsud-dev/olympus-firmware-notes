@@ -34,8 +34,8 @@ not a per-model check.
 ## Fault handling
 
 When the firmware hits a serious fault, it sets the watchdog to 1 and stops. The camera resets about a second later.
-On the next start the "why it woke" flags say "watchdog". A task that only hangs is different: PER_WDT keeps feeding
-the watchdog, so the camera just freezes until the battery comes out.
+On the next start the "why it woke" flags say "watchdog". A task that only hangs is different. PER_WDT keeps feeding
+the watchdog, so the camera freezes until the battery comes out.
 
 ## Other bodies
 

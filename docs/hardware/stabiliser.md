@@ -25,7 +25,7 @@ That processor has firmware of its own, in the "LUKE" part of the update file. I
 set as the main processor (MN10300), so our usual tools can read it. It has two cores. One talks to the main processor
 and reads the motion sensors. The other runs the control loop.
 
-[The image-stabiliser controller](is-controller.md) describes it in detail.
+[Stabiliser controller](is-controller.md) describes it in detail.
 
 ## Commands
 

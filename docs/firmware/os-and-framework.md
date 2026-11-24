@@ -1,6 +1,6 @@
 # Operating system and framework
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [The MN103 operating system](../guides/operating-system.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Operating system](../guides/operating-system.md).
 
 This page describes the software layers the main program is built on: the real-time operating system, the framework
 that generates most of the camera's state machines, the tasks that run, how parts of the program send each other

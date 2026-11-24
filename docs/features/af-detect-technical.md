@@ -1,6 +1,6 @@
-# Subject, face and eye detection: technical notes
+# Subject detection: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Subject, face and eye detection](af-detect.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Subject detection](af-detect.md).
 
 Newer OM System bodies can recognise subjects (birds, animals, vehicles) and offer more face and eye options. This page
 compares what the E-M5 III, OM-5 and OM-5 II actually contain, and sorts the features into "already there", "portable"

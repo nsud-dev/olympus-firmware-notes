@@ -18,7 +18,7 @@ fixed order, without labels. Only the firmware's own list says which value is wh
 That is why you can't copy a settings image from one camera to the other. The OM-5 stores 77 more values than the
 E-M5 III, and some of them sit in the middle of the list. Every value after such a spot moves. The firmware guards
 against this. Each camera marks its image with its own layout number and resets everything on an image with another
-number. So a foreign image is never misread. You simply lose your settings.
+number. So a foreign image is never misread. The settings are reset to their defaults.
 
 ## Shared settings
 

@@ -1,6 +1,6 @@
 # MN103 control CPU
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [An MN103 primer](../guides/mn103-primer.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [MN103 primer](../guides/mn103-primer.md).
 
 The camera's main program runs on Panasonic MN103 cores. This page covers what the CPU is, how functions pass arguments
 and build their stack frames (the "calling convention"), which compiler Olympus probably used, a few instruction-set

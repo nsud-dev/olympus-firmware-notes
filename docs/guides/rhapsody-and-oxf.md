@@ -1,4 +1,4 @@
-# IBM Rhapsody and the OXF framework
+# Rhapsody and OXF
 
 *Background for the [guides](README.md) · 2026-11-19.*
 
@@ -6,7 +6,7 @@ Much of the camera's application code was not written by hand in the usual sense
 Rhapsody and generated as C++. Knowing that explains why large parts of the firmware look so regular: hundreds of small
 classes with the same shape, state machines everywhere, and a lot of "Notify…Observer" classes that do almost nothing.
 
-## What Rhapsody is
+## Rhapsody
 
 Rhapsody is a model-driven development tool for embedded and real-time software. It began at I-Logix in the 1990s,
 went to Telelogic in 2006 and to IBM in 2008, and is still sold as IBM Engineering Rhapsody. Engineers model the system
@@ -16,7 +16,7 @@ aerospace and consumer electronics, where the same behaviour has to run reliably
 
 (Background from IBM's public documentation, not from the firmware.)
 
-## What OXF is
+## OXF
 
 The generated code doesn't run on its own. It needs a small runtime library, the **Object eXecution Framework (OXF)**,
 which supplies:
@@ -25,13 +25,13 @@ which supplies:
   at a time, run to completion.
 - **Active objects / threads** (`OMThread`): an event queue plus a task that takes events off the queue and dispatches
   them to the reactive objects it owns.
-- **Events and timeouts** (`OMEvent`, `OMTimeout`): events are small objects posted to a queue; a timeout is an event
+- **Events and timeouts** (`OMEvent`, `OMTimeout`): events are small objects posted to a queue. A timeout is an event
   the framework posts after a delay, which is how "wait 500 ms in this state" is modelled.
 - **Containers** (`OMList`, `OMUList`, ...): simple lists and maps used by generated code for associations.
 - **An OS adapter**: one layer that maps threads, queues, semaphores and timers onto the real operating system. Porting
   OXF to a new RTOS means writing this layer.
 
-## What we see in the E-M5 III
+## In the E-M5 III
 
 Read off the E-M5 III 1.7 main program ([OS and framework](../firmware/os-and-framework.md#the-framework-rhapsody-oxf)):
 
@@ -49,19 +49,19 @@ Read off the E-M5 III 1.7 main program ([OS and framework](../firmware/os-and-fr
   `CapTak_NotifyTakeComplateObserver`. Each is a tiny class whose only job is to forward one notification ("take
   complete", "AF locked") to whoever subscribed. Most of them are one function long. [code]
 
-## What is not Rhapsody
+## Code outside Rhapsody
 
 The lower layers are ordinary hand-written C: the shooting sequencer (`takepic.c` and its 34-state table), recording
 (`rec_*.c`), file numbering (`dcf*.c`), the SD driver, and the image-engine drivers. The usual picture is generated C++
 for application behaviour ("what should the camera do now?") calling hand-written C for mechanisms ("take this exposure",
 "write this file"). [inferred] from module names and code style.
 
-## Why it matters when reading the code
+## Reading the code
 
 - **Most of a generated class is boilerplate.** Constructors, `getInstance` singletons, factories and observers are
   noise. The behaviour lives in the event handlers and state-entry methods.
 - **Control flow goes through queues.** A method that "takes a picture" often only posts an event. The work happens
-  later, on another task, when that event is dispatched. Following a call graph alone will lose our notes; you have to
+  later, on another task, when that event is dispatched. Following a call graph alone will lose our notes. You have to
   follow the event.
 - **State machines have a recognisable shape.** You'll see a current-state field, a switch or table on it, and
   entry/exit actions. Once you spot one, the rest of the class reads quickly.

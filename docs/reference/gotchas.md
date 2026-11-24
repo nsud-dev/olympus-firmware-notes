@@ -1,7 +1,7 @@
-# Gotchas and dead ends
+# Gotchas
 
 <!-- human page -->
-> The dense reference for this page is [Gotchas and dead ends: technical notes](gotchas-technical.md), with every case, its cause and its date.
+> The dense reference for this page is [Gotchas: technical notes](gotchas-technical.md), with every case, its cause and its date.
 
 Each lesson on this page cost a flash, a battery pull or a day of work. They are grouped by theme, with the rule we
 follow now. Read them before designing a build.
@@ -11,7 +11,7 @@ follow now. Read them before designing a build.
 - **Check every address against the stock firmware.** A one-digit typo in a table address reset the camera across four
   flashes. The same typo had been copied into the simulators, so they agreed with it. Every address now goes through a
   checking script.
-- **Check what a function really is.** We once called the card read function, thinking it was the write function, and
+- **Check what a function is.** We once called the card read function, thinking it was the write function, and
   every log came out empty.
 
 ## Start-up

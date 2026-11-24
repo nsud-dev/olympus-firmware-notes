@@ -1,7 +1,7 @@
-# Anatomy of a feature port
+# Feature ports
 
 *Guide 9 · E-M5 III firmware 1.7 · accepted 2026-11-20. New to these guides? Read
-[Before you start](before-you-start.md) first; this guide leans on most of the others. Open questions:
+[Before you start](before-you-start.md) first. This guide leans on most of the others. Open questions:
 research gaps.*
 
 This guide follows one feature port from start to finish: Live ND, taken from the OM-5 and running on the E-M5 III.
@@ -10,13 +10,13 @@ before building anything, how to get a first result, how ported code meets nativ
 wrong when a test build fails on the camera.
 
 It is not a list of techniques. Each technique it uses (hooks, boot guards, arming, extra shooting states, menu rows)
-has its own section on [modifying the firmware](../firmware/patching-techniques.md), with its method and pitfalls; this
+has its own section on [modifying the firmware](../firmware/patching-techniques.md), with its method and pitfalls. This
 guide links to them by number.
 
 Live ND took about a month on and off, from mid-October to mid-November 2026, and dozens of test builds. Most of what went
 wrong falls into a few patterns, and those are what this guide is for.
 
-## The shape of it
+## Overview
 
 ```
 choose the donor ──► read the donor ──► list what the target already has
@@ -30,7 +30,7 @@ choose the donor ──► read the donor ──► list what the target already
                          finish: preview, menus, settings, tuning
 ```
 
-## 1. Choose the donor
+## 1. Donor choice
 
 Several newer bodies have Live ND: the OM-5, the OM-5 II, the E-M1 III and the OM-1. They share the processor and most
 of the software design, so any of them could in principle be the donor. What decides it is whether the donor's
@@ -41,7 +41,7 @@ about 2 GB of memory and the E-M5 III has about 1 GB. The OM-5 has the same 1 GB
 version of the feature can borrow memory the way it does at home. The OM-1 is newer still, but its design also assumes
 2 GB, and its image-engine programs are of a different generation.
 
-The rule: before porting code, compare the two bodies' memory maps, image-engine generation and sensor requests. A
+Before porting code, compare the two bodies' memory maps, image-engine generation and sensor requests. A
 donor whose feature fits in its own memory map will fit in yours only if the maps agree.
 
 <details><summary>Where in the firmware</summary>
@@ -55,24 +55,24 @@ donor whose feature fits in its own memory map will fit in yours only if the map
 Sources: [Frame pools and memory](frame-pools-and-memory.md), [Live ND: paths we tried and dropped](../features/live-nd-technical.md#paths-we-tried-and-dropped-dont-repeat).
 </details>
 
-## 2. Read the donor first
+## 2. Donor reading
 
-Before building anything, find out how the donor really does it. For Live ND on the OM-5 that meant:
+Before building anything, find out how the donor does it. For Live ND on the OM-5 that meant:
 
 - **The settings:** three properties (on/off, ND number, live-view simulation) and their menu rows.
 - **The shooting states:** three states of their own (capture, dark frame, end), entered when a flag is set.
 - **The sensor request:** the capture asks the sensor for frames as long as the set shutter time, with no frame-rate
   limit.
-- **The merge:** an image-engine program (job 11) averages N frames into one output frame; another (job 12) keeps a
+- **The merge:** an image-engine program (job 11) averages N frames into one output frame. Another (job 12) keeps a
   running average for the live-view preview.
 - **The memory:** which pools hold the frames, and how many.
 
-Every time we skipped this step it cost us. One example: getting frames longer than 1/60 s. We first tried capping the
+Every time we skipped this step it cost us. One example was getting frames longer than 1/60 s. We first tried capping the
 burst frame rate, which made the camera slow and frames still clamped at about 1/60 s. Reading the OM-5 showed it
-never caps the frame rate at all: it sends a different sensor request. With that request the frames came out at the
+never caps the frame rate at all. It sends a different sensor request. With that request the frames came out at the
 set time on the first try.
 
-The rule we work by now: research the donor until a test can only confirm a design, not find one.
+We now research the donor until a test can only confirm a design, not find one.
 
 <details><summary>Where in the firmware</summary>
 
@@ -86,14 +86,14 @@ The rule we work by now: research the donor until a test can only confirm a desi
 Sources: [Live ND: how Olympus does it](../features/live-nd-technical.md#how-olympus-does-it-om-5-12-our-donor).
 </details>
 
-## 3. List what the target already has
+## 3. Target inventory
 
 The E-M5 III turned out to contain more of Live ND than expected. Much of the OM-5's plumbing is **compiled in and
 switched off**: the flags exist, some helper functions are present as stubs, and the exposure code has the Live ND
 cases. What is missing is the three shooting states and the two image-engine programs.
 
 That changes the job. Instead of porting everything, you port the missing pieces and switch on what is there. It also
-tells you where the risk is: a native function that exists on both bodies may still behave differently (section 6).
+tells you where the risk is. A native function that exists on both bodies may still behave differently (section 6).
 
 The other half of the inventory is resources: free space for code (section-end slack), free memory for frames, free
 ids in the state table and the menus. Each of those had a limit we hit later.
@@ -109,7 +109,7 @@ ids in the state table and the menus. Each of those had a limit we hit later.
 Sources: [Live ND: what the E-M5 III already has](../features/live-nd-technical.md#what-the-e-m5-iii-already-has).
 </details>
 
-## 4. Get a first result with the target's own code
+## 4. First result
 
 The first goal is not the feature. It is the smallest thing that proves the hard part works. For Live ND the hard part
 is the merge, so the first builds used the E-M5 III's own burst mode to get frames, kept the frames instead of saving
@@ -138,13 +138,13 @@ request file on the card, before any of the donor's own logic had been ported.
 Sources: [Live ND: what we measured on the camera](../features/live-nd-technical.md#what-we-measured-on-the-camera).
 </details>
 
-## 5. Arm, don't replace
+## 5. Arming
 
 From the first build, every change does nothing unless the user has asked for the feature. A hook checks "armed?" and
 falls straight through to the stock code if not. During development "armed" was a request file on the card plus the
-right drive mode and exposure mode; later it became a native menu row.
+right drive mode and exposure mode. Later it became a native menu row.
 
-This is what makes testing safe: a test build behaves as stock firmware for everything else, so a mistake shows up
+This is what makes testing safe. A test build behaves as stock firmware for everything else, so a mistake shows up
 only when you use the feature, and the card update still works to undo it. It is also how the port avoids breaking
 other features, which was a requirement from the start.
 
@@ -166,7 +166,7 @@ Techniques: [3 hook native code](../firmware/patching-techniques.md#3-hook-nativ
 Sources: [Live ND: how our version works](../features/live-nd-technical.md#how-our-version-works).
 </details>
 
-## 6. Port the donor's logic, then find the join points
+## 6. Donor logic and join points
 
 The crude version merged frames after a native burst. The OM-5 instead runs its own three states that capture exactly
 N frames, feed the merge and finish the shot. To behave like the OM-5 on one press, we ported those states: relocated
@@ -203,7 +203,7 @@ Techniques: [9 add shooting states](../firmware/patching-techniques.md#9-add-sho
 Sources: [Live ND: porting the OM-5's own states](../features/live-nd-technical.md#porting-the-om-5s-own-live-nd-states).
 </details>
 
-## 7. See what happened
+## 7. Logging
 
 A failed test build gives you almost nothing to go on. The camera hangs (and stays hung until the battery comes out),
 or it resets about a second later and memory is lost. Guessing from that took a week of builds. Three things replaced
@@ -216,7 +216,7 @@ the guessing:
 - **An emulator.** Menus, boot and settings can be tried in om-emu before the camera. It doesn't model everything
   (it ran a build that boot-looped the camera), so it narrows the search but doesn't replace the camera.
 
-Two working rules came out of this. A hang and a reset are different problems: a hang is a wait that never ends, a
+Two working rules came out of this. A hang and a reset are different problems. A hang is a wait that never ends, a
 reset is a fault. And after every camera run, write down what worked, what failed and the likely cause before
 designing the next build.
 
@@ -234,13 +234,13 @@ Techniques: [11 watch a test run live](../firmware/patching-techniques.md#11-wat
 Sources: [Live ND port layers: join points found on the camera](../firmware/live-nd-port-layers.md#join-points-found-on-the-camera-2026-11-12).
 </details>
 
-## 8. Memory: borrow, don't add
+## 8. Memory
 
-The OM-5 has extra frame pools for Live ND that the E-M5 III lacks, and the pool table can't simply grow. So the port
+The OM-5 has extra frame pools for Live ND that the E-M5 III lacks, and the pool table can't grow. So the port
 borrows frames from the main still pool through the pool's own functions, and gives them back before the photo is
 saved. The live-view preview does the same with a window of up to 240 frames.
 
-The main still pool is in two blocks, and one early build computed slot addresses from a stride: frame eight landed in
+The main still pool is in two blocks, and one early build computed slot addresses from a stride. Frame eight landed in
 memory that wasn't image memory. Since then, every address comes from the pool.
 
 See [Frame pools and memory](frame-pools-and-memory.md) for how pools work.
@@ -255,7 +255,7 @@ See [Frame pools and memory](frame-pools-and-memory.md) for how pools work.
 Sources: [Frame pools and memory](frame-pools-and-memory.md#6-the-main-still-pool).
 </details>
 
-## 9. Finish it
+## 9. Finishing
 
 With the shot working, the rest is making it a feature:
 
@@ -278,7 +278,7 @@ With the shot working, the rest is making it a feature:
 Sources: [Live ND](../features/live-nd.md).
 </details>
 
-## How every build is made
+## Build process
 
 These rules came from the camera, each one after a failure:
 
@@ -291,9 +291,9 @@ These rules came from the camera, each one after a failure:
 
 The full list is on [modifying the firmware: rules for every build](../firmware/patching-techniques.md#rules-for-every-build).
 
-## Checked on other cameras
+## Other cameras
 
-Where the Live ND pieces exist in each body. Nothing is assumed: "not checked" means we don't know.
+Where the Live ND pieces exist in each body. Nothing is assumed. "Not checked" means we don't know.
 
 | piece | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|

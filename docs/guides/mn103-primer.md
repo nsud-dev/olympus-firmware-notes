@@ -1,4 +1,4 @@
-# An MN103 primer
+# MN103 primer
 
 *Guide 4 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*
@@ -11,14 +11,14 @@ It ends with what all this means when you patch the firmware.
 Everything here is read off the firmware or taken from Panasonic's own documentation, unless marked otherwise. Clock
 speed, pipeline and caches have not been measured.
 
-## 1. Where it comes from
+## 1. Origins
 
 The MN10300 is a 32-bit CPU family that Matsushita (Panasonic) designed in the 1990s for its own consumer electronics.
-The **AM33** is a later member with extra registers and instructions; GNU binutils calls the variant in this camera
+The **AM33** is a later member with extra registers and instructions. GNU binutils calls the variant in this camera
 `am33-2`. GNU tools still support the family, and Linux once had a port for it.
 
 Olympus's system-on-chip (TruePic) was designed with Panasonic, which is how the MN103 ended up as its control CPU. The
-image processing doesn't run on it; that is done by the image engine and other dedicated blocks. The MN103 runs the
+image processing doesn't run on it. That is done by the image engine and other dedicated blocks. The MN103 runs the
 camera's logic: menus, the shooting sequence, file writing, talking to the lens and the stabiliser.
 
 Every Olympus and OM System body we have opened (E-M5 III, E-M1 III, OM-5, OM-5 II, PEN-F, OM-1, OM-1 II) uses the
@@ -68,7 +68,7 @@ another, clearing a register, adding 4 to a pointer and shifting left by two are
 program, more than a quarter of the instructions are one byte and over two thirds are one or two. The average is 2.55
 bytes.
 
-Having only eight registers is part of why: a register needs just two bits, so two of them and an operation fit in
+Having only eight registers is part of why. A register needs just two bits, so two of them and an operation fit in
 one byte. The cost is that the code moves values around a lot. Almost half of all instructions (46 %) are `mov`.
 
 | instruction | bytes | encoding |
@@ -90,11 +90,11 @@ one byte. The cost is that the code moves values around a lot. Almost half of al
 Sources: [MN103 CPU: by the numbers](../hardware/mn103-cpu.md#what-block0s-code-looks-like-by-the-numbers-2026-11-19).
 </details>
 
-## 4. Calls that build the callee's frame
+## 4. Caller-built frames
 
 This is the MN103's most unusual feature, and the one that matters most for patching.
 
-On most CPUs a function sets up its own stack frame when it starts: it saves the registers it will use and makes room
+On most CPUs a function sets up its own stack frame when it starts. It saves the registers it will use and makes room
 for its locals. On the MN103 the **caller** does it. The `call` instruction names the target, the list of registers to
 save, and the size of the frame:
 
@@ -131,7 +131,7 @@ The firmware has 418,741 direct calls and 38,195 indirect ones.
 Sources: [MN103 CPU: how functions are called](../hardware/mn103-cpu.md#how-functions-are-called).
 </details>
 
-## 5. Loops in hardware
+## 5. Hardware loops
 
 The MN103 has a small loop buffer. `setlb` (set loop buffer) marks the start of a loop and copies the next few
 instruction bytes into the loop registers. At the bottom, a conditional loop instruction (`lne`, `lcs`, `llt` ...)
@@ -189,11 +189,11 @@ Sources: [MN103 CPU: UDF operations](../hardware/mn103-cpu.md#udf-operations-the
 
 Addresses are 32 bits, little-endian. These are the main points for reading code.
 
-**The program runs from RAM at 0x6xxxxxxx.** Flash sits at 0x4xxxxxxx; the boot stub copies what's needed into RAM
+**The program runs from RAM at 0x6xxxxxxx.** Flash sits at 0x4xxxxxxx. The boot stub copies what's needed into RAM
 and the rest loads in the background ([boot](boot.md)).
 
 **Two views of the same RAM.** 0x6xxxxxxx is the cached view and 0xaxxxxxxx the uncached view of the same memory.
-The CPU uses the cached addresses; buffers shared with the image engine or other cores are usually reached through
+The CPU uses the cached addresses. Buffers shared with the image engine or other cores are usually reached through
 the uncached ones.
 
 **A small memory at 0x47000000.** The boot stack starts at 0x470007fc, and the boot stub copies 6 KB of code to
@@ -205,7 +205,7 @@ the uncached ones.
 **Image buffers live high**, at 0xb0000000 and above.
 
 **Misaligned access traps.** A 32-bit read from an address that isn't a multiple of 4 (or 16-bit from an odd
-address) is reported to trap on the real chip (seen on a PEN-F; not yet tested on the E-M5 III). Simulators built on the GNU simulator don't check this, so a bug of this kind can
+address) is reported to trap on the real chip (seen on a PEN-F, not yet tested on the E-M5 III). Simulators built on the GNU simulator don't check this, so a bug of this kind can
 pass simulation and still crash the camera.
 
 <details><summary>Where in the firmware</summary>
@@ -225,11 +225,11 @@ Sources: [memory map](../hardware/memory-map.md), [MN103 CPU: address aliases](.
 
 Olympus built the main program with Panasonic's own compiler family (cc103), in a C++ variant, not with GCC. The
 evidence is in the code: GCC's MN10300 port passes arguments in d0 and d1 whatever their type, while this firmware
-puts pointers in a0 and a1; and the call-site frames need Panasonic's linker. The C++ has plain virtual tables with no
+puts pointers in a0 and a1. The call-site frames also need Panasonic's linker. The C++ has plain virtual tables with no
 run-time type information or exceptions, which fits Embedded C++, the cut-down C++ dialect common in Japanese embedded
 work at the time.
 
-This matters for the decompile: our rebuild uses GCC modified to follow the Olympus convention, and each
+This matters for the decompile. Our rebuild uses GCC modified to follow the Olympus convention, and each
 function it produces either matches the original byte for byte or is checked to behave the same.
 
 <details><summary>Where in the firmware</summary>
@@ -243,11 +243,11 @@ function it produces either matches the original byte for byte or is checked to 
 Sources: [MN103 CPU: which compiler](../hardware/mn103-cpu.md#which-compiler-built-the-firmware-research-2026-11-08).
 </details>
 
-## What this means for our patches
+## Patching notes
 
 - **Copy the call frame.** To call a firmware function, copy `[regs],N` from an existing call to that same function.
   A guess corrupts the stack.
-- **Keep (0,sp) free.** A call writes its return address there; locals start at (4,sp).
+- **Keep (0,sp) free.** A call writes its return address there. Locals start at (4,sp).
 - **Save mdr in gates.** A wrapper that makes its own calls overwrites mdr, so a `retf` later in the chain would return
   to the wrong place.
 - **Plain MN10300 only.** Our compiler is told not to use AM33 instructions, since stock code never does and nobody
@@ -256,9 +256,9 @@ Sources: [MN103 CPU: which compiler](../hardware/mn103-cpu.md#which-compiler-bui
 
 The full list is in [patching techniques](../firmware/patching-techniques.md).
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 | PEN-F | other projects |
 |---|---|---|---|---|---|---|---|

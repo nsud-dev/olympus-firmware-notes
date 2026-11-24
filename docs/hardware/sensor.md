@@ -70,5 +70,5 @@ The OM-5 and E-M1 III have the same sensor readouts and the same geometry as the
 ## Further reading
 
 - [Taking a photo](../guides/taking-a-photo.md) shows when the sensor switches modes during a shot.
-- [Movie recording limit and OM-Log400](../features/movie.md) covers how movies are recorded.
+- [Movie recording](../features/movie.md) covers how movies are recorded.
 - [Image engine](image-engine.md) explains what happens to a raw frame next.

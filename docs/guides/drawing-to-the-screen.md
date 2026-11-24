@@ -5,16 +5,16 @@
 research gaps.*
 
 This guide explains how the camera puts menus, icons and the colour wheel on the rear screen and in the viewfinder.
-There are two drawing systems. The **GUI layers** carry almost everything you see: a 2D engine draws them, and the display
+There are two drawing systems. The **GUI layers** carry almost everything you see. A 2D engine draws them, and the display
 controller lays them over the live picture. The **c3d layer** is used only by the colour-wheel editors and is drawn by a
 small vector-graphics GPU. The second half follows the Color and Mono Profile editors we added, which use both.
 
-We are on firm ground with the GUI layers: we have added screens, pictures and sliders, and they work on the camera.
+We are on firm ground with the GUI layers. We have added screens, pictures and sliders, and they work on the camera.
 For the c3d layer we know how to start it, feed it and get its picture on screen, but so far we have only run existing
 renderers through it. **More on the GPU is coming soon:** separate research will map the GPU itself, and this
 guide will grow when it reports.
 
-## The shape of it
+## Overview
 
 ```
 GUI screens and widgets ──► draw requests ──► 2D draw engine ──► three 8-bit GUI layers ─┐
@@ -93,7 +93,7 @@ Sources: [graphics pipeline: GUI drawing](../hardware/graphics-pipeline.md#1-gui
 ## 4. Screens, widgets and pictures
 
 Above the drawing library sits the GUI framework. Every screen (a menu page, the shooting screen, an editor) is an
-object made from a table: the screen has a list of **child widgets**, and each child is described by a fixed record
+object made from a table. The screen has a list of **child widgets**, and each child is described by a fixed record
 (its class, its rectangle for each screen layout, and what it shows). Two widget classes do most of the work:
 
 - **Picture widgets** show one of a few stored pictures. They have **up to eight states**, one picture each, and the
@@ -132,7 +132,7 @@ The GUI talks to c3d through a mailbox:
 1. A screen that wants a wheel asks the background controller to **start** a draw kind (Color Creator, Color Profile,
    Mono Profile, ...).
 2. c3d takes a work buffer, loads that kind's **texture sheets** (the wheel's artwork) and sets up its drawing surface.
-3. On every key, the GUI sends an **update** with the new values; c3d's renderer for that kind redraws the wheel into one
+3. On every key, the GUI sends an **update** with the new values. The c3d renderer for that kind redraws the wheel into one
    of two 256 × 256 colour buffers (one byte of alpha, three of colour).
 4. The display side shows that buffer as its own layer, positioned where the screen layout says.
 5. Leaving the screen sends **end**.
@@ -156,7 +156,7 @@ Sources: [graphics pipeline: c3d and OpenVG](../hardware/graphics-pipeline.md#5b
 [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
-## 6. How the two meet on screen
+## 6. Layer composition
 
 For a screen that uses the wheel, the GUI and the display task agree on a **layout**: which GUI layers stay on, and
 where the c3d layer goes. The display side sets it up through one of two calls, one for layouts with the GUI layers and
@@ -178,7 +178,7 @@ screen was still empty.
 Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
-## 7. Drawing your own: what is known to work
+## 7. Proven methods
 
 | goal | way | status |
 |---|---|---|
@@ -190,7 +190,7 @@ Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-edit
 | run an existing wheel renderer | start the draw kind, size the work buffer, load its sheets, pick the layout | camera |
 | draw your own vector graphics with OpenVG | own renderer in a stub draw kind (CC2, MC, SC or TG): the kind-by-kind table and 7-step how-to are in [c3d GPU section 9](../hardware/c3d-gpu.md#9-the-olympus-driver-kind-by-kind-2026-11-21) | **not tried** |
 
-## 8. Following along: the profile editors
+## 8. Example: the profile editors
 
 The Color Profile and Mono Profile editors were built in this order, and each step shows one part of the system:
 
@@ -199,17 +199,17 @@ The Color Profile and Mono Profile editors were built in this order, and each st
 2. **Port the renderers.** The E-M5 III has empty placeholders for the profile wheels. The E-M1 III's renderers were
    relocated (every helper they call already exists), and the wheel artwork came from the PEN-F, the only body that
    ships it.
-3. **Give c3d enough memory.** The first run failed with "not enough free area": the profile wheels need 10-12 MB of
+3. **Give c3d enough memory.** The first run failed with "not enough free area". The profile wheels need 10-12 MB of
    work buffer, not the 6-7 MB the stock table gives them.
 4. **Find the missing picture.** With memory fixed, a dump showed a perfect wheel in the draw buffer, but the screen
    stayed empty. The cause was one check in the GUI that sets up the display only for the draw kinds the stock E-M5 III
    uses. Adding the two new kinds fixed it.
 5. **Labels and sliders.** "Color" and "Vivid" are pictures, so new labels meant new pictures served through the
    picture lookup. The side bar and its sliders are picture widgets built from stock pictures.
-6. **The eight-state trap.** A digit widget with twelve states reset the camera at the ninth value: a picture widget
+6. **The eight-state trap.** A digit widget with twelve states reset the camera at the ninth value. A picture widget
    keeps only eight. The emulator read zeros there and didn't crash.
 
-The lesson for anyone drawing on this camera: the emulator runs the GUI and the 2D engine well, but it does not run
+For anyone drawing on this camera, the emulator runs the GUI and the 2D engine well, but it does not run
 the c3d GPU or live view, and stock om-emu skips 4-bit pictures sent without a colour table (title bars, the AF grid,
 value boxes), noting it only in its error output. Our patch 0004 draws them. Check the emulator's error output before
 trusting a screenshot. Anything involving the wheel or live view has to be checked on the camera, with the `c3d` and `disp`
@@ -227,17 +227,17 @@ shell commands to see what happened.
 Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
-## How our features use this
+## Our features
 
 - **The Color and Mono Profile editors** use both systems: c3d for the wheel, picture widgets for the side bar, labels
   and sliders.
 - **The dev settings page** is an ordinary GUI list page, drawn by the stock list view.
-- **Live ND's preview** doesn't draw anything itself: it changes the live-view frame the picture plane shows.
+- **Live ND's preview** doesn't draw anything itself. It changes the live-view frame the picture plane shows.
 - **Planned overlays** (frame lines, focus or motion markers) would use the drawing library on a GUI layer.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|
@@ -248,6 +248,6 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | profile editor screens | none (we added them) | none | none | not checked | not checked | **yes**, the only one | — |
 | wheel artwork (texture sheets) | none (from the PEN-F) | not checked | placeholders | not checked | not checked | yes | — |
 
-"Confirmed" in the first three rows means the names are in the firmware; the code wasn't compared.
+"Confirmed" in the first three rows means the names are in the firmware. The code wasn't compared.
 Sources: [graphics pipeline](../hardware/graphics-pipeline.md), [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor),
 [body comparison](../bodies/comparison.md).

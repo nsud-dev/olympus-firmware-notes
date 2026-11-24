@@ -4,7 +4,7 @@
 
 This page reports one bug of our own making. In an experiment, a driver was moved from one firmware version into
 another, and one of its functions was left behind. The same mistake is easy to make with any moved driver. The
-hardware background is in [E-M5 III, OM-5 and OM-5 II hardware compared](om5-family-hardware.md).
+hardware background is in [E-M5 III family hardware](om5-family-hardware.md).
 
 The fault was in our change. The stock firmware of every body involved is correct.
 
@@ -97,5 +97,5 @@ Patch 0010 catches the earlier fault. It fails any write into the always-loaded 
 - When one program shows several unrelated faults, check for a shared lower layer first.
 - One part working is evidence for another part only if the first depends on the second.
 
-Related: [E-M5 III, OM-5 and OM-5 II hardware compared](om5-family-hardware.md),
+Related: [E-M5 III family hardware](om5-family-hardware.md),
 [Failure patterns](../reference/failure-patterns.md), [Recovery](../firmware/recovery.md).

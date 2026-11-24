@@ -4,7 +4,7 @@
 > The dense reference for this page is [Body comparison: technical notes](comparison-technical.md).
 
 This page puts the cameras we have looked at side by side. It explains why the OM-5 is our main source of features for
-the E-M5 III, how far our work carries to other bodies, and why you cannot simply flash OM-5 firmware onto an E-M5 III.
+the E-M5 III, how far our work carries to other bodies, and why OM-5 firmware cannot be flashed as it is onto an E-M5 III.
 
 Every body here uses the same firmware file format and the same family of control processor. So our unpacking tools
 and disassembly tools work on all of them. What differs is the chip generation around that processor.
@@ -48,9 +48,9 @@ E-M5 II. Our E-M5 III code and addresses do not carry over. The methods do, mean
 to test. A Color and Monochrome Profile port from the PEN-F to the E-M5 II looks promising. Hand-held High Res is
 impossible there, because it needs the ARM co-processor.
 
-**To the original E-M5.** Very little beyond the file tools and the processor tools.
+**To the original E-M5.** Little beyond the file tools and the processor tools.
 
-A rule of thumb for any body: "present" in a scan means the code or text exists. It does not mean it was tried or
+As a rule of thumb for any body, "present" in a scan means the code or text exists. It does not mean it was tried or
 behaves the same.
 
 ## Why not flash the OM-5's firmware?
@@ -74,4 +74,4 @@ Porting fixes these piece by piece, which is why the project ports features rath
 
 - [SoC overview](../hardware/soc-overview.md) explains the chip generations.
 - [Recovery](../firmware/recovery.md) covers the card updater's checks.
-- [Anatomy of a feature port](../guides/port-anatomy.md) shows a port from the OM-5 step by step.
+- [Feature ports](../guides/port-anatomy.md) shows a port from the OM-5 step by step.

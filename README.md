@@ -13,8 +13,7 @@ of the stock firmware from OM System.
 This isn't affiliated with or endorsed by OM Digital Solutions or Olympus. Modifying camera firmware can brick your
 camera and will void the warranty. Nothing here is a ready-made patch, so use it at your own risk.
 
-## Learn how the camera works
-
+## Guides
 The [guides](docs/guides/README.md) explain how processes on the camera work without getting bogged down in reference
 material: what happens when you take a photo, how the camera boots, how a button press reaches the app, how live view
 gets from the sensor to the screen, and more. Start with [Before you start](docs/guides/before-you-start.md).
@@ -24,8 +23,7 @@ For a tour of everything looked at so far and where each feature stands, see the
 This is a spare-time project, so progress can be slow. I have family commitments, and several test builds are waiting
 to be flashed and tried on the camera.
 
-## What's here
-
+## Contents
 - **[docs/](docs/README.md)**: how the firmware and hardware work. Covers the firmware container format, boot and
   section loading, recovery, the MN103 CPU, the memory map, the image engine, the ARM co-processor, the display, USB,
   the stabiliser, the shooting sequencer, settings and menus, patching techniques, and studies of individual features.
@@ -36,8 +34,7 @@ to be flashed and tried on the camera.
 - **Ghidra support** lives in its own repo, [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103). It's a
   processor module for the MN103 CPU that runs most of the camera.
 
-## Reading the notes
-
+## Conventions
 - Claims are tagged by how sure I am. **[camera]** means I saw it on a real E-M5 III, **[code]** means I read it in
   the firmware, and **[inferred]** means the evidence points that way but I haven't traced or tested it.
 - Addresses are for the MN103 side of **E-M5 III firmware 1.7**, loaded at `0x60021020`, unless a page says
@@ -68,11 +65,10 @@ may contain mistakes, and please open an issue if you find one.
 - `tools/`: MIT
 
 The Ghidra MN103 module is a separate repository, [ghidra-mn103](https://github.com/nsud-dev/ghidra-mn103), under
-GPL-3.0-or-later because it is generated from the GNU binutils opcode table. No GPL code is copied into this repository;
+GPL-3.0-or-later because it is generated from the GNU binutils opcode table. No GPL code is copied into this repository.
 `tools/` here is our own code.
 
-## Using this work
-
+## Reuse and credit
 You're welcome to use these notes and tools in your own projects, including firmware ports. Please credit them: CC BY
 4.0 and MIT already require it for anything copied, and for findings you build on (addresses, methods such as the Live
 ND merge or the HHHR path), a line like this is appreciated:

@@ -76,8 +76,8 @@ ARM. The heavy work already runs on dedicated blocks anyway.
 
 ## Further reading
 
-- [How the cores talk to each other](../guides/cores.md) explains locks, doorbells and cross-core calls between the
+- [Core communication](../guides/cores.md) explains locks, doorbells and cross-core calls between the
   control processors.
-- [An MN103 primer](../guides/mn103-primer.md) introduces the control processors' instruction set.
+- [MN103 primer](../guides/mn103-primer.md) introduces the control processors' instruction set.
 - [ARM co-processor](arm-coprocessor.md), [Image engine](image-engine.md) and [Memory map](memory-map.md) cover each
   part in more depth.

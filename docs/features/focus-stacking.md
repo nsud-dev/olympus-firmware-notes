@@ -15,7 +15,7 @@ Both of those limits are now lifted on our camera. This was the first thing the 
 - **Any lens works.** The lens check is one branch in the firmware. Changing it makes the check always pass, so
   stacking works with lenses the camera otherwise refuses. Flashed and working since 19 October 2026.
 - **The number of shots can be set, from 3 to 8.** The count is already a camera setting, with its own saved value.
-  The E-M5 III simply has no menu row for it, and always uses eight.
+  The E-M5 III has no menu row for it, and always uses eight.
 - **Both work as card mods.** Since 22 November 2026 neither change needs a patched firmware. Our mod loader reads
   them from the SD card at start-up, and each has an Off and On row in the camera's menu.
 

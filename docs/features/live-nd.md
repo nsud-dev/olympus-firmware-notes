@@ -126,6 +126,6 @@ The OM-5's version fits the E-M5 III's 1 GB, so the port switched to it.
 ## Further reading
 
 - [Live ND: technical notes](live-nd-technical.md) has the addresses, the shooting states, the measurements and the open items.
-- [Anatomy of a feature port](../guides/port-anatomy.md) walks through this port step by step.
+- [Feature ports](../guides/port-anatomy.md) walks through this port step by step.
 - [Image engine](../hardware/image-engine.md) explains the engine programs that do the merging.
 - [Wi-Fi debug shell](wifi-debug-shell.md) is how we watched the camera during tests.

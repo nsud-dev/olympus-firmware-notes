@@ -1,6 +1,6 @@
-# Movie recording limit and OM-Log400: technical notes
+# Movie recording: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Movie recording limit and OM-Log400](movie.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Movie recording](movie.md).
 
 Two movie questions are covered here. First, the E-M5 III stops recording at 29 minutes 59 seconds; where is that limit,
 and could it be lifted as on the OM-5? Second, the OM-5 has a flat "OM-Log400" picture profile for colour grading; how

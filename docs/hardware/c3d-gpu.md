@@ -1,6 +1,6 @@
 # c3d vector GPU
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Drawing with the vector GPU](../guides/vector-gpu.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Vector GPU](../guides/vector-gpu.md).
 
 The camera has a second drawing engine besides the 2D OSD engine: a small **vector GPU** from DMP (Digital Media
 Professionals), core name **SMAPH-F**, driven through DMP's **OpenVG 1.1 + EGL** library. Only the colour-wheel

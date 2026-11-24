@@ -10,7 +10,7 @@ This is research from reading the firmware. Nothing was built or tried on a came
 
 ## Status
 
-The answer is "probably, at reduced resolution". We found no hard blocker. The sensor and the video encoder can both
+Probably yes, at reduced resolution. We found no hard blocker. The sensor and the video encoder can both
 handle a 4:3 picture. The open question is how many pixels per second the image pipeline between them can process.
 
 The most promising target is a half-resolution readout of the full sensor area. That would give 2560 x 1920 at 30

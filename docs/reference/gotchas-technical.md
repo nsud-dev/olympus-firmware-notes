@@ -1,6 +1,6 @@
-# Gotchas and dead ends: technical notes
+# Gotchas: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Gotchas and dead ends](gotchas.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Gotchas](gotchas.md).
 
 This page collects the mistakes that cost us a camera flash, a battery pull or a day of work, so nobody repeats them.
 Read it before designing a build, and add to it whenever something goes wrong or a belief turns out to be false.

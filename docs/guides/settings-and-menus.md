@@ -12,7 +12,7 @@ page, step by step, in the order you would do it in a port.
 The method in the second half is written for the E-M5 III, but each step says what it depends on, so you can check
 the same things on another body. What has been proven on a camera, and on which one, is kept apart in its own section.
 
-## The shape of it
+## Overview
 
 ```
 menu tab ──► row (setting id 772) ──► title and help (string ids) ──► text in the current language
@@ -25,7 +25,7 @@ menu tab ──► row (setting id 772) ──► title and help (string ids) �
                               settings image in RAM (store 50) ──► saved to flash at power-off
 ```
 
-## 1. Three kinds of number
+## 1. Value types
 
 Three numbers name a setting, and mixing them up is the commonest mistake:
 
@@ -35,7 +35,7 @@ Three numbers name a setting, and mixing them up is the commonest mistake:
 | property | the stored value; much more stable between models | 0xf1a1 |
 | string id | the text shown for the row's title or help | 2438 / 2439 |
 
-A table turns setting ids into properties. Each entry is just the property number and a small index (for settings
+A table turns setting ids into properties. Each entry is the property number and a small index (for settings
 that hold several values). The E-M5 III has 1,650 ordinary setting ids (0-1649) and a few small extra ranges for
 special cases.
 
@@ -59,7 +59,7 @@ on.
 Sources: [settings and menus: setting ids to properties](../firmware/settings-and-menus.md#from-setting-ids-to-properties).
 </details>
 
-## 2. Where the value lives
+## 2. Storage
 
 User settings live in one **store**: a 256 KB image in RAM, loaded from flash at power-on and written back at power-off.
 The store keeps a list of its properties, and the values sit in the image **in that list's order, with no ids next to
@@ -67,7 +67,7 @@ them**. Reading or writing a property goes through a hash table built at start-u
 the image a value is.
 
 Flash holds two copies (banks) of the image. Each has a header with the store number, a counter and a checksum. At
-power-on the camera loads the newer valid bank; if neither is valid, every setting is reset to its default.
+power-on the camera loads the newer valid bank. If neither is valid, every setting is reset to its default.
 
 Three consequences matter for anyone adding settings:
 
@@ -90,7 +90,7 @@ Three consequences matter for anyone adding settings:
 Sources: [settings and menus: how saved settings are stored](../firmware/settings-and-menus.md#how-saved-settings-are-stored).
 </details>
 
-## 3. When it is saved
+## 3. Saving
 
 Changing a setting in the menu changes only the RAM image. The camera writes the image to flash when it powers off:
 the save routine compares the whole image with the bank in flash and writes a new bank only if something differs. So
@@ -111,12 +111,12 @@ code, with its own checksum and two-bank protection.
 Sources: [settings and menus: when saved settings are written](../firmware/settings-and-menus.md#when-saved-settings-are-written-2026-11-18).
 </details>
 
-## 4. Where the row comes from
+## 4. Menu rows
 
 The menus are not drawn by code that knows about High Res Shot. They are built from tables:
 
 - **The tab list.** Each menu tab (Shooting 1, Shooting 2, Movie, ...) has a short list of setting ids, one per row.
-  Shooting Menu 2 lists seven: High Res Shot is the sixth. A tab page holds **at most seven rows**; there is no
+  Shooting Menu 2 lists seven, and High Res Shot is the sixth. A tab page holds **at most seven rows**. There is no
   scrolling.
 - **Title and help.** Each tab has a list of title entries and a list of help entries, matched to rows by setting id.
   An entry names a string id, and the string table turns that into text in the current language (34 languages, the
@@ -151,7 +151,7 @@ in several places. Both points matter when you add to them.
 Sources: [settings and menus: how menus are built](../firmware/settings-and-menus.md#how-menus-are-built).
 </details>
 
-## 5. From the row to the value
+## 5. Row to value
 
 When the menu draws a row or the picker changes it, it calls one getter and one setter with the setting id. They look
 the id up in the setting table and call the property get or set with the property and index. That is the only link
@@ -182,7 +182,7 @@ and setter for an id can sit behind a row.
 Sources: [settings and menus](../firmware/settings-and-menus.md).
 </details>
 
-## 6. Why new settings are hard
+## 6. Adding settings
 
 The obvious route, "add a setting id and a property", is blocked in several ways at once:
 
@@ -194,7 +194,7 @@ The obvious route, "add a setting id and a property", is blocked in several ways
 - **A new property** has to be appended to the store's list, which sits in the part of memory copied first at boot
   and has no room left.
 
-So our method leaves all of that alone: new ids are answered by our own code, and their values live in the unused tail
+So our method leaves all of that alone. New ids are answered by our own code, and their values live in the unused tail
 of the image.
 
 <details><summary>Where in the firmware</summary>
@@ -208,19 +208,19 @@ of the image.
 Sources: [settings and menus: no free setting ids](../firmware/settings-and-menus.md#no-free-setting-ids-2026-11-05).
 </details>
 
-## 7. Following along: adding the Live ND rows
+## 7. Example: the Live ND rows
 
-The goal: a **Live ND Shooting** row in Shooting Menu 2, after High Res Shot (where the OM-5 has it). Pressing right
+The example goal is a **Live ND Shooting** row in Shooting Menu 2, after High Res Shot (where the OM-5 has it). Pressing right
 opens a page with Live ND Shooting (Off/On), ND Number (ND2-ND16) and LV Simulation (Off/On). The values must survive
 power-off. Here are the steps in the order to do them.
 
 **Step 1. Pick ids and a place for the values.** Choose a range nothing uses (we use 16000-16031). Choose a block in
 the unused tail of the settings image, and lay it out: a 4-byte marker, then one byte per setting, then spare words.
-The marker matters: on a camera that never ran your code the tail holds leftover bytes, so "no marker" means "write
+The marker matters. On a camera that never ran your code the tail holds leftover bytes, so "no marker" means "write
 the defaults first".
 
-**Step 2. Hook the getter and setter.** Put a short jump at the start of each. Your code checks the id: if it is one
-of yours, read or write your byte (range-checking the value); otherwise run the stock code. Nothing else in the camera
+**Step 2. Hook the getter and setter.** Put a short jump at the start of each. Your code checks the id. If it is one
+of yours, read or write your byte (range-checking the value). Otherwise run the stock code. Nothing else in the camera
 needs to know about your ids.
 
 **Step 3. Make room on the tab.** Shooting 2 is full at seven rows. We moved RC Mode to the end of Shooting 1 and put
@@ -228,7 +228,7 @@ the new row after High Res Shot. Change the tab lists in every copy, and their c
 
 **Step 4. Add text.** Hook the string lookup so a small range of new string ids (we use 4000-4015) comes from your
 table and everything else from the stock one. Title and help entries for the new row use those ids with the "string
-id" kind; the "inline text" kind crashes the title drawing.
+id" kind. The "inline text" kind crashes the title drawing.
 
 **Step 5. Add the page.** Copy the screen, controller, submenu and page-record tables into free space with one more
 entry each, and change every place in the code that holds their length or address. The new page lists your three ids.
@@ -259,14 +259,14 @@ ND2-ND16) and link them into the picker's hash table. Do it on first menu use, n
 Sources: [saved settings and menu rows](../features/saved-settings-and-menu-rows.md).
 </details>
 
-## 8. Where the code may sit
+## 8. Code placement
 
 The menu getter and setter run **during boot**, long before anyone opens a menu. So the code they jump to must be in
 memory by then.
 
 The main program loads in ten sections in the background ([Boot](boot.md)). They are read in one order but become
 **ready** in number order, and until a section is ready, any access to it stops the boot. Our first attempt put the
-code after section 7, which is read early but ready late: the getter hook reached it too soon, and the camera
+code after section 7, which is read early but ready late. The getter hook reached it too soon, and the camera
 boot-looped until it was reflashed from the card. The emulator didn't model this and ran it fine.
 
 The version that works:
@@ -277,7 +277,7 @@ The version that works:
 - The string hook sits in section 6, which is ready after section 3, so it needs no guard.
 - The picker records are linked on first menu use, so there is no boot hook at all for them.
 
-The rule: a hook may reach code in another section only if that section is ready before the hook can first run, or if
+A hook may reach code in another section only if that section is ready before the hook can first run, or if
 the hook checks the ready bit first. Checking the read order is not enough.
 
 <details><summary>Where in the firmware</summary>
@@ -292,7 +292,7 @@ Sources: [saved settings and menu rows: the boot lesson](../features/saved-setti
 [boot and sections](../firmware/boot-and-sections.md).
 </details>
 
-## 9. What has been proven, and where
+## 9. Proven results
 
 | step | E-M5 III 1.7 |
 |---|---|
@@ -307,7 +307,7 @@ Sources: [saved settings and menu rows: the boot lesson](../features/saved-setti
 
 One camera, one owner so far. Nothing here has been tried on another body.
 
-## How our features use this
+## Our features
 
 - **Live ND**'s on/off, ND number and LV Simulation are the first values kept in the block.
 - **The dev settings page** (a separate page for tuning values) is planned to keep its values in the block's spare
@@ -316,9 +316,9 @@ One camera, one owner so far. Nothing here has been tried on another body.
   storage: the stock getter and setter already handle them. They still need the menu steps. In the emulator such a row
   showed its value but couldn't be changed until the page's picker knew the id, which is what step 6 is for.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|
@@ -331,6 +331,6 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | values kept in the settings image tail | yes (camera) | not checked | not checked | not checked | not checked | not checked | E-P7 (Caduceus): the idea, from their notes |
 | own page drawn by the stock list view | yes (camera) | not checked | not checked | not checked | not checked | not checked | E-M10 II (fenykl): own page from one stock row |
 
-"Confirmed" in the first rows means the table or string is present; the code around it wasn't compared.
+"Confirmed" in the first rows means the table or string is present. The code around it wasn't compared.
 [settings and menus](../firmware/settings-and-menus.md), [saved settings and menu rows](../features/saved-settings-and-menu-rows.md),
 Atlas-linked projects.

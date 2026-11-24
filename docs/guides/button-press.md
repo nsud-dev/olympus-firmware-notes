@@ -1,7 +1,7 @@
-# How a button works
+# Buttons
 
 *Guide 7 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
-[Before you start](before-you-start.md) and [The MN103 operating system](operating-system.md) first. Open questions:
+[Before you start](before-you-start.md) and [Operating system](operating-system.md) first. Open questions:
 research gaps.*
 
 This guide follows a button from the moment its contact closes to the moment the camera's application code hears
@@ -11,7 +11,7 @@ the application. It ends with a stock way to press buttons over Wi-Fi, which we 
 The path up to the application's event queue is traced in the code. What happens after that depends on the screen
 you're on, and the step from "half-press event" to the shooting sequencer is still open.
 
-## The shape of it
+## Overview
 
 ```
 key contact ──► key-line interrupt ──► callback updates the key image, wakes UI_IN
@@ -59,8 +59,8 @@ When a key line changes, the hardware raises an interrupt. The handler reads whi
 the function that was registered for that channel. For the push buttons, that function belongs to the key module
 (called UI_IN). It updates the group's bit image and sets a bit in UI_IN's event flag.
 
-That is all it does. The interrupt doesn't decide what the key means, doesn't log, and doesn't wait for anything: it
-records the new state and wakes the task that will deal with it (see [interrupt context](operating-system.md#5-interrupts-the-other-context)).
+That is all it does. The interrupt doesn't decide what the key means, doesn't log, and doesn't wait for anything. It
+records the new state and wakes the task that will deal with it (see [interrupt context](operating-system.md#5-interrupts)).
 
 The analogue keys and the power switch use their own drivers, but they end the same way: a callback that updates the
 group's image and sets UI_IN's flag. Registering the power-switch callback takes one of the
@@ -81,7 +81,7 @@ group's image and sets UI_IN's flag. Registering the power-switch callback takes
 Sources: [Wi-Fi debug shell: from the key line to the app](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
-## 3. The UI_IN task: from bits to events
+## 3. The UI_IN task
 
 UI_IN is an ordinary task that spends its life waiting on its event flag. When the interrupt sets the bit, the task
 wakes, clears the flag, and runs the key decoder. Then it handles the dials, and goes back to waiting.
@@ -95,7 +95,7 @@ a 32-bit number made of a kind and the key code:
 | 0x2010000 + code | key released |
 | 0x2020000 + code | value changed (the mode dial: the code plus its new position) |
 
-One rule is built in here: if a full press of the shutter button (`Trg2`) arrives without a half-press before it, the
+One rule is built in here. If a full press of the shutter button (`Trg2`) arrives without a half-press before it, the
 decoder sends the half-press (`Trg1`) first. So the rest of the camera can assume a full press always comes after a
 half-press, however quickly the button was pushed.
 
@@ -112,7 +112,7 @@ Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated
 
 ## 4. Dials
 
-The front and rear dials don't have on/off contacts; they produce pulses as they turn. A separate jog driver counts the
+The front and rear dials don't have on/off contacts. They produce pulses as they turn. A separate jog driver counts the
 pulses and sends an app event of a fourth kind (0x2030000 + dial code, with the step count). UI_IN's loop services the
 jog driver after the keys.
 
@@ -180,15 +180,15 @@ sequencer in the photo guide.
 Sources: [shooting sequencer](../firmware/shooting-sequencer.md), [Live ND](../features/live-nd.md).
 </details>
 
-## 7. Pressing buttons without touching them
+## 7. Simulated key presses
 
 The user shell has a `ui key` command that works at the key-image level. `ui key skey <code> 1` sets the key's bit in
-its group image and wakes UI_IN, exactly as the interrupt would; `ui key skey <code> 0` releases it. Everything from
+its group image and wakes UI_IN, exactly as the interrupt would. `ui key skey <code> 0` releases it. Everything from
 section 3 onwards then runs as for a real press. `ui key debug 1` prints every app event as it is sent, which is the
 easiest way to find out which code a physical button makes.
 
 Since the shell is reachable over Wi-Fi from a stock card file, this gives a way to press buttons remotely for testing.
-Two cautions: always send the release, and never send the codes for power, cables, the card or the lens, which would
+Always send the release. Never send the codes for power, cables, the card or the lens, which would
 fake those events.
 
 <details><summary>Where in the firmware</summary>
@@ -202,9 +202,9 @@ fake those events.
 Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses), remote test rig.
 </details>
 
-## How our features use this
+## Our features
 
-- **Live ND quick tap.** An armed Live ND shot that was released too early hung in the capture-prep state: the release
+- **Live ND quick tap.** An armed Live ND shot that was released too early hung in the capture-prep state. The release
   arrived before the "full press seen" event the port expected. The fix handles the release events in that state. Lesson:
   any feature that hooks the shutter path must handle a press that ends sooner than expected.
 - **Loading on the first half-press.** The planned looks feature loads its card file on the first half-press after
@@ -212,9 +212,9 @@ Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated
 - **Our own settings page** receives the menu key events through the screen's handlers, the same way a stock menu page
   does.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|
@@ -224,6 +224,6 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | HLS_EVENT task, `appevent::Wait_Event` | yes | **confirmed** | **confirmed** | **confirmed** | **confirmed** | **confirmed** | OM-5 II (Atlas-linked project): first-half-press work done in the HLS_EVENT task |
 | half-press sent before a lone full press | yes | not checked | not checked | not checked | not checked | not checked | — |
 
-"Confirmed" here means the names or the address are present; the code around them wasn't checked.
+"Confirmed" here means the names or the address are present. The code around them wasn't checked.
 [Wi-Fi debug shell](../features/wifi-debug-shell.md), fenykl notes,
 Atlas-linked projects.

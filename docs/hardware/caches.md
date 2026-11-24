@@ -70,10 +70,10 @@ first byte after the last section. So the monitor also covers that one extra byt
 - How big the instruction cache is, and how it is laid out
 - whether the monitor also watches cores 1 and 2 and the other bus masters
 - what exactly happens on a monitor hit
-- a camera test that touching the byte after a watched range really trips it
+- a camera test that touching the byte after a watched range trips it
 
 ## Further reading
 
 - [Boot](../guides/boot.md) follows the ten sections as they load.
-- [How the cores talk to each other](../guides/cores.md) covers the uncached shared data between cores.
+- [Core communication](../guides/cores.md) covers the uncached shared data between cores.
 - [Memory map](memory-map.md) shows the two views of memory.

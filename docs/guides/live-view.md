@@ -8,7 +8,7 @@ engine turns it into a picture, and the display controller lays the menus and sh
 it to the rear screen or the viewfinder (EVF). It describes the stock firmware. How our Live ND preview changes the
 path is in its own section at the end.
 
-The two ends are well mapped: the raw frame in memory (measured on the camera) and the display side (registers,
+The two ends are well mapped. They are the raw frame in memory (measured on the camera) and the display side (registers,
 layers, drawing engine). The middle, where the raw frame becomes a picture, is not.
 
 ## Components
@@ -41,7 +41,7 @@ Sources: [OS and framework](../firmware/os-and-framework.md#source-file-and-modu
 ## 1. The sensor in live-view mode
 
 In live view the sensor doesn't read out every pixel. It runs a mode that reads a much smaller frame (see the next
-section), which lets it run fast: the request that switches it on asks for 120 frames a second. The live-view module
+section), which lets it run fast. The request that switches it on asks for 120 frames a second. The live-view module
 then runs every 16.7 ms, 60 times a second, and the screen follows it. Why the request says 120 while the processing
 runs at 60 isn't known yet. It may be two readouts per processed frame, or the request value may mean something else.
 
@@ -125,11 +125,11 @@ channel 1 drives HDMI. Each channel has six planes: three image planes (live vie
 planes for the GUI. Register changes are latched and take effect at the next frame boundary, so the picture and its settings change
 between frames, not halfway through one.
 
-Some features that look like software are really done by the display controller. The **histogram**, the **highlight
+Some features that look like software are done by the display controller. The **histogram**, the **highlight
 and shadow warning** and **focus peaking** all work on the picture as it is displayed. That's why they reflect the
 picture mode and gamma rather than the raw data.
 
-One lesson from our own probe: reading the frame's pixels from inside the display update reset the camera within a
+One lesson came from our own probe. Reading the frame's pixels from inside the display update reset the camera within a
 second. Code that needs pixels reads them elsewhere.
 
 <details><summary>Where in the firmware</summary>
@@ -158,8 +158,8 @@ commands. There is no line command, so lines are drawn as thin rectangles.
 Each overlay pixel is a 7-bit colour number looked up in a palette, and colour 127 means transparent, so the live
 picture shows through. The three layers are stacked in a fixed order on top of the picture.
 
-The overlays are tied to the live picture's timing: when the GUI asks for its changes to be shown, the commit waits
-for the next live-view frame. On the rear screen the overlay is shown at 1:1, cropped to a 720 × 480 window; on the
+The overlays are tied to the live picture's timing. When the GUI asks for its changes to be shown, the commit waits
+for the next live-view frame. On the rear screen the overlay is shown at 1:1, cropped to a 720 × 480 window. On the
 EVF it is drawn at 640 × 480 and scaled up to the 1024 × 768 panel area.
 
 <p class="shot">
@@ -181,7 +181,7 @@ EVF it is drawn at 640 × 480 and scaled up to the 1024 × 768 panel area.
 Source: [graphics pipeline](../hardware/graphics-pipeline.md#1-gui-drawing-goes-through-a-hardware-osd-engine).
 </details>
 
-## How Live ND changes this
+## Live ND changes
 
 On the OM-5, Live ND shows a preview of the long exposure in live view: each new frame is averaged with the recent
 ones, so the screen shows what the finished photo will look like. Our port adds the same preview to the E-M5 III.
@@ -192,7 +192,7 @@ ones, so the screen shows what the finished photo will look like. Our port adds 
 2. **Averaging in the image engine.** The hook runs the OM-5's image-engine job 12 on the raw frame. It keeps a running
    sum over a ring of recent frames, adding the new frame and dropping the oldest. On the OM-5 the average then takes
    the new frame's place in the frame record, so the rest of the live-view path shows the average without knowing
-   anything changed; our port follows the same design.
+   anything changed. Our port follows the same design.
 3. **Ring size.** The ring holds 30 frames per second of the simulated exposure, up to 240 frames, kept in borrowed
    full-size photo buffers on the E-M5 III.
 
@@ -209,9 +209,9 @@ Details: [Live ND](../features/live-nd.md). Guide 9 (planned) will tell the stor
 Source: [Live ND](../features/live-nd.md).
 </details>
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 | PEN-F |
 |---|---|---|---|---|---|---|

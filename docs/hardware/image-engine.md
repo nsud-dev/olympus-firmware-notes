@@ -67,7 +67,7 @@ was never cut down, only the programs were left out.
 
 ## The programs
 
-A job program is a list of very wide instructions, each 320 bits long. Each instruction controls many parts of the
+A job program is a list of wide instructions, each 320 bits long. Each instruction controls many parts of the
 engine at once, rather than doing one small step. This style is called horizontal microcode.
 
 What we have worked out by comparing the programs of five cameras:

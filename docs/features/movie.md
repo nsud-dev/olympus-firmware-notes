@@ -1,7 +1,7 @@
-# Movie recording limit and OM-Log400
+# Movie recording
 
 <!-- human page -->
-> The dense reference for this page is [Movie recording limit and OM-Log400: technical notes](movie-technical.md).
+> The dense reference for this page is [Movie recording: technical notes](movie-technical.md).
 
 This page covers two movie questions. The E-M5 III stops recording after 29 minutes 59 seconds, while the OM-5 records
 for longer. The OM-5 also has a flat "OM-Log400" picture profile for colour grading, which the E-M5 III lacks.
@@ -15,8 +15,7 @@ already in the E-M5 III, but the piece that picks the log curve is missing.
   the camera.
 - **OM-Log400.** Researched. Nothing has been built yet.
 
-## The 29:59 limit
-
+## 29:59 limit
 When a recording starts, the camera hands the movie encoder a maximum recording time in milliseconds. On the E-M5 III
 that time is 30 minutes, unless the recording type is one that already gets two hours. The encoder stops when the time
 runs out.
@@ -43,7 +42,7 @@ decision. HEVC arrived later, on the OM-1.
 
 ## OM-Log400
 
-A log profile records a very flat tone curve. The picture looks washed out straight from the camera, but it keeps more
+A log profile records a flat tone curve. The picture looks washed out straight from the camera, but it keeps more
 detail in the highlights and shadows for grading later.
 
 On the OM-5, OM-Log400 is a picture mode. It sits next to a "super flat" mode and comes with a View Assist setting

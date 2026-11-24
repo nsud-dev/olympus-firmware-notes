@@ -13,8 +13,7 @@ This page explains why a simple patch cannot change that, and which routes might
 
 The idea has been studied. Nothing has been built.
 
-## Why a simple patch will not work
-
+## Patch limits
 It is the lens that tells the body whether it can do Sync IS. At start-up the body asks the lens, and stores the answer.
 An Olympus lens answers yes. A Panasonic lens does not understand the question in that form, because it speaks Dual IS.
 
@@ -23,7 +22,7 @@ that does not know how.
 
 ## Possible routes
 
-1. **Force the flag.** The body would believe the lens can cooperate. Very unlikely to work.
+1. **Force the flag.** The body would believe the lens can cooperate. Unlikely to work.
 2. **Split the work.** Let the lens's stabiliser handle up-down and left-right tilt, and let the body handle rotation.
    This is the most promising route.
 3. **Speak Dual IS.** Teach the body Panasonic's protocol. That would be a long project.

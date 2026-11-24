@@ -21,7 +21,7 @@ cannot. It ends with the steps to follow when a camera will not start.
 
 A small loader at the start of flash memory runs first. It is not part of any update file. It looks at the OK key.
 If OK is not held, it starts the main program from flash memory. The main program then copies its parts into memory
-one after another. None of those steps checks a checksum or a signature. A damaged main program is simply run as it
+one after another. None of those steps checks a checksum or a signature. A damaged main program runs as it
 is.
 
 A **watchdog** timer guards the camera. The software has to reset it every few seconds. If it stops doing so, the
@@ -29,7 +29,7 @@ watchdog restarts the camera. The camera also restarts itself on purpose after a
 second. That is why a fault that happens on every start-up turns into a bootloop.
 
 A hang is different. If one task freezes but the rest keeps running, the watchdog is still being reset, so the camera
-just sits there. Taking the battery out is the only way out of that.
+stays in that state. Taking the battery out is the only way out of that.
 
 ## Start-up loader
 
@@ -110,7 +110,7 @@ and a half. A build is handed over only when the script passes. It checks that:
 
 - the file is well formed, and the camera's own checker accepts it in the emulator
 - the start-up code and the parts of the firmware the rescue needs are unchanged
-- new code sits inside memory the camera actually loads, and is never reached before it is loaded
+- new code sits inside memory the camera loads, and is never reached before it is loaded
 - every address the code uses has evidence in the stock firmware
 - the build starts in the emulator and behaves like stock with nothing switched on
 

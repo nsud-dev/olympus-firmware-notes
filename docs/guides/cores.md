@@ -1,7 +1,7 @@
-# How the cores talk to each other
+# Core communication
 
 *Guide 5 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
-[Before you start](before-you-start.md) and [The MN103 operating system](operating-system.md) first. Open questions:
+[Before you start](before-you-start.md) and [Operating system](operating-system.md) first. Open questions:
 research gaps.*
 
 The system-on-chip has three MN103 cores (CPU0, CPU1 and CPU2) and an ARM Cortex-A9. Each MN103 core runs its own
@@ -9,9 +9,9 @@ copy of the μITRON kernel with its own tasks. This guide explains how they coop
 bits that keep them from treading on each other, the "doorbell" interrupts one core rings on another, the queue that
 lets one core run a function on another, and the mailbox (ISC) that links the MN103 side to the ARM.
 
-All of this was read from the code; none of it has been watched on a running camera yet.
+All of this was read from the code. None of it has been watched on a running camera yet.
 
-## 1. Who runs what
+## 1. Core roles
 
 CPU0 runs almost everything we work with: the user interface, the shooting sequencer, autofocus control, the lens and
 the stabiliser link. The other two cores take specific heavy or time-critical jobs. Their task names, which carry a
@@ -24,10 +24,10 @@ the stabiliser link. The other two cores take specific heavy or time-critical jo
 Each core also has its own system and user shells.
 
 Deep-learning subject detection is a useful example of how work is split. The OM-5, OM-5 II and E-M1 III contain its
-control code as tasks on CPU2 (`MDET_DL_*_CPU2`), but in those bodies it is dead code: there is no network executor and
+control code as tasks on CPU2 (`MDET_DL_*_CPU2`), but in those bodies it is dead code. There is no network executor and
 no network weights, and the feature isn't offered. The body that does ship it, the OM-1, runs the network on a fourth
 core (CPU3) and a dedicated deep-learning hardware block, with about 47 MB of weights. The E-M5 III has neither, so the
-part that does the heavy work can't be ported; only the control code on CPU2 could be.
+part that does the heavy work can't be ported. Only the control code on CPU2 could be.
 
 The ARM runs Linux, for Wi-Fi, Bluetooth and the helper that does the maths for handheld high-res shots.
 
@@ -45,9 +45,9 @@ Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk
 
 ## 2. Shared memory
 
-All three MN103 cores see the same RAM, so the simplest way to share is to put data somewhere both can reach. The
-catch is the cache: each core has its own, so a value one core has written may still be sitting in its cache when
-another core reads it. The firmware avoids this by reaching shared data through the **uncached** view of RAM (the
+All three MN103 cores see the same RAM, so the simplest way to share is to put data somewhere both can reach. Each
+core has its own cache, so a value one core has written may still be sitting in that cache when another core reads
+it. The firmware avoids this by reaching shared data through the **uncached** view of RAM (the
 0xa... addresses, see the [MN103 primer](mn103-primer.md#7-the-address-space)) or through a separate shared block.
 
 That shared block, at 0x8ff00000, holds the things every core needs: a pointer to each core's kernel data, the serial
@@ -72,7 +72,7 @@ masking, the usual tool on one core, does nothing to stop another core.
 
 The firmware keeps 64 one-bit locks in a small area of memory. A core takes a lock with the MN103's `bset`
 instruction, which sets a bit in memory and reports whether it was already set, in one step. If the bit was clear, the
-core now holds the lock; if it was set, someone else does, and the core tries again. `bclr` clears the bit to let go.
+core now holds the lock. If it was set, someone else does, and the core tries again. `bclr` clears the bit to let go.
 Because the test and the set happen together, two cores can't both see the bit clear.
 
 ```
@@ -90,7 +90,7 @@ drop_lock(n):
 ```
 
 The kernels use two of these bits to protect their shared data. The mailbox to the ARM (section 7) uses others. Most of
-these loops have no timeout: if the holder never lets go, the waiting core spins forever.
+these loops have no timeout. If the holder never lets go, the waiting core spins forever.
 
 <details><summary>Where in the firmware</summary>
 
@@ -106,11 +106,11 @@ these loops have no timeout: if the holder never lets go, the waiting core spins
 Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19).
 </details>
 
-## 4. Doorbells: one core interrupting another
+## 4. Doorbells
 
 Shared memory and locks let cores share data, but a core still needs a way to tell another "look now" without making
 it check memory over and over. For that, each MN103 core has a small register block. Writing a bit to it raises an
-interrupt on that core: a **doorbell**.
+interrupt on that core. This is a **doorbell**.
 
 The receiving core's handler reads which bits are set, clears each one by writing it to an acknowledge register, and
 acts on it. On CPU0, the bits mean:
@@ -121,7 +121,7 @@ acts on it. On CPU0, the bits mean:
 | 1, 2 | pass on a message |
 | 3, 4, 5 | a cross-core call is waiting from CPU0, CPU1 or CPU2 (section 6) |
 
-There is a second doorbell register that the kernel itself uses: each core's kernel configuration names a small
+There is a second doorbell register that the kernel itself uses. Each core's kernel configuration names a small
 routine that writes to another core's block. It is probably how one kernel tells another to look at its ready tasks
 again after a change (section 5), but that isn't proven.
 
@@ -143,7 +143,7 @@ Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk
 
 ## 5. Kernel calls across cores
 
-The [OS guide](operating-system.md#7-one-kernel-per-core) explained that every kernel object id carries its core number.
+The [OS guide](operating-system.md#7-kernels-per-core) explained that every kernel object id carries its core number.
 So a task on CPU0 can set an event flag that belongs to CPU1, using the same call it would use for its own flag.
 
 What happens underneath is direct: CPU0's kernel takes the kernel lock bit, finds CPU1's kernel data through the
@@ -161,7 +161,7 @@ is for.
 Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19).
 </details>
 
-## 6. Running a function on another core
+## 6. Remote function calls
 
 For anything more than waking a task, the firmware has a small remote-call service. A core asks another core to run a
 function with one argument:
@@ -183,7 +183,7 @@ call_on_core(target, function, argument):
 
 There is one ring of 32 slots for every pair of cores (nine in all, including a core calling itself), kept in uncached
 memory. On the other side, the doorbell handler empties the ring for the core that rang, calling each function with
-its argument. That happens inside the interrupt, so these functions follow the interrupt rules: no waiting.
+its argument. That happens inside the interrupt, so these functions follow the interrupt rules and must not wait.
 
 The system shell's `syscall` command prints the nine rings and their recent entries, which makes this one of the easier
 mechanisms to watch on a live camera.
@@ -202,7 +202,7 @@ mechanisms to watch on a live camera.
 Sources: [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19).
 </details>
 
-## 7. The ARM: the ISC mailbox
+## 7. ARM mailbox
 
 The ARM is a different CPU running Linux, so it doesn't share the kernels' data. It talks to the MN103 cores through a
 hardware mailbox that Panasonic calls **ISC** (Inter System Communication). ISC has 48 numbered channels. Each ARM
@@ -213,7 +213,7 @@ helper, goes through 128 KB of memory both sides map, or through image buffers t
 
 The ARM is only powered when something needs it. A power-manager task on CPU0 starts it on request (for Wi-Fi, or for
 a shot that needs it) and waits for a boot message from the ARM before marking it ready. Sending on ISC while the ARM is
-off doesn't fail cleanly: the ISC code spins on its lock bits, and a send to a stopped ARM is the likely cause of a
+off doesn't fail cleanly. The ISC code spins on its lock bits, and a send to a stopped ARM is the likely cause of a
 crash in one of our tests.
 
 <details><summary>Where in the firmware</summary>
@@ -230,20 +230,20 @@ crash in one of our tests.
 Sources: [ARM co-processor](../hardware/arm-coprocessor.md), [HHHR](../features/hhhr.md), [gotchas](../reference/gotchas.md).
 </details>
 
-## What this means for our patches
+## Patching notes
 
 - **Know which core you are on.** Our hooks check the core number and act only on CPU0, because the native objects
   they touch belong to CPU0's kernel.
-- **Don't call ISC without checking the ARM.** Check the ARM-started flag first; the ISC locks never time out.
+- **Don't call ISC without checking the ARM.** Check the ARM-started flag first. The ISC locks never time out.
 - **Change ARM power only outside a capture.** Starting or stopping the ARM in the middle of a shot reset the camera
-  in the HHHR tests; at idle it was fine.
+  in the HHHR tests. At idle it was fine.
 - **Remote calls run in an interrupt.** A function handed to another core through the call rings must not wait or take
   locks.
 - **A watchable mechanism.** If we ever need to see cross-core traffic, the `syscall` shell command already prints it.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|
@@ -253,6 +253,6 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | cross-core call service (`sys_callrequest`) | yes | **confirmed** (strings) | **confirmed** (strings) | **confirmed** (strings) | **confirmed** (strings) | not found in strings | — |
 | ISC mailbox to the ARM | yes | **confirmed** | **confirmed** | not checked | not checked | not checked | — |
 
-"Confirmed (strings)" means the names are there; the code behind them wasn't compared.
+"Confirmed (strings)" means the names are there. The code behind them wasn't compared.
 [SoC overview](../hardware/soc-overview-technical.md#how-the-cores-talk-to-each-other-2026-11-19),
 [ARM co-processor](../hardware/arm-coprocessor.md).

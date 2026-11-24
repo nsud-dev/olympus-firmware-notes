@@ -1,4 +1,4 @@
-# E-M5 III, OM-5 and OM-5 II hardware compared
+# E-M5 III family hardware
 
 <!-- human page -->
 

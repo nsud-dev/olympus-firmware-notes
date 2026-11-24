@@ -1,8 +1,8 @@
 # Docs map
 
-These notes describe how the Olympus OM-D E-M5 Mark III's firmware and hardware work, and what we have found while
-trying to bring features from newer bodies (mainly the OM-5) to it. Start with the [overview](overview.md) for a
-plain tour; each page below opens with a short introduction and explains its terms.
+These notes describe how the Olympus OM-D E-M5 Mark III's firmware and hardware work, and how far its design is
+shared with newer bodies (mainly the OM-5). Start with the [overview](overview.md) for a
+plain tour. Each page below opens with a short introduction and explains its terms.
 
 Conventions used throughout:
 
@@ -17,7 +17,7 @@ Conventions used throughout:
 | [Guides](guides/README.md) | how processes on the camera work, explained without the reference detail; the place to learn |
 | [Overview](overview.md) | everything investigated so far, with the state of each feature |
 | [Body comparison](bodies/comparison.md) | E-M5 III, OM-5, OM-5 II, E-M1 III, OM-1, OM-1 II, PEN-F, E-M5 II, E-M5 Mark I side by side ([technical notes](bodies/comparison-technical.md)) |
-| [E-M5 III, OM-5 and OM-5 II hardware compared](bodies/om5-family-hardware.md) | what the three bodies share, where they differ, and which parts of a program are model-specific |
+| [E-M5 III family hardware](bodies/om5-family-hardware.md) | what the three bodies share, where they differ, and which parts of a program are model-specific |
 | [I/O expander driver swap](bodies/expander-driver-swap.md) | report on one bug of our own from moving a driver between firmware versions, and the checks that catch it |
 | [Settings map E-M5 III ↔ OM-5](bodies/settings-map-om5.md) | which settings the two cameras share, which differ, and how a saved settings image converts ([technical notes](bodies/settings-map-om5-technical.md)) |
 | [Glossary](reference/glossary.md) | Olympus naming and our shorthand |
@@ -68,8 +68,8 @@ Conventions used throughout:
 | [Wi-Fi debug shell](features/wifi-debug-shell.md) | a card file that starts a debug network and shell ([technical notes](features/wifi-debug-shell-technical.md)) |
 | [Starry Sky AF](features/starry-sky-af.md) | what it is made of and a first test build ([technical notes](features/starry-sky-af-technical.md)) |
 | [Color and Monochrome Profiles](features/pen-f-profiles.md) | the PEN-F profiles with an on-camera editor ([technical notes](features/pen-f-profiles-technical.md)) |
-| [Movie recording limit and OM-Log400](features/movie.md) | the limit constant and the log-profile study ([technical notes](features/movie-technical.md)) |
-| [Subject, face and eye detection](features/af-detect.md) | what is portable and what needs newer hardware ([technical notes](features/af-detect-technical.md)) |
+| [Movie recording](features/movie.md) | the limit constant and the log-profile study ([technical notes](features/movie-technical.md)) |
+| [Subject detection](features/af-detect.md) | what is portable and what needs newer hardware ([technical notes](features/af-detect-technical.md)) |
 | [Live GND](features/live-gnd.md) | how the OM-1 II does it and a design for the E-M5 III ([technical notes](features/live-gnd-technical.md)) |
 | [Sync IS with Panasonic lenses](features/sync-is-panasonic.md) | why there is no flag-only patch ([technical notes](features/sync-is-panasonic-technical.md)) |
 | [Open gate video](features/open-gate.md) | could the camera record the whole 4:3 sensor area as video: sensor, pipeline and encoder limits ([technical notes](features/open-gate-technical.md)) |

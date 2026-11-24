@@ -12,7 +12,7 @@ the other bodies in the family.
 The file format and the updater are mapped from the code and confirmed by flashing our own builds. What runs before
 the main program, and whether there is any rescue path that doesn't need it, are not known.
 
-## 1. The file at a glance
+## 1. File layout
 
 The file is a handful of **blocks** placed back to back. Each block is one thing the camera stores in its flash: the
 main program, the menu graphics, the image-engine programs and so on. The E-M5 III file has five:
@@ -25,7 +25,7 @@ main program, the menu graphics, the image-engine programs and so on. The E-M5 I
 | 3 | very likely the stabiliser sub-processor's program ("LUKE") | 256 KB |
 | 4 | sample images and other data | 9 MB |
 
-Other bodies have four to six blocks; the OM-1 and E-M1 III carry a sixth (on the OM-1, the power sub-processor's
+Other bodies have four to six blocks. The OM-1 and E-M1 III carry a sixth (on the OM-1, the power sub-processor's
 program).
 
 <details><summary>Where in the firmware</summary>
@@ -39,7 +39,7 @@ program).
 Sources: [container format](../firmware/container-format.md).
 </details>
 
-## 2. Each block's wrapper
+## 2. Block wrappers
 
 Every block has the same wrapper: a 32-byte header in plain text, the payload, and a 32-byte trailer.
 
@@ -47,9 +47,9 @@ Every block has the same wrapper: a 32-byte header in plain text, the payload, a
   goes, how big it is, and what kind of block it is.
 - The **trailer** repeats the header and adds a checksum.
 - The **payload** is scrambled, but not encrypted. Every byte is inverted, and the bytes in each group of 16 are put in a
-  fixed different order. There is no key: anyone who knows the pattern can undo it.
+  fixed different order. There is no key. Anyone who knows the pattern can undo it.
 
-The checksum is simple: add up the whole block (header, unscrambled payload and trailer) as 32-bit words, and the
+The checksum adds up the whole block (header, unscrambled payload and trailer) as 32-bit words. The
 total must come to zero. The last word of the trailer is chosen to make that true.
 
 ```
@@ -75,7 +75,7 @@ an Olympus one. That is how all our test builds get onto the camera.
 Sources: [container format](../firmware/container-format.md), tools.
 </details>
 
-## 3. Compressed parts on some bodies
+## 3. Compressed sections
 
 The E-M5 III's main program is stored as is. The E-M1 III, OM-5 and OM-5 II compress two large stretches of theirs
 with LZ4. Each is unpacked in place at boot, at the same address it occupies. This matters when you compare bodies:
@@ -91,12 +91,12 @@ analyse the unpacked image, or half the code looks missing.
 Sources: [container format: compressed sections](../firmware/container-format.md#compressed-sections-olycompress-lz4).
 </details>
 
-## 4. Updating from the card
+## 4. Card updates
 
 To update, you put the file on the card as `DCOLYMP/E137xxxx.BIN` (we use `e1379999.bin`), hold **OK** and switch the
-camera on. There is no screen: the AF lamp stays lit while the camera works and blinks when it's done.
+camera on. There is no screen. The AF lamp stays lit while the camera works and blinks when it's done.
 
-The updater is not a separate program. It is part of the main program: a pair of tasks (a client and a server) inside
+The updater is not a separate program. It is a pair of tasks (a client and a server) inside the main program in
 block 0. So the camera starts the main program as usual, the updater sees OK held and the file on the card, and takes
 over.
 
@@ -131,7 +131,7 @@ There is no rollback. If the power fails while the main program is being written
 Sources: [recovery: the card updater](../firmware/recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
 </details>
 
-## 5. Why the updater needs a working camera
+## 5. Updater requirements
 
 Because the updater lives inside the main program, the camera has to boot most of the way to run it: the boot copy, all
 ten sections of the program, the start-up stages, the file system and the resource reads from the other blocks. The
@@ -157,13 +157,13 @@ kind of update that our files never contain.
 Sources: [recovery: flash map](../firmware/recovery-technical.md#flash-map-and-what-an-update-writes), [boot](boot.md).
 </details>
 
-## 6. When the firmware is broken
+## 6. Broken firmware
 
 The camera protects itself with a **watchdog**, a timer in an always-on part of the main chip ([power block](../hardware/power-block.md)) that resets the camera unless a task kicks
 it every few seconds. Any serious fault (an exception, a deliberate "reboot") sets the watchdog to its shortest time
 and stops, so the camera resets about a second later. A fault that happens on every start becomes a **bootloop**.
 
-A task that hangs without faulting is different: the watchdog task keeps running, so the camera just sits there
+A task that hangs without faulting is different. The watchdog task keeps running, so the camera stays in that state
 frozen until the battery comes out.
 
 What can be fixed, roughly:
@@ -189,7 +189,7 @@ What can be fixed, roughly:
 Sources: [recovery](../firmware/recovery.md).
 </details>
 
-## How our builds use this
+## Our builds
 
 - **Builds are shipped as deltas.** We keep a small binary difference against the stock file in the repository, never
   the firmware itself, and rebuild the full file from it.
@@ -200,9 +200,9 @@ Sources: [recovery](../firmware/recovery.md).
   the update start always runs stock code and a card rescue stays possible.
 - **A spare card** with only the stock file on it is the first line of recovery.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|

@@ -1,4 +1,4 @@
-# Drawing with the vector GPU
+# Vector GPU
 
 This guide covers the E-M5 III's second drawing engine: the small vector graphics processor (GPU) that draws the colour
 wheels in the Color and Monochrome Profile editors. It covers three ways to use it: through Olympus's own driver,
@@ -11,7 +11,7 @@ Everything here was read from the stock 1.7 firmware. The second and third route
 which runs the camera's own code. None of it has been run on a camera yet. The facts and addresses are on the
 reference page [c3d GPU](../hardware/c3d-gpu.md).
 
-## The shape of it
+## Overview
 
 ```
 GUI screen (e.g. the Color Creator)
@@ -24,7 +24,7 @@ display controller: picture layer 2 (IMG2), under the GUI layers ◄────
 
 - **c3d** is a pair of firmware tasks that own the GPU. The GUI never draws on the GPU itself. It sends c3d messages.
 - **OpenVG 1.1** is the standard vector graphics interface (paths, paints, images, matrices). The camera carries a
-  vendor build by DMP, the company that designed the GPU. It has no OpenGL ES; the older PEN-F does.
+  vendor build by DMP, the company that designed the GPU. Unlike the older PEN-F, it has no OpenGL ES.
 - The GPU draws into one of two **draw buffers**. The display controller then shows that buffer as an extra picture
   layer under the GUI's own layers, with per-pixel transparency.
 
@@ -34,7 +34,7 @@ You can step in at three levels, each lower than the last:
 2. **Your own renderer**: put your code where a draw kind's renderer would be, and call OpenVG directly.
 3. **Raw command lists**: skip the library and write what the GPU reads.
 
-## 1. The pieces
+## 1. Components
 
 c3d is two tasks. **c3d_main** takes the GUI's messages: start a kind, update it, end it. **c3d_exe** does the drawing.
 For each kind it has a set-up step, a renderer and a tear-down step. A kind is one thing c3d knows how to draw, such as
@@ -99,9 +99,9 @@ and start it from a GUI screen the way the profile editors do. Section 9 of the 
 
 </details>
 
-## 3. Your own renderer
+## 3. Custom renderers
 
-A renderer is just a function that c3d_exe calls with the update data. Inside it you may call any of the library's
+A renderer is a function that c3d_exe calls with the update data. Inside it you may call any of the library's
 OpenVG calls. They work only there, because c3d_exe owns the drawing context they act on.
 
 We made a C header that names every library call at its address. Two things about the camera make plain C calls go
@@ -124,7 +124,7 @@ The emulator run caught two mistakes worth knowing about:
 - In OpenVG, **stroke is 1 and fill is 2**. We had them swapped, and fills came out as one-pixel outlines.
 - Settings such as the **stroke width carry over** to the next frame. Set them every frame.
 
-A few more limits apply: there is no linker, so avoid floating-point arithmetic (it calls helper routines that are not
+A few more limits apply. There is no linker, so avoid floating-point arithmetic (it calls helper routines that are not
 there) and keep static data in mind when you place the code.
 
 <details><summary>Where in the firmware</summary>
@@ -143,9 +143,9 @@ there) and keep static data in mind when you place the code.
 Under the library, the GPU reads lists of 32-bit words from memory. Each command is a header word followed by its
 data. The header holds:
 
-- a register number;
-- which bytes to write;
-- how many data words follow;
+- a register number
+- which bytes to write
+- how many data words follow
 - whether those words go to one register or to consecutive ones.
 
 ```
@@ -164,8 +164,8 @@ Each frame is **two lists**, one for each stage of the GPU:
 
 Paths live in memory as two buffers:
 
-- one byte per segment, using OpenVG's own segment codes (move, line, cubic and so on; arcs arrive already turned into
-  cubics);
+- one byte per segment, using OpenVG's own segment codes (move, line, cubic and so on). Arcs arrive already turned
+  into cubics.
 - the coordinates as floats.
 
 The coordinates stay in the path's own space. Moving or rotating a shape changes only the matrix in the list, so the
@@ -189,7 +189,7 @@ recipe.
 
 </details>
 
-## 5. Trying it in the emulator
+## 5. Emulator testing
 
 The om-emu emulator runs the camera's c3d tasks when the Color Creator is open. It can work in two ways:
 
@@ -220,7 +220,7 @@ in these notes' `tools/om-emu-c3d/` folder, and the header, example renderer and
   are still to do.
 - How often the layer can be redrawn (the frame rate) has not been measured.
 
-## Checked on other cameras
+## Other cameras
 
 | step | E-M5 III 1.7 | E-M1 III 1.6 | OM-5 1.2 | OM-5 II 1.1 | OM-1 1.9 | OM-1 II 1.3 | PEN-F 3.1 |
 |---|---|---|---|---|---|---|---|

@@ -47,7 +47,7 @@ Both work by changing gamma, and gamma applies to everything on screen, menus in
 too. A view that leaves the menus alone would need its own overlay built from the live frame.
 
 **Zebras.** The camera rewrites the zebra registers all the time, even with its own highlight and shadow view switched
-off. A mod that simply writes them ends up fighting the camera. Zebras need a hook at the point where the driver sets
+off. A mod that writes them directly ends up fighting the camera. Zebras need a hook at the point where the driver sets
 those registers.
 
 **Other ideas.** Peaking colours could be any colour, but the camera rewrites them too. Desqueeze for anamorphic lenses

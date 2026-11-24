@@ -2,15 +2,15 @@
 
 This guide shows how to put your own boxes, lines, curves, pictures, text and moving things on the E-M5 III's rear
 screen with the firmware's own drawing calls, and how to react to a touch. It follows on from
-[Drawing to the screen](drawing-to-the-screen.md), which explains the hardware: read that first if "layer", "palette"
+[Drawing to the screen](drawing-to-the-screen.md), which explains the hardware. Read that first if "layer", "palette"
 or "2D draw engine" are new to you.
 
-Every recipe here was run in the om-emu emulator (by the om-emu contributors, MIT licence) on the stock 1.7 firmware: the emulator
-runs the camera's own code, so the firmware draws, not a copy of it. None of it has been run on the camera yet; that
+Every recipe here was run in the om-emu emulator (by the om-emu contributors, MIT licence) on the stock 1.7 firmware. The emulator
+runs the camera's own code, so the firmware draws, not a copy of it. None of it has been run on the camera yet. That
 is the next step. The facts and addresses for each section are on the reference page
 [Drawing on the GUI layers](../hardware/osd-drawing.md).
 
-## The shape of it
+## Overview
 
 ```
 your code
@@ -27,14 +27,14 @@ Four rules cover most of it:
 1. Every draw call goes between **start** and **end**. Outside that bracket the calls are refused.
 2. You draw into a **buffer of a layer**. Nothing changes on screen until you **update**.
 3. A pixel is a **palette index**, not a colour. The layer's palette turns it into a colour and an opacity.
-4. The engine fills, copies and draws pictures. It has **no diagonal line, curve or circle**: those are built from
+4. The engine fills, copies and draws pictures. It has **no diagonal line, curve or circle**. Those are built from
    dots or short bars.
 
-## 1. Opening a batch and showing it
+## 1. Draw batches
 
 A batch starts with `drawOsdStart` and ends with `drawOsdEnd`. In between, each draw call becomes a request in a
 list. `drawOsdEnd` turns the list into engine commands and starts the engine. Then `gpiUpdateDisplay` tells the display
-controller which buffers to show; the switch happens at the next frame, so there is no tearing.
+controller which buffers to show. The switch happens at the next frame, so there is no tearing.
 
 Starting a second batch before the first has ended is refused with a log line ("called twice"). The GUI uses the same
 bracket for its own drawing, so your code should draw from the GUI's own task (for example from a screen's draw
@@ -50,14 +50,14 @@ handler or a GUI timer), not from an interrupt.
 
 </details>
 
-## 2. Where to draw: layers and buffers
+## 2. Layers and buffers
 
 The GUI has three 8-bit layers, each 896 × 600 pixels with four buffers. The rear screen shows 720 × 480 of that area.
 The default order puts **layer 2 on top**, then layer 1, then layer 0, and all three above the c3d layer and live view.
 
 - **Layer 1** holds most of the GUI: icons, menus, the shooting info.
 - **Layer 0** holds dimming boxes and is empty on many screens.
-- **Layer 2** is empty on the shooting screen. It is the natural place for your own overlay: you can clear it freely
+- **Layer 2** is empty on the shooting screen. It is the natural place for your own overlay. You can clear it freely
   without touching the GUI's drawing.
 
 Each call takes a "vinfo", the address of a small record describing one buffer of one layer. Pass the record for the
@@ -72,17 +72,17 @@ buffer you want to draw in. Six order codes swap the layers around if you need o
 
 </details>
 
-## 3. Colours and see-through
+## 3. Colours and transparency
 
 Each layer has a palette of 128 entries. An entry holds a colour (as YCbCr) and an opacity from 0 (invisible) to 31
 (solid). Entry 127 is transparent in every layer, so drawing with 127 erases.
 
-Opacity blends a layer with the layers under it, not with what you drew earlier on the same layer: a half see-through
-box drawn over another box on the same layer simply replaces those pixels.
+Opacity blends a layer with the layers under it, not with what you drew earlier on the same layer. A half see-through
+box drawn over another box on the same layer replaces those pixels.
 
 The GUI loads a fresh palette for each kind of screen (shooting, menus, playback, Super Control Panel), so a colour
 that is white on one screen can be something else on another. You can set your own entries with `GPISetPalette`. Pick
-entries the current screen does not use: on the shooting screen, setting layer 1's entries 120-126 also recoloured the
+entries the current screen does not use. On the shooting screen, setting layer 1's entries 120-126 also recoloured the
 AF frame and the grid lines, because they use those entries. Layer 0 accepts only its first 32 entries, layer 2 its
 first 64, and layer 1 all of them.
 
@@ -172,11 +172,11 @@ box, and draws the string in the camera's own antialiased font. Given the GUI's 
 layer 2. Four lines of our own text drew on the shooting screen this way.
 
 Two things to know. The font's edges use a run of palette entries next to the colour you choose, so on layer 2 some
-colours come out with odd fringes; colour 5 drew clean. And the English font has no accented letters or arrows (Ä, ß
+colours come out with odd fringes. Colour 5 drew clean. And the English font has no accented letters or arrows (Ä, ß
 and → did not draw). Text in other scripts needs the matching language font loaded.
 
 Under `DrawText`, each character is rendered into a glyph cache and drawn with `gpiDrawCharactor`, one call per
-character. Use `DrawText`; the per-character call needs a cached glyph.
+character. Use `DrawText`. The per-character call needs a cached glyph.
 
 <details><summary>Where in the firmware</summary>
 
@@ -196,7 +196,7 @@ other buffer for the frame after. To move something, erase it in its old place (
 what was under it) and draw it in the new place. A box moving along a sine path in twelve steps ran smoothly this way.
 
 The flip happens at the next display frame, so you cannot go faster than the screen (60 frames a second on the rear
-screen). A GUI timer is the right clock for it; the looks editors used one for a live histogram.
+screen). A GUI timer is the right clock for it. The looks editors used one for a live histogram.
 
 <details><summary>Where in the firmware</summary>
 
@@ -215,10 +215,10 @@ release, tap, double tap, slide, flick) and the GUI receives them as a touch mes
 screen pixels (720 × 480).
 
 The GUI then looks the point up in the current screen's list of touch areas. An area is a rectangle with an action
-number; when the point is inside it, the GUI sends that action on. Posting a touch at the Wi-Fi icon in the emulator
+number. When the point is inside it, the GUI sends that action on. Posting a touch at the Wi-Fi icon in the emulator
 lit the icon's box, exactly as a finger does.
 
-A button of your own is therefore: a box and a label on layer 2, and either an area in your screen's list (the GUI
+A button of your own is a box and a label on layer 2, and either an area in your screen's list (the GUI
 does the hit test) or your own handler for the touch message that checks the point against the box. Keys and dials
 arrive as control events in the same way (UP, DOWN, the two dials, OK).
 
@@ -233,7 +233,7 @@ arrive as control events in the same way (UP, DOWN, the two dials, OK).
 
 </details>
 
-## 9. Trying it in the emulator
+## 9. Emulator testing
 
 om-emu can call any firmware function on a running emulated camera and take a screenshot afterwards. Our small Python
 driver wraps the calls above (`start`, `rect`, `dot`, `bitmap`, `text`, `touch`, `update`), so a test is a few lines:
@@ -246,18 +246,19 @@ open a batch, draw, end, update, screenshot. The driver is in these notes' `tool
 *An overlay drawn with the camera's own GUI calls: a text box, a tone curve, a histogram and a dial. Emulator screenshot.*
 
 
-The emulator also runs the stock c3d vector layer under the GUI layers: the Color Creator wheel draws and redraws
+The emulator also runs the stock c3d vector layer under the GUI layers. The Color Creator wheel draws and redraws
 on each key, so a c3d drawing can be checked the same way (see
 [graphics pipeline](../hardware/graphics-pipeline.md) section 6a).
 
-Two things the emulator does not tell you: how long the engine takes on the real chip, and whether a hook that draws
+The emulator does not tell you how long the engine takes on the real chip, or whether a hook that draws
 from your own code is safe on the camera. Both need a camera run.
 
 ## 10. Limits
 
 - Three GUI layers, four buffers each, 8 bits per pixel, 128 palette entries per layer (fewer settable on layers 0
   and 2).
-- No diagonal, curve or circle primitive; no blending inside a layer.
+- No diagonal, curve or circle primitive.
+- No blending inside a layer.
 - Palettes change with the screen, so your colours can change under you.
 - Text only in the loaded language font.
 - Updates at most once per display frame.
@@ -265,7 +266,7 @@ from your own code is safe on the camera. Both need a camera run.
   update replaces your drawing, sometimes within 100 ms. Draw from the screen's own redraw path, or draw again after
   each GUI update.
 
-## Checked on other cameras
+## Other cameras
 
 | step | E-M5 III 1.7 | OM-5 1.2 | OM-5 II 1.1 | OM-1 1.9 | E-M5 II 4.1 | PEN-F 4.1 | E-M5 (Mark I) 2.3 |
 |---|---|---|---|---|---|---|---|

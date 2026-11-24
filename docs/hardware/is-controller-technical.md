@@ -1,6 +1,6 @@
 # Image-stabiliser controller: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [The image-stabiliser controller](is-controller.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Stabiliser controller](is-controller.md).
 
 The program of the IS controller (block 3, "LUKE", block kind 0x10e) read end to end on 2026-11-23: memory layout, the
 two cores, the maths extension ops, the I/O blocks, the command path from the main processor, and the OM-5 differences.

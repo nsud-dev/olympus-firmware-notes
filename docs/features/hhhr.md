@@ -23,7 +23,7 @@ Where it stood when the research closed on 24 November 2026, on the E-M5 III:
   is not in use. The hand-held version can reuse the tripod mode's memory.
 - **The helper processor can be started.** Part of the alignment maths runs on a small ARM processor inside the camera,
   which is normally asleep unless Wi-Fi is on. Our code can now switch it on for a shot and off again cleanly.
-- **Not proven:** whether those four programs actually compose a correct picture on this camera. They have been loaded,
+- **Not proven:** whether those four programs compose a correct picture on this camera. They have been loaded,
   never run on real frames.
 
 The next two steps were built or planned. One test build sends a single request to the ARM helper. After that the

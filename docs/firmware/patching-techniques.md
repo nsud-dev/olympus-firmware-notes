@@ -1,6 +1,6 @@
 # Modifying the firmware
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Anatomy of a feature port](../guides/port-anatomy.md).
+> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Feature ports](../guides/port-anatomy.md).
 
 This page collects the ways we have changed the E-M5 Mark III's firmware and seen them work, one technique per
 section. Each section gives the method in general terms, the pitfalls we hit, how to take it further, and a link to

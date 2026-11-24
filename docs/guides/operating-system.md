@@ -1,4 +1,4 @@
-# The MN103 operating system
+# Operating system
 
 *Guide 3 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*
@@ -14,8 +14,8 @@ are entered) are not traced yet.
 ## 1. Overview
 
 μITRON is a Japanese specification for small real-time kernels, written by the TRON project and used in a great many
-cameras, printers and appliances. It is a specification, not one product: each vendor writes or licenses its own
-kernel to it. Which kernel Olympus used isn't known; its error codes match version 4.0 of the specification.
+cameras, printers and appliances. It is a specification, not one product. Each vendor writes or licenses its own
+kernel to it. Which kernel Olympus used isn't known. Its error codes match version 4.0 of the specification.
 
 A μITRON kernel offers a fixed menu of **objects**, and the camera has all the usual ones:
 
@@ -31,7 +31,7 @@ Calls that can be made from an interrupt handler have their own `i`-prefixed ver
 `loc_cpu`). The usual style is to create the objects once at start-up from a configuration table, which is what this
 firmware does for its tasks (section 3).
 
-Scheduling is pre-emptive by priority: the highest-priority task that is ready runs, and it keeps the processor until it
+Scheduling is pre-emptive by priority. The highest-priority task that is ready runs, and it keeps the processor until it
 waits for something or a more urgent task becomes ready. In μITRON a **lower number means more urgent**.
 
 <details><summary>Where in the firmware</summary>
@@ -54,7 +54,7 @@ abbreviations: `OlyTaSt` (task start), `OlySmWt` and `OlySmSi` (semaphore wait a
 each. Each has a `...Cpu` version that takes an id which also says which core the object belongs to (section 7).
 
 The ids themselves are kept as 16-bit constants in one block of the program, so a call usually looks like "load
-the id from a fixed address, then call `OlyEvWtCpu`". That makes the ids easy to follow in the disassembly: two pieces
+the id from a fixed address, then call `OlyEvWtCpu`". That makes the ids easy to follow in the disassembly. Two pieces
 of code that load the same constant are talking to the same object.
 
 <details><summary>Where in the firmware</summary>
@@ -72,18 +72,18 @@ Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-s
 [useful routines](../hardware/mn103-cpu.md).
 </details>
 
-## 3. Tasks: a table built into the program
+## 3. Task table
 
 The tasks for the main core are not created one by one in code. They are listed in a table compiled into the program,
 one 28-byte record per task: the function the task runs, its priority, and its stack size. There are 144 of them. Task
-id N is simply record N, so starting a task is "start id 25" and the kernel finds the rest in the table. Start-up
+id N is record N, so starting a task is "start id 25" and the kernel finds the rest in the table. Start-up
 (see [boot](boot.md#4-the-operating-system-and-the-first-tasks)) walks through its stages starting tasks by id.
 
 Some things the table shows:
 
 - **Priorities cluster.** Most tasks (82) run at priority 55, a large group (28) at 25, and a few elsewhere between 1
   and 66. The shooting sequencer runs at 25, so it can interrupt the many ordinary tasks at 55. Two tasks run far above
-  everything else (priorities 1 and 15); what they do isn't identified yet.
+  everything else (priorities 1 and 15). What they do isn't identified yet.
 - **Stacks are small.** 1 to 4 KB each, about 416 KB for all 144. Code that runs on a task's stack (a patch's hook, for
   instance) has little room to spare.
 - **Names live elsewhere.** The table has no names. Names such as PER_WDT, STB_SEQ or FCS come from log strings printed
@@ -104,10 +104,10 @@ Some things the table shows:
 Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19).
 </details>
 
-## 4. How a task spends its life
+## 4. Task states
 
 Almost every task has the same shape: a loop that waits for something, handles it, and waits again. While it waits, it
-uses no processor time. This is what makes a camera with 144 tasks practical: at any moment nearly all of them are
+uses no processor time. This is what makes a camera with 144 tasks practical. At any moment nearly all of them are
 blocked on a queue, a flag or a semaphore.
 
 Two examples from the main core:
@@ -131,11 +131,11 @@ sequencer_task:
 ```
 
 This one pattern, "wait on a flag or queue, then dispatch by state", covers a large part of the firmware. The
-[sequencer's state tables](../firmware/shooting-sequencer.md) are one instance; the generated components in section 6
+[sequencer's state tables](../firmware/shooting-sequencer.md) are one instance. The generated components in section 6
 are another.
 
 If a handler gets an event its state has no entry for, the sequencer logs it and prints a history of recent events
-(this is how our Live ND work found its missing handlers; see the end section).
+(this is how our Live ND work found its missing handlers, see the end section).
 
 <details><summary>Where in the firmware</summary>
 
@@ -151,9 +151,9 @@ Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-s
 [shooting sequencer](../firmware/shooting-sequencer.md), [recovery](../firmware/recovery.md).
 </details>
 
-## 5. Interrupts: the other context
+## 5. Interrupts
 
-Code runs in one of two contexts. **Task context** is ordinary code on a task's stack: it may wait, take locks and call
+Code runs in one of two contexts. **Task context** is ordinary code on a task's stack. It may wait, take locks and call
 anything. **Interrupt context** is code run by a hardware interrupt, borrowing whatever was running at the time. It
 must finish quickly and must never wait, because nothing else on that core can run until it returns. That rules out
 semaphores, file access and anything that might block.
@@ -179,7 +179,7 @@ places, including inside the Olympus layer, which appears to use it to pick the 
 Sources: [useful routines](../hardware/mn103-cpu.md), [patching techniques](../firmware/patching-techniques.md).
 </details>
 
-## 6. Rhapsody OXF on top
+## 6. Rhapsody OXF
 
 Much of the application layer is C++ generated by IBM Rhapsody from state diagrams
 ([background](rhapsody-and-oxf.md)). That code runs on Rhapsody's small runtime, OXF, and OXF reaches the kernel
@@ -204,19 +204,19 @@ traced yet.
 Sources: [OS and framework](../firmware/os-and-framework.md#the-framework-rhapsody-oxf).
 </details>
 
-## 7. One kernel per core
+## 7. Kernels per core
 
 The system-on-chip has several MN103 cores, and each runs its own copy of the kernel with its own tasks and objects.
 The debug commands show this directly: every object type exists three times, plain for the main core (CPU0) and with a
 `1` or `2` suffix for CPU1 and CPU2.
 
-An id says which core it belongs to: the core number sits in the top bits (id = core × 4096 + index). That is why the
+An id says which core it belongs to. The core number sits in the top bits (id = core × 4096 + index). That is why the
 API has `...Cpu` versions. During start-up the main core starts tasks 4120 and 8213, which are task 24 on CPU1 and task
 21 on CPU2. Each core finds its own kernel data through a small table in memory shared by all cores, indexed by a
 word at a fixed low address that holds the core's number.
 
 How the cores pass messages to each other, and to the ARM, is the subject of
-[How the cores talk to each other](cores.md). What CPU1 and CPU2
+[Core communication](cores.md). What CPU1 and CPU2
 run, and where their task tables are, is still open (research gaps).
 
 <details><summary>Where in the firmware</summary>
@@ -231,14 +231,14 @@ run, and where their task tables are, is still open (research gaps).
 Sources: [OS and framework](../firmware/os-and-framework.md#debug-consoles) (task table route).
 </details>
 
-## 8. Looking at it on a running camera
+## 8. Live inspection
 
 The firmware keeps μITRON's debugging aids. The system shell, which reads the serial port, has `ps` (list the tasks
 and their states), `od` (dump any kernel object, or all of one type), `oserr` (print the error-code legend) and
 `chgpri` (change a task's priority). A second, user-level shell carries most of the camera's own commands. On a retail
 camera the user shell is reachable through a stock card-file switch that brings up a Wi-Fi network with the shell on
 port 23. We use it on our camera: `take dbgmode 1` streams the sequencer's states and events live to a laptop, which
-is how the Live ND runs are traced. A `:` prefix should reach the system shell from there; that part hasn't been
+is how the Live ND runs are traced. A `:` prefix should reach the system shell from there. That part hasn't been
 tried.
 
 One catch: `ps` writes its rows straight to the serial port, so its output can't be read back from the console log.
@@ -256,7 +256,7 @@ One catch: `ps` writes its rows straight to the serial port, so its output can't
 Sources: [debug consoles](../firmware/os-and-framework.md#debug-consoles), [Wi-Fi debug shell](../features/wifi-debug-shell.md).
 </details>
 
-## What this means for our patches
+## Patching notes
 
 The rules our builds follow (see [patching techniques](../firmware/patching-techniques.md)) come straight from this
 picture:
@@ -268,12 +268,12 @@ picture:
   the result was the history dump from section 4, which is how the missing handlers were found.
 - **Mind the stack.** Tasks have 1-4 KB stacks. Hook code copies the native call frame exactly and keeps its own frame
   small.
-- **Don't hold up a fast task.** The sequencer runs at priority 25 above most of the camera; work done in its handlers
+- **Don't hold up a fast task.** The sequencer runs at priority 25 above most of the camera. Work done in its handlers
   delays everything at 55.
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 1.9 | PEN-F 3.1 | other projects |
 |---|---|---|---|---|---|---|---|
@@ -285,6 +285,6 @@ Each step checked against the firmware of other bodies. Nothing is assumed: "not
 | sequencer task waits on an event flag | yes | not checked | not checked | not checked | not checked | not checked | — |
 | task id N = record N | yes | not checked | not checked | not checked | not checked | not checked | — |
 
-"Not found" means the string search found nothing; the framework may still be there under other strings.
+"Not found" means the string search found nothing. The framework may still be there under other strings.
 [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19),
 oly_fw_analysis notes.

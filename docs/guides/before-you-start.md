@@ -23,7 +23,7 @@ Bluetooth, and a programmable **image engine**. A separate small processor drive
   ([Rhapsody and OXF](rhapsody-and-oxf.md)). The machinery underneath, such as the shooting sequencer, recording and the
   SD driver, is hand-written C.
 - **Interrupt context.** Some code runs inside hardware interrupt handlers. It must not wait, take a lock or touch a
-  file; it can only post a message for a task to handle later.
+  file. It can only post a message for a task to handle later.
 - **Properties.** Settings and many pieces of live state are numbered values in a central store, read and written by
   id. For example, property 3265 is the drive mode
   ([settings and menus](../firmware/settings-and-menus.md)).
@@ -44,7 +44,7 @@ Bluetooth, and a programmable **image engine**. A separate small processor drive
 
 The image engine is a programmable pixel processor (the firmware treats it as a "DSP"). It runs small programs that we
 call **jobs**, each loaded into RAM and started with a record of parameters: develop a raw frame, resize, merge frames.
-The CPU starts a job and is told when it finishes; it never touches the pixels itself
+The CPU starts a job and is told when it finishes. It never touches the pixels itself
 ([image engine](../hardware/image-engine.md)).
 
 ## Exposure units
@@ -59,7 +59,7 @@ scale where one step is one stop of light:
 The firmware stores each as APEX × 256, so 256 is one stop. For example, a Tv of 0x600 is APEX 6, which is 1/64 s
 (shown as 1/60).
 
-## How sure we are
+## Evidence tags
 
 Every fact in the reference pages carries a tag: **[camera]** means seen on a real E-M5 III, **[code]** means read in the
 firmware, and **[inferred]** means it follows from evidence but hasn't been traced or tested. The guides keep the

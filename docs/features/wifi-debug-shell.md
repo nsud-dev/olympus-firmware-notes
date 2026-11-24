@@ -103,7 +103,7 @@ E-M5 III before we tried it.
 
 ## Further reading
 
-- [How a button works](../guides/button-press.md) follows a button press from the key to the app, which is the path
+- [Buttons](../guides/button-press.md) follows a button press from the key to the app, which is the path
   the remote presses use.
 - [Taking a photo](../guides/taking-a-photo.md) explains the shooting sequencer whose trace the shell prints.
 - [Modifying the firmware](../firmware/patching-techniques.md), sections 11, 16 and 17, covers watching runs live,

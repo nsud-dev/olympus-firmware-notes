@@ -13,7 +13,7 @@ everything after development) are only partly mapped, and each section says so.
 Each section ends with a collapsed **Where in the firmware** box holding the addresses and how each fact is known.
 You can skip them.
 
-## Who does what
+## Roles
 
 Four layers of the main program take part:
 
@@ -81,7 +81,7 @@ released does it unwind through RdyAbort and RdyEnd.
 
 "Standby" is a misleading name. It is the first state *after* the full press, where the shot's parameters are read.
 
-**S-AF and C-AF** don't appear as separate states: both go through the same RdyFcsRdy1-3 and RdyTrig2Wait. The
+**S-AF and C-AF** don't appear as separate states. Both go through the same RdyFcsRdy1-3 and RdyTrig2Wait. The
 difference is presumably handled inside the focus task, which runs alongside the sequencer, but that isn't traced yet.
 If the full press arrives early, RdyFcsRdy2 can go to a "fast" variant of the waiting state, RdyFastTrig2Wait, which
 leads to the same place.
@@ -104,18 +104,18 @@ high-speed sequential modes have a separate loop of their own (HsContTake, HsCon
 All 34 state numbers and every transition: [shooting sequencer](../firmware/shooting-sequencer.md#state-names-and-the-single-shot-path-2026-11-19).
 </details>
 
-## 1. Half-press: the sensor changes mode
+## 1. Half-press
 
 Before the half-press the camera is in live view. The sensor reads out a reduced picture 120 times a second, and the
 frames flow through the image engine to the screen without the CPU copying any pixels
 ([graphics pipeline](../hardware/graphics-pipeline.md#5-live-view-frames)).
 
 During the half-press the sensor runs a different mode at 60 frames a second, used for focusing and metering. The
-switch is made with a sensor mode request. Auto exposure switches with it: it has its own mode numbers, one for live
+switch is made with a sensor mode request. Auto exposure switches with it. It has its own mode numbers, one for live
 view and one for half-press.
 
 The three RdyFcsRdy states are the focusing phase. What each one waits for isn't traced yet. Focusing itself runs in
-the focus task (FCS), and one of the image-engine jobs (job 0) is very probably its image processing.
+the focus task (FCS), and one of the image-engine jobs (job 0) is probably its image processing.
 
 <details><summary>Where in the firmware</summary>
 
@@ -131,7 +131,7 @@ Sources: [sensor](../hardware/sensor-technical.md#sensor-mode-requests), [Live N
 [image engine](../hardware/image-engine-technical.md#the-e-m5-iiis-own-jobs-0-to-10-mapped-2026-11-06).
 </details>
 
-## 2. Full press: the shot is set up
+## 2. Full press
 
 The full press moves the machine through RdyFcsTake into **Standby**. Standby reads the shot's parameters from a
 message sent by the layer above. One byte of that message is the **route**, a number from 0 to 4 that says what kind
@@ -157,10 +157,10 @@ changing a setting no longer affects this shot.
 Sources: [shooting sequencer](../firmware/shooting-sequencer.md#the-exposure-record).
 </details>
 
-## 3. Choosing how to take it
+## 3. Shot type
 
 At the end of StlRdy2 a short function decides which take state runs. This is pseudocode written from the disassembly,
-not compiled code: the function is still in assembly in our decompile, so byte-matching C will have to wait for the
+not compiled code. The function is still in assembly in our decompile, so byte-matching C will have to wait for the
 decompile to reach it.
 
 ```
@@ -175,7 +175,7 @@ choose_take_state:
     go to next
 ```
 
-For a normal single photo the answer is **StlTake**.
+For a normal single photo it is **StlTake**.
 
 <details><summary>Where in the firmware</summary>
 
@@ -199,7 +199,7 @@ The raw frame is the sensor's data before any processing: 12 bits per pixel in a
 10 pixels to 16 bytes, 5240 × 3912 pixels read out (the picture is 5184 × 3888), and stored upside down relative to the
 picture.
 
-How StlTake runs internally is the biggest gap in this guide: when the shutter is fired, which interrupt reports that
+How StlTake runs internally is the biggest gap in this guide. We have not traced when the shutter is fired, which interrupt reports that
 the frame is in memory, and how it is handed on. The high-speed stream path (StlUhs) is much better mapped, because Live
 ND uses it. It is described in the Live ND section below, but it is a different path from an ordinary single shot.
 
@@ -228,7 +228,7 @@ applies black level and white balance. **Job 5** resizes to full and half size. 
 parameters, not proven.
 
 The hand-over itself is short. It pairs the frame with a free development slot, or parks it until one is free. This
-is pseudocode; the decompiled C for it exists and is verified equal to stock, but its helpers don't have names yet (see
+is pseudocode. The decompiled C for it exists and is verified equal to stock, but its helpers don't have names yet (see
 the box):
 
 ```
@@ -254,7 +254,7 @@ Sources: [image engine](../hardware/image-engine-technical.md#the-e-m5-iiis-own-
 [sensor](../hardware/sensor-technical.md#how-a-raw-frame-is-stored-in-ram-one-main-pool-slot).
 </details>
 
-## 6. JPEG and the card
+## 6. JPEG and card writing
 
 The last stretch is mostly unmapped. We know the layers by their source-file names: the recording layer hands the
 finished image to a media layer, a group of modules chooses the DCIM folder and file number, and the SD driver writes
@@ -271,7 +271,7 @@ writes the file are all open.
 
 </details>
 
-## How Live ND changes this
+## Live ND changes
 
 Live ND (OM-5 donor feature, ported to the E-M5 III) needs many short frames instead of one long one, and has to
 merge them before development. It changes the path in three places.
@@ -281,7 +281,7 @@ merge them before development. It changes the path in three places.
    it isn't, it behaves exactly like StlTake.
 2. **The high-speed stream path.** Live ND takes its frames through **StlUhs**, the stream state normally used for
    route 4. StlUhs runs at a fixed rate (60, 30, 20 or 15 frames a second) whatever the shutter speed. Each finished
-   frame raises an interrupt. Because the handler runs in interrupt context, it only posts events: one to refill the
+   frame raises an interrupt. Because the handler runs in interrupt context, it only posts events. One to refill the
    stream and prepare the next frame (including its EXIF data), and one to send the frame to development. Buffer rows
    must be returned every frame, or the stream stalls after four.
 3. **A merge before development.** The frames are averaged with the OM-5's image-engine job 11, and only the merged
@@ -302,9 +302,9 @@ The details, and every place where our code joins the native code, are in [Live 
 Source: [shooting sequencer](../firmware/shooting-sequencer.md#how-the-stluhs-burst-streams-frames).
 </details>
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know.
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know.
 
 | step | E-M5 III 1.7 | OM-5 1.2 | E-M1 III 1.6 | OM-5 II 1.1 | OM-1 | PEN-F |
 |---|---|---|---|---|---|---|

@@ -11,7 +11,7 @@ the time and still fail now and then.
 The early part (first instructions, copies, first tasks, section loading) is mapped from the code. What runs before
 the main program, and the last stretch up to the first live-view frame, are not.
 
-## The shape of it
+## Overview
 
 The main program (block 0 of the firmware file, about 24 MB) runs from RAM, not from flash. But it is not copied into
 RAM all at once. The boot code copies a small part straight away, starts the operating system from that part, and
@@ -43,7 +43,7 @@ Every later stage waits for the sections it needs.
 
 ## 1. Before the main program
 
-Something runs before the main program and jumps to its entry point in flash. We have never seen that code: it is
+Something runs before the main program and jumps to its entry point in flash. We have never seen that code. It is
 either in a boot area at the start of flash, which our firmware files never touch, or in mask ROM inside the chip.
 Whether it checks the main program before starting it is unknown.
 
@@ -66,7 +66,7 @@ Sources: [recovery](../firmware/recovery-technical.md#what-checks-what-at-power-
 
 ## 2. The first instructions
 
-The entry point does the minimum to get to C code: it masks interrupts, sets up a couple of CPU registers, points the
+The entry point does the minimum to get to C code. It masks interrupts, sets up a couple of CPU registers, points the
 interrupt vectors at handlers in the part of the program that is about to be copied, prepares two RAM ranges, sets
 the stack pointer into a small block of on-chip memory, and jumps to the boot stub.
 
@@ -92,9 +92,9 @@ system. It runs four steps:
 1. **Memory and clock set-up**, by writing hardware registers.
 2. **The copy.** Six blocks go from flash to RAM:
    - the **always-ready code**, 642 KB, which holds the operating system, the section loader, the interrupt handlers
-     and the start-up stages;
-   - four blocks of **initialised data** (global variables with starting values), about 230 KB in total;
-   - one small 6 KB block.
+     and the start-up stages
+   - four blocks of **initialised data** (global variables with starting values), about 230 KB in total
+   - one small 6 KB block
 3. Two more initialisation steps, whose purpose isn't known yet.
 4. **Start the operating system**, by jumping into the code just copied.
 
@@ -133,7 +133,7 @@ The main program runs **μITRON**, a real-time operating system, with Olympus's 
 for:
 
 - **PER_WDT**, the watchdog keeper. The watchdog itself lives in a small always-on part of the main chip (the [power block](../hardware/power-block.md)) and resets the camera if it
-  isn't "kicked" regularly. Boot sets its timeout (the value 10; the unit isn't confirmed) and PER_WDT kicks it every 3 seconds.
+  isn't "kicked" regularly. Boot sets its timeout to 10 (unit not confirmed) and PER_WDT kicks it every 3 seconds.
 - **PER_PCONT**, power control.
 - **BCHK_MAIN**, battery check.
 - **PER_IN**, the buttons and dials.
@@ -183,7 +183,7 @@ raising a section's end value in the loader table makes the loader copy our code
 Source: [sections load in the background](../firmware/boot-and-sections.md#sections-load-in-the-background).
 </details>
 
-## 6. Stages 2 to 5: the camera comes up
+## 6. Stages 2 to 5
 
 Code in section 1 continues the start-up in stages 2 to 5. Each stage waits for the sections it needs and then starts
 the tasks whose code lives there:
@@ -214,7 +214,7 @@ Sources: [boot order](../firmware/boot-and-sections.md#boot-order-and-why-hooks-
 [card updater](../firmware/recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
 </details>
 
-## 7. What can go wrong
+## 7. Failures
 
 **Racing the loader.** A patch that sits in an early section and jumps into code in a later section can run before
 that code is in RAM. On our Live ND builds this gave intermittent "dead at power-on" and "live view, then reset" failures.
@@ -225,7 +225,7 @@ boots succeeded.
 **Faults turn into boot loops.** Any fault (a bad address, an illegal instruction) raises a non-maskable interrupt.
 The handler sets the watchdog to one second and spins, so the camera resets about a second later and leaves no trace.
 If the fault happens on every boot, the camera loops. A task that merely hangs doesn't reset, because the watchdog
-task keeps kicking; that needs a battery pull.
+task keeps kicking. That needs a battery pull.
 
 **Writing into the program.** Other projects found that storing into the loaded program's own memory restarted the
 E-P7 and OM-5 II, and kept restarting them if the change was saved as a setting. We keep state out of the program
@@ -248,9 +248,9 @@ Sources: [boot and sections](../firmware/boot-and-sections.md#boot-order-and-why
 [recovery](../firmware/recovery.md), Atlas-linked projects.
 </details>
 
-## Checked on other cameras
+## Other cameras
 
-Each step checked against the firmware of other bodies. Nothing is assumed: "not checked" means we don't know. The
+Each step checked against the firmware of other bodies. Nothing is assumed. "Not checked" means we don't know. The
 last column holds what other projects (linked from the OM Firmware Atlas) report for their bodies, which we have not
 re-checked ourselves.
 
