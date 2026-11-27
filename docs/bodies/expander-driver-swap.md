@@ -1,18 +1,20 @@
 # I/O expander driver swap
 
 <!-- human page -->
+<!-- house style -->
+
+## Key points
+
+- The moved driver never sent a valid message to its chip, because every message went out as zeros.
+- That one fault caused three symptoms in different parts of the camera.
+- It took about three hours and six camera tests to find, and copying the missing function fixed all of them.
+- The fault was in our change, and the stock firmware of every body involved is correct.
 
 This page reports one bug of our own making. In an experiment, a driver was moved from one firmware version into
 another, and one of its functions was left behind. The same mistake is easy to make with any moved driver. The
 hardware background is in [E-M5 III family hardware](om5-family-hardware.md).
 
 The fault was in our change. The stock firmware of every body involved is correct.
-
-## Summary
-
-The moved driver never sent a valid message to its chip. Every message went out as zeros. That one fault caused
-three symptoms in different parts of the camera. It took about three hours and six flashes to find. Copying the
-missing function fixed all of them.
 
 ## Background
 
@@ -35,6 +37,8 @@ about 6 KB with 16 entry points.
 | Starting Wi-Fi reset the camera within about 2.5 seconds | The driver waits one second for the chip to answer a power request. With no answer it calls its fatal-error routine, which resets the camera on purpose. |
 | Start-up took about five seconds | The driver was waiting for a chip that never answered. |
 
+*The symptoms and how the one fault explains each.*
+
 ## Root cause
 
 The driver builds each message in a buffer of its own and then sends that buffer. The function that fills the buffer
@@ -53,7 +57,7 @@ The first test did not start at all, for a different reason. The copied driver's
 a free gap inside the program code. The processor reads code through its cache. Writing data there left the cache
 and the memory out of step, and the screen stayed black.
 
-## Leads that were wrong
+## Wrong leads
 
 - **A flag in the always-on power block.** The start-up loader skips its key check when the flag is set. Clearing
   the flag at every power-off did not restore the card update.
@@ -97,5 +101,8 @@ Patch 0010 catches the earlier fault. It fails any write into the always-loaded 
 - When one program shows several unrelated faults, check for a shared lower layer first.
 - One part working is evidence for another part only if the first depends on the second.
 
-Related: [E-M5 III family hardware](om5-family-hardware.md),
-[Failure patterns](../reference/failure-patterns.md), [Recovery](../firmware/recovery.md).
+## Further reading
+
+- [E-M5 III family hardware](om5-family-hardware.md) has the hardware background.
+- [Failure patterns](../reference/failure-patterns.md) collects faults like this one.
+- [Recovery](../firmware/recovery.md) covers the card updater.

@@ -1,15 +1,18 @@
 # Histogram
 
 <!-- human page -->
-> The dense reference for this page is the histogram part of [Display and OSD](../hardware/display.md) and section 4.3 of the [display controller register notes](../hardware/vsc-display-controller-technical.md).
+<!-- house style -->
+> The dense reference for this page is the histogram part of [Display and OSD](../hardware/display.md#histogram) and the histogram section of the [display controller register notes](../hardware/vsc-display-controller-technical.md#histogram).
+
+## Key points
+
+- The histogram is measured by a small unit in the display controller, not by software.
+- That unit sees the finished picture, so it can't show true sensor clipping.
+- Live view measures brightness only, and picture review measures red, green and blue one after another.
+- The firmware already supports a live red, green and blue histogram, and our experiment showed the three curves on the camera.
 
 The E-M5 III shows a brightness histogram in live view. In playback it can also show red, green and blue. This
 page explains how the curves are measured, and what a live red, green and blue histogram would need.
-
-## Status
-
-The stock behaviour is read from the firmware and seen on the camera. A live RGB histogram has been tried as an
-experiment. It showed the three curves on the camera, but it does not yet run cleanly beside the stock drawing.
 
 ## Display hardware
 
@@ -33,7 +36,7 @@ That is how playback gets its red, green and blue curves.
 
 ## Live RGB histogram
 
-The firmware already supports this. The request the application hands to the driver has four result
+The firmware already supports a live red, green and blue (RGB) histogram. The request the application hands to the driver has four result
 slots, one per channel. The driver runs whichever slot is filled. A debug command even has a "brightness and RGB"
 option beside "brightness only".
 
@@ -65,6 +68,11 @@ exposure. It predicts the photo only while live view simulates the shot's exposu
 The same per-channel histogram code and names are in the OM-5 and OM-1 firmware. It is shared code and not a feature
 of newer bodies.
 
+## Status
+
+The stock behaviour is read from the firmware and seen on the camera. A live RGB histogram has been tried as an
+experiment. It showed the three curves on the camera, but it does not yet run cleanly beside the stock drawing.
+
 <details><summary>Where in the firmware</summary>
 
 | what | where (E-M5 III 1.7) | known from |
@@ -77,6 +85,12 @@ of newer bodies.
 | live-view INFO drawing | `draw_shooting` 0x60e1a3dd | [code] |
 | curve drawing | `draw_Histogram_Parts` 0x60e1ae5b | [code] |
 
+*Histogram functions and registers in the E-M5 III 1.7 firmware.*
+
 </details>
 
-Related: [Display and OSD](../hardware/display.md), [Live view](../guides/live-view.md).
+## Further reading
+
+- [Display and OSD](../hardware/display.md#histogram) has the histogram internals.
+- [Display controller registers](../hardware/vsc-display-controller-technical.md#histogram) has the histogram registers.
+- [Live view](../guides/live-view.md) explains how the live-view picture is made.

@@ -1,12 +1,23 @@
 # Operating system
 
-*Guide 3 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 3 · E-M5 III firmware 1.7 · draft 1. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*
 
-This guide explains what the main program runs on: the μITRON real-time operating system, the thin Olympus layer over
-it, the tasks it schedules, and how those tasks pass work to each other. It ends with the generated-code framework on
-top (Rhapsody OXF), the fact that each control core runs its own copy of the kernel, and the debug commands that let
-you look at all of this on a running camera.
+## Key points
+
+- The main program runs on a μITRON real-time kernel, wrapped in a thin Olympus layer of task, flag, queue and
+  semaphore calls.
+- The 144 tasks of the main core come from a table compiled into the program, and nearly all of them spend their time
+  waiting.
+- Interrupt handlers must never wait, so they hand work to tasks, and hooks must know which context they run in.
+- Each control core runs its own copy of the kernel, and every object id says which core it belongs to.
+
+This guide explains what the main program runs on. That is the μITRON real-time operating system, the thin Olympus
+layer over it, the tasks it schedules, and how those tasks pass work to each other. It ends with the generated-code
+framework on top (Rhapsody OXF), the fact that each control core runs its own copy of the kernel, and the debug
+commands that let you look at all of this on a running camera.
 
 Most of the structure is clear from the code. The scheduler's own details (time slicing, the idle task, how interrupts
 are entered) are not traced yet.
@@ -43,7 +54,9 @@ waits for something or a more urgent task becomes ready. In μITRON a **lower nu
 | kernel call names in error messages (`wai_sem`, `sig_sem`, `tslp_tsk`, `act_tsk`, `get_tim`, `loc_cpu`/`iloc_cpu`) | strings | [code] |
 | lower number = more urgent | μITRON rule, not traced in this kernel | [inferred] |
 
-Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19).
+*Kernel object types, error codes and call names found in the firmware.*
+
+Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-and-the-static-task-table).
 </details>
 
 ## 2. Olympus's layer
@@ -68,14 +81,16 @@ of code that load the same constant are talking to the same object.
 | meanings of the two-letter verbs | from the names | [inferred] |
 | object ids (u16 constants) | around 0x60040b00-0x60041300, e.g. 0x60040dc0, 0x60040f9e | [code] |
 
-Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19),
+*The Olympus layer's entry points and the block of object ids.*
+
+Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-and-the-static-task-table),
 [useful routines](../hardware/mn103-cpu.md).
 </details>
 
 ## 3. Task table
 
 The tasks for the main core are not created one by one in code. They are listed in a table compiled into the program,
-one 28-byte record per task: the function the task runs, its priority, and its stack size. There are 144 of them. Task
+with one 28-byte record per task. A record holds the function the task runs, its priority and its stack size. There are 144 of them. Task
 id N is record N, so starting a task is "start id 25" and the kernel finds the rest in the table. Start-up
 (see [boot](boot.md#4-the-operating-system-and-the-first-tasks)) walks through its stages starting tasks by id.
 
@@ -101,12 +116,14 @@ Some things the table shows:
 | priority 1 and 15 tasks | 0x60052147 (record 1), 0x6005365e (record 139) | [code] |
 | total stack | 0x67e88 bytes | [code] |
 
-Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19).
+*The main core's task table and some of its records.*
+
+Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-and-the-static-task-table).
 </details>
 
 ## 4. Task states
 
-Almost every task has the same shape: a loop that waits for something, handles it, and waits again. While it waits, it
+Almost every task has the same shape. It is a loop that waits for something, handles it, and waits again. While it waits, it
 uses no processor time. This is what makes a camera with 144 tasks practical. At any moment nearly all of them are
 blocked on a queue, a flag or a semaphore.
 
@@ -119,7 +136,7 @@ event for it (a button half-pressed, a frame finished). The sequencer then takes
 handler for its current state:
 
 ```
-pseudocode, written from the disassembly (0x602a0f90; byte-matching C waits for the decompile), simplified
+pseudocode in our own words, summarised from the disassembly (0x602a0f90), simplified
 
 sequencer_task:
     loop forever:
@@ -147,7 +164,9 @@ If a handler gets an event its state has no entry for, the sequencer logs it and
 | watchdog task wait | `OlyQeRdCpu`, queue id u16 at 0x60040f9e | [code] |
 | watchdog kick period | 3 s | [code] |
 
-Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19),
+*Where the sequencer and the watchdog task wait.*
+
+Sources: [OS and framework](../firmware/os-and-framework.md#kernel-objects-and-the-static-task-table),
 [shooting sequencer](../firmware/shooting-sequencer.md), [recovery](../firmware/recovery.md).
 </details>
 
@@ -160,7 +179,7 @@ semaphores, file access and anything that might block.
 
 The usual way out is to do the minimum in the interrupt (note what happened, set an event flag bit or post to a
 queue with the `i`-prefixed calls) and let a task do the real work. The camera follows this widely. A few completion
-routines do more than that inside the interrupt, which matters when you hook them: the burst-capture frame completion,
+routines do more than that inside the interrupt, which matters when you hook them. The burst-capture frame completion,
 for example, runs in interrupt context.
 
 The firmware has a function that tells the two apart (it returns 0 in task context). Native code calls it in 163
@@ -176,6 +195,8 @@ places, including inside the Olympus layer, which appears to use it to pick the 
 | interrupt vectors | written to 0x8000-0x801c at boot, handlers 0x60030020-0x60030080 | [code] (see [boot](boot.md#2-the-first-instructions)) |
 | burst frame completion runs in an interrupt | StlUhs completion | [camera] |
 
+*The interrupt check, the current task id and the interrupt vectors.*
+
 Sources: [useful routines](../hardware/mn103-cpu.md), [patching techniques](../firmware/patching-techniques.md).
 </details>
 
@@ -188,7 +209,7 @@ through one adapter file, `itronos.h`, which maps its threads, queues and timers
 In OXF terms, an **active object** is a task with an event queue, and it owns a number of **reactive objects**, each a
 state machine that handles one event at a time. So the generated components follow the same "wait, then dispatch by
 state" pattern as the hand-written sequencer, only produced by a tool. `CapThr_ThroughImage` (live view) is a readable
-example: a state word, and tables of {state, handler} pairs for each trigger such as Start or Pause.
+example. It has a state word, and tables of {state, handler} pairs for each trigger such as Start or Pause.
 
 How exactly a generated active object is laid out once compiled (where its queue is, which task runs it) has not been
 traced yet.
@@ -201,13 +222,15 @@ traced yet.
 | reactive-object pool limit | "overflow in OMREactive too many active" | [code] |
 | live-view state machine | `CapThr_ThroughImage`, state word 0x61e9cd1c, handler tables 0x60b30808-0x60b30f38 | [code] |
 
+*The OXF adapter and the live-view state machine.*
+
 Sources: [OS and framework](../firmware/os-and-framework.md#the-framework-rhapsody-oxf).
 </details>
 
 ## 7. Kernels per core
 
 The system-on-chip has several MN103 cores, and each runs its own copy of the kernel with its own tasks and objects.
-The debug commands show this directly: every object type exists three times, plain for the main core (CPU0) and with a
+The debug commands show this directly. Every object type exists three times, plain for the main core (CPU0) and with a
 `1` or `2` suffix for CPU1 and CPU2.
 
 An id says which core it belongs to. The core number sits in the top bits (id = core × 4096 + index). That is why the
@@ -228,6 +251,8 @@ run, and where their task tables are, is still open (research gaps).
 | shared block (lock word, UART state) | 0x8ff00000-0x8ff000bc | [code] |
 | cross-core task starts in stage 1 | ids 4120, 8213 (0x60045894, 0x600458af) | [code] |
 
+*The core number, the per-core kernel data and the cross-core task starts.*
+
 Sources: [OS and framework](../firmware/os-and-framework.md#debug-consoles) (task table route).
 </details>
 
@@ -241,7 +266,7 @@ port 23. We use it on our camera: `take dbgmode 1` streams the sequencer's state
 is how the Live ND runs are traced. A `:` prefix should reach the system shell from there. That part hasn't been
 tried.
 
-One catch: `ps` writes its rows straight to the serial port, so its output can't be read back from the console log.
+`ps` writes its rows straight to the serial port, so its output can't be read back from the console log.
 
 <details><summary>Where in the firmware</summary>
 
@@ -251,7 +276,9 @@ One catch: `ps` writes its rows straight to the serial port, so its output can't
 | `ps` and the task-id list it walks | 0x6005991e, 0x60038b5c | [code] |
 | task query | 0x60034bab | [code] |
 | user shell Tsk_USHL, 58-command table | 0x6019c924, 0x601fbe38 | [code] |
-| Wi-Fi shell switch | `PARAMDT/CP??????.CSV` line `Wifi shell,0xF971,1,1`; camera at 192.168.0.10, port 23 | [code] + [camera] (2026-11-12) |
+| Wi-Fi shell switch | a `PARAMDT/CP??????.CSV` line that sets property 63857 (`0xf971`) to 1, exact line on [Wi-Fi debug shell](../features/wifi-debug-shell.md); camera at 192.168.0.10, port 23 | [code] + [camera] (2026-11-12) |
+
+*The two shells and their commands.*
 
 Sources: [debug consoles](../firmware/os-and-framework.md#debug-consoles), [Wi-Fi debug shell](../features/wifi-debug-shell.md).
 </details>
@@ -266,7 +293,7 @@ picture:
 - **Use the native objects, don't invent new ones.** Patches post to the sequencer the same way native code does, so
   its event tables decide what happens. When Live ND sent the sequencer an event its current state had no entry for,
   the result was the history dump from section 4, which is how the missing handlers were found.
-- **Mind the stack.** Tasks have 1-4 KB stacks. Hook code copies the native call frame exactly and keeps its own frame
+- **Mind the stack.** Tasks have 1 to 4 KB stacks. Hook code copies the native call frame exactly and keeps its own frame
   small.
 - **Don't hold up a fast task.** The sequencer runs at priority 25 above most of the camera. Work done in its handlers
   delays everything at 55.
@@ -285,6 +312,16 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | sequencer task waits on an event flag | yes | not checked | not checked | not checked | not checked | not checked | — |
 | task id N = record N | yes | not checked | not checked | not checked | not checked | not checked | — |
 
+*The operating-system facts of this guide checked against other bodies' firmware.*
+
 "Not found" means the string search found nothing. The framework may still be there under other strings.
-[OS and framework](../firmware/os-and-framework.md#kernel-objects-the-static-task-table-and-the-oly-layer-2026-11-19),
+[OS and framework](../firmware/os-and-framework.md#kernel-objects-and-the-static-task-table),
 oly_fw_analysis notes.
+
+## Further reading
+
+- [OS and framework](../firmware/os-and-framework.md), the reference notes on the kernel, the task table and the
+  shells.
+- [Core communication](cores.md), the guide to how the cores and the ARM talk.
+- [Rhapsody and OXF](rhapsody-and-oxf.md), the background on the generated code.
+- [Patching techniques](../firmware/patching-techniques.md), the rules our builds follow.

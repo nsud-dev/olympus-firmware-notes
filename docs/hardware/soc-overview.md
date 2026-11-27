@@ -1,7 +1,14 @@
 # SoC overview
 
 <!-- human page -->
-> The dense reference for this page is [SoC overview: technical notes](soc-overview-technical.md).
+<!-- house style -->
+
+## Key points
+
+- Each camera in this family is built around one main chip that holds several kinds of processor.
+- The E-M5 III, OM-5, OM-5 II and E-M1 III look like the same chip as far as the firmware can tell.
+- Control code taken from a newer body of that group runs unchanged on the E-M5 III, because it is the same processor.
+- The OM-1 generation is new hardware, with a new image engine, a 64-bit ARM and an AI accelerator.
 
 Every camera in this family is built around one main chip, a system on a chip that holds several different processors.
 This page introduces those processors, shows which ones changed between camera models, and explains what that means for
@@ -10,7 +17,7 @@ moving features from a newer body to the E-M5 III.
 As far as the firmware can tell, the E-M5 III, OM-5, OM-5 II and E-M1 III use the same chip. The OM-1 generation is new
 hardware.
 
-## "TruePic" is the whole chip
+## The TruePic name
 
 Olympus advertises each camera as having a TruePic VIII, IX or X processor. That name covers the whole chip, not one
 core. Inside it there are several kinds of processor, and they were updated at different times.
@@ -60,7 +67,7 @@ The E-M5 III, OM-5 and OM-5 II have about 1 GB of memory. The E-M1 III and OM-1 
 chips would not be a simple swap. The firmware sets up the memory controller and lays out every buffer for one size, so
 both would have to change. The E-M1 III's firmware would be the reference for a 2 GB layout on this chip.
 
-## Why the MN103 stayed
+## Staying with the MN103
 
 This is a guess. The main program is more than 100,000 functions, built on the same operating system and compiler for
 over a decade. Adding hardware blocks around the old control processor costs far less than rewriting all of that for
@@ -76,6 +83,8 @@ ARM. The heavy work already runs on dedicated blocks anyway.
 
 ## Further reading
 
+- [SoC overview: technical notes](soc-overview-technical.md) has the evidence, the older and dual-chip bodies, the
+  memory details and how the cores talk to each other.
 - [Core communication](../guides/cores.md) explains locks, doorbells and cross-core calls between the
   control processors.
 - [MN103 primer](../guides/mn103-primer.md) introduces the control processors' instruction set.

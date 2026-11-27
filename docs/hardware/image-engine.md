@@ -1,13 +1,20 @@
 # Image engine
 
 <!-- human page -->
-> The dense reference for this page is [Image engine: technical notes](image-engine-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The image engine is the part of the camera's chip that does the heavy pixel work, such as developing raw frames.
+- The main processor hands it small programs called jobs. The E-M5 III has jobs 0 to 10, and newer bodies add more.
+- We can run jobs on the E-M5 III, including the OM-5's Live ND merge job.
+- The instruction set is now largely decoded, thanks to atx's work on the E-M10 II.
 
 The image engine is the part of the camera's chip that does the heavy pixel work. It develops raw frames, resizes
 pictures and merges several frames into one. It does not run the camera's main program. Instead, the main processor
 hands it a small program and a page of settings, starts it, and waits for it to finish.
 
-We call it "the DSP", and its programs "jobs". Most of what follows is common to every Olympus and OM System body from
+Our older notes call it "the DSP". Its programs are called jobs. Most of what follows is common to every Olympus and OM System body from
 the E-M5 II onwards. The differences between cameras are collected at the end.
 
 ## Status
@@ -15,12 +22,13 @@ the E-M5 II onwards. The differences between cameras are collected at the end.
 - **Running jobs works.** We can load a job, give it its settings and run it on the E-M5 III, including jobs copied
   from the OM-5.
 - **We know what most of the E-M5 III's own jobs do.** Jobs 0 to 10 are mapped, some firmly and some by inference.
-- **The program format is partly understood.** We know how instructions are laid out, how branches work and roughly
-  what the main fields do. The instruction set as a whole is not decoded.
+- **The program format is partly understood.** We know how instructions are laid out and how branches work.
+- **The instruction set is now largely decoded.** atx worked out a field model on the E-M10 II, in the fenykl project.
+  It reads every program we have. It explains all of our own engine tests, and it turns the Live ND merge job into readable code.
 - **Two of our ports depend on it.** Live ND uses the OM-5's job 11 to merge frames. Handheld High Res Shot needs
   jobs 14 to 17.
 
-## How a job runs
+## Job sequence
 
 The job programs are stored in the firmware file. At start-up the camera copies them into memory.
 
@@ -53,6 +61,8 @@ slot at once.
 | 10 | a fixed filter or resampler | read in the code |
 | 11 to 17 | empty placeholders | read in the code |
 
+*The E-M5 III's own jobs and how sure we are of each.*
+
 Two findings stand out.
 
 **The camera already aligns frames.** Job 4, together with the motion detector, lines one frame up with another. The
@@ -73,32 +83,37 @@ engine at once, rather than doing one small step. This style is called horizonta
 What we have worked out by comparing the programs of five cameras:
 
 - The instructions are not scrambled or encrypted. The same instruction looks the same wherever it appears.
-- Every program starts with the same few instructions and ends with a special "end" instruction.
+- Every program has the same frame.
+  Instruction 0 calls the job's routine, the routine ends with a return, and the job stops at a halt in instruction 5.
 - Jumps use absolute instruction numbers. When one version of a program grows, every jump past the change moves by
   exactly the size of the change. That is how we found the jump field.
-- Each instruction drives two identical **lanes**, which look like two matching datapaths. Each lane picks from 15
-  registers, with one more value meaning "unused".
-- A few bits carry small numbers such as frame sizes and counts.
+- Each instruction drives a small scalar processor and four vector units at once.
+  Each vector unit works on 32 pixels of 16 bits in one step. One adds and compares, one shifts, one multiplies and one moves data between pixels.
+- An instruction does not say where its result goes.
+  A separate field, often in a later instruction, picks the register that takes it.
+- The settings page that the camera fills in before a job is the engine's own small local memory.
 
-## Testing on the camera
+
+## Camera tests
 
 To learn what the fields do, we ran the OM-5's job 11 on small test images, changing one part of one instruction each
 time. Over four rounds that came to more than 1,600 runs. Not one of them hung or crashed the engine.
 
 The runs showed:
 
-- which field picks the output register and which picks the inputs
+- which fields carry the inputs, the black level and the multiplier of the final average
 - where the black level and the clipping level come from
-- a gain step that scales brightness around the black level, which is the natural place for an ND brightness setting
 - that job 11's output is exactly the average of its inputs, in the camera's own packed 12-bit raw format
 
 Merging 16 full-size frames takes about 143 ms.
 
-## Running a job safely
+## Safety rules
 
-One lesson came straight from the camera. Before a job runs, a check function looks at its record. If it refuses the
-record, the engine's worker task stops for good. The camera then freezes the next time anything uses the engine, and
-only taking the battery out helps.
+One lesson came straight from the camera. Before a job runs, a check function looks at its record.
+
+> [!WARNING]
+> If the check function refuses a record, the engine's worker task stops for good. The camera then freezes the next
+> time anything uses the engine, and only taking the battery out helps.
 
 So every change to a record has to be checked against that function's rules first. Program addresses also have to be
 in the right memory range, or the camera resets.
@@ -115,6 +130,8 @@ The same engine as the E-M5 III, with the same jobs 0 to 10 byte for byte. On to
 | 12 | Live ND live-view preview |
 | 14 to 17 | Handheld High Res Shot |
 | 18 | unknown |
+
+*Jobs that newer bodies add on top of jobs 0 to 10.*
 
 The OM-5 II's High Res jobs differ slightly from the OM-5's. The image-engine data shared by all jobs is identical on
 the E-M5 III, E-M1 III and OM-5, so anything that draws on it is already in the E-M5 III.
@@ -133,7 +150,7 @@ A new engine. None of their job programs match any of the above, so OM-1 jobs ca
 
 No programs of this format at all.
 
-## Where it comes from
+## Origin
 
 No vendor or core name appears anywhere in the firmware. The chip belongs to Panasonic's "dc13" family, the same line
 as the Lumix Venus Engine, and the engine looks like Panasonic's own design rather than licensed DSP. An old Matsushita
@@ -142,7 +159,11 @@ see. We do not use Lumix firmware, because Panasonic's licence forbids reverse e
 
 ## Further reading
 
+- [Image engine: technical notes](image-engine-technical.md) has the program format, the job records and the address
+  reference.
 - [Live ND](../features/live-nd.md) uses job 11.
 - [Handheld High Res Shot](../features/hhhr.md) needs jobs 14 to 17.
 - [Taking a photo](../guides/taking-a-photo.md) shows where raw development fits in a still shot.
 - [Frame pools and memory](../guides/frame-pools-and-memory.md) covers the buffers the jobs read and write.
+- The instruction set decode is mostly the work of atx, in the fenykl project (https://github.com/atx/fenykl,
+  branch `feat-dsp`, and https://m.atx.name/dsp.html). Our part was the first field passes and the camera tests on job 11.

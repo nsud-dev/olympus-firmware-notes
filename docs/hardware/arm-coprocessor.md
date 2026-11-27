@@ -1,19 +1,20 @@
 # ARM co-processor
 
 <!-- human page -->
-> The dense reference for this page is [ARM co-processor: technical notes](arm-coprocessor-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The E-M5 III's chip has one ARM core running its own copy of Linux, mainly for Wi-Fi and Bluetooth.
+- It also does one piece of maths for Handheld High Res Shot.
+- The main program and the ARM talk through a hardware mailbox, and a root shell on the ARM is already built in.
+- The ARM is too slow for full-size pixel work, which belongs on the image engine.
 
 Besides the MN103 processors that run the camera, the E-M5 III's chip has one ARM core running its own copy of Linux.
 It looks after wireless, which covers Wi-Fi, Bluetooth and the OI.Share phone app. It also does one piece of maths for
 Handheld High Res Shot. It does not take part in autofocus or normal shooting.
 
-## Status
-
-- **The software is mapped.** We know where the ARM's Linux lives in the firmware file and which programs it runs.
-- **We know how to talk to it.** The two sides exchange messages through a hardware mailbox.
-- **A root shell is built in.** The stock firmware can run commands on the ARM as root from the camera's debug console.
-
-## What it is
+## Core and memory
 
 The ARM is a single Cortex-A9 core with NEON, the ARM's vector maths unit. Linux on it sees only 36 MB of memory. It
 reaches the rest of the camera's memory through a slow, uncached window.
@@ -21,7 +22,7 @@ reaches the rest of the camera's memory through a slow, uncached window.
 The firmware file carries the whole ARM system. That means a small real-time OS image, a Linux 4.4 kernel, its hardware
 description and two file systems.
 
-## Programs on it
+## Programs
 
 A start-up script launches a handful of programs.
 
@@ -34,7 +35,9 @@ A start-up script launches a handful of programs.
 | isc_cgi, isc_file | the OI.Share phone app's web interface and file transfers |
 | blebridge, bsa_server | Bluetooth Low Energy |
 
-## The mailbox
+*Programs the start-up script launches on the ARM.*
+
+## Mailbox
 
 The two sides talk through a hardware mailbox that Panasonic calls ISC, short for Inter System Communication. It has 48
 channels and a 128 KB shared memory area. Each ARM program uses its own channels.
@@ -43,7 +46,7 @@ The `hhhr` helper is a good example. The main program sends it a 48-byte request
 them, works out how the frames line up, and sends back 112 bytes holding three 3 by 3 matrices. It has to answer within
 100 ms.
 
-## Starting it
+## Start-up
 
 The main program powers the ARM up and down through a manager task. The ARM normally runs while Wi-Fi or Bluetooth is
 in use. Whether it is powered when both are off is one of the open questions for High Res Shot.
@@ -52,12 +55,12 @@ The camera's debug console also has an `arm` command. One of its options boots t
 instead of from flash. All it does is set one memory word, so the next ARM start reads the card. The card files are
 read with no size check, so a file that is too large overwrites the main program's buffers.
 
-## A root shell
+## Root shell
 
 Console lines starting with `:cc` or `:ccr` are passed to `sccore` on the ARM, which runs them as root. With `:ccr` the
 output comes back to the console. Commands are limited to 27 characters, and the ARM must already be running.
 
-## What it is fast enough for
+## Speed
 
 Not much pixel work. Linux has little memory of its own, and it sees the camera's image buffers only through uncached
 access, which is slow. Even `hhhr` works on a reduced brightness image of about 1.3 MB. The ARM suits small data and
@@ -80,8 +83,18 @@ OM-5's Bluetooth programs are a candidate to swap in.
 | PEN-F, E-M5 II | no ARM. The main processor runs Wi-Fi itself. |
 | E-M5 (Mark I) | no ARM and no Wi-Fi |
 
+*The ARM side in other cameras.*
+
+## Status
+
+- **The software is mapped.** We know where the ARM's Linux lives in the firmware file and which programs it runs.
+- **We know how to talk to it.** The two sides exchange messages through a hardware mailbox.
+- **A root shell is built in.** The stock firmware can run commands on the ARM as root from the camera's debug console.
+
 ## Further reading
 
+- [ARM co-processor: technical notes](arm-coprocessor-technical.md) has the mailbox channels, the boot paths and the
+  addresses.
 - [Handheld High Res Shot](../features/hhhr.md) explains where `hhhr` fits.
 - [SoC overview](soc-overview.md) places the ARM among the chip's other processors.
 - [Wi-Fi debug shell](../features/wifi-debug-shell.md) is one way into the debug console.

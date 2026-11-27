@@ -4,8 +4,8 @@
 > **Technical notes.** This page is the dense reference. For a readable introduction, start with [Live GND](live-gnd.md).
 
 A graduated ND filter darkens the sky while leaving the foreground alone. "Live GND" does that in the camera, by
-shooting several frames and blending them with a gain that changes across the picture. Only the OM-1 II has a working
-version. This page describes how it works there and a proposed design for the E-M5 III built on our Live ND work.
+shooting several frames and blending them with a gain that changes across the picture. The OM-1 II has a working
+version, and the OM-5 and E-M5 III do not. This page describes how it works there and a proposed design for the E-M5 III built on our Live ND work.
 
 Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 

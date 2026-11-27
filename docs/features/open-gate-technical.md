@@ -1,90 +1,177 @@
 # Open gate video: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Open gate video](open-gate.md).
+<!-- house style -->
+> **Technical reading.** The detailed version of [Open gate video](open-gate.md), for readers who want the internals.
 
-Could the E-M5 III record video from the whole 4:3 sensor area instead of the 16:9 band? Read-only research, nothing
-built or run. Addresses are E-M5 III 1.7 block0 VMAs.
+*Last reviewed 2026-11-27.*
 
-Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
+Could the E-M5 III record video from the whole 4:3 sensor area instead of the 16:9 band? This is read-only research.
+Nothing was built or run.
 
-General facts found here now live on the shared pages: sensor mode ids, readout records and the crop table in
-[sensor modes](../hardware/sensor-technical.md#sensor-modes-2026-11-21); encoder, size switch and playback limits in
-[movie pipeline](movie-technical.md#how-a-movie-is-made-pipeline-facts-2026-11-21). This page keeps the open-gate reasoning.
+General facts found here now live on the shared pages. Sensor mode ids, readout records and the crop table are in
+[sensor modes](../hardware/sensor-technical.md#sensor-modes). The encoder, size switch and playback limits are in
+[movie pipeline](movie-technical.md#movie-pipeline). This page keeps the open-gate reasoning.
 
-**Verdict (2026-11-21): Uncertain, medium-big.** No hard blocker found. The sensor and the encoder can do it at
-reduced resolution; the unknown is how many full-resolution pixels per second the image pipeline handles. Best first
-target: a 2x2-binned full-area mode (2560 x 1920 at 30p or 1920 x 1440 at up to 60p). Full-resolution 4:3 (e.g.
-2880 x 2160) probably only at about 15-24 fps. [inferred]
+The small numbers after a fact link to [Sources and dates](#sources-and-dates), which say how the fact is known and when.
+On the notes site the number's colour shows the evidence: green = seen on our camera, blue = read in the firmware,
+grey = inferred.
+
+## Verdict
+
+**Uncertain, medium-big.** No hard blocker was found. The sensor and the encoder can do it at reduced resolution. The
+unknown is how many full-resolution pixels per second the image pipeline handles.[^inf1]
+
+- **Best first target.** A 2 × 2-binned full-area mode, giving 2560 × 1920 at 30p or 1920 × 1440 at up to 60p.[^inf1]
+- **Full resolution.** Full-resolution 4:3 (for example 2880 × 2160) probably works only at about 15-24 fps.[^inf1]
 
 ## Sensor readout
 
-- The sensor driver has 16 mode records (104 bytes, 0x601b9428; copy at 0x601b9c50). Readouts: full 1:1 5248 x 3912
-  (records 0, 12, 13), full-width 16:9 band 5248 x 2984 (4, 7, 8), 16:9 2x2 band 2624 x 1504 (5), **full 4:3 area 2x2
-  2624 x 1960 (record 11)**, 3x3 and 4x4 live-view/high-speed modes. A binned full-area 4:3 readout already exists. [code] 2026-11-21
-- Same records in OM-5 1.2 and E-M1 III 1.6. [code] 2026-11-21
-- Sensor mode ids (type-7 request): HSSC 0, MSSC 1, LSSC 2, CLIP 3, HSHR 4, MSHR 5, **4K 6, C4K 7**, PD 8, MSPD 9, LSPD 10,
-  **HQ 11**, FULL 12, FULL_LQ 13, STILL 14, MOVIE_HS 16, STILL_HS 17, MSHDR 18, HSMR 19 (enum printer 0x6015908e). [code] 2026-11-21
-- Per-mode table 0x601de514 (76 B, index = id): **HQ = 2x2, 1976 lines = the full-area 4:3 readout**; 4K/C4K 1:1, 3044 lines
-  (the 16:9 band); FULL/FULL_LQ/STILL 1:1, 3956 lines. [code]+[inferred] 2026-11-21
-- AE request type to mode (chooser 0x60411219, table 0x60542874): 35 → HQ, 37 → 4K, 38 → C4K, 52 → FULL. Type 35 is sent
-  only from 0x6044c385, called from the Wi-Fi remote code (0x61232f2f): HQ is in use today, likely the OI.Share remote
-  live view. [code]+[inferred] 2026-11-21
-- Frame-rate estimate from lines × line-time field (MSSC 120 fps and 4K 30 fps give the same rate): HQ up to ~80 fps,
-  FULL up to ~23.5 fps. That matches C4K being 24p only. Not a measured limit. [inferred] 2026-11-21
+The sensor driver has 16 mode records of 104 bytes each, with a copy.[^fw1]
+
+| readout | size | records |
+|---|---|---|
+| full 1:1 | 5248 × 3912 | 0, 12, 13 |
+| full-width 16:9 band | 5248 × 2984 | 4, 7, 8 |
+| 16:9 2 × 2 band | 2624 × 1504 | 5 |
+| **full 4:3 area 2 × 2** | **2624 × 1960** | **11** |
+| 3 × 3 and 4 × 4 | live-view and high-speed modes | |
+
+*Sensor driver readout records. Read in the firmware.*
+
+- A binned full-area 4:3 readout already exists.[^fw1]
+- The OM-5 1.2 and E-M1 III 1.6 have the same records.[^fw1]
+- **Sensor mode ids** (type-7 request): HSSC 0, MSSC 1, LSSC 2, CLIP 3, HSHR 4, MSHR 5, **4K 6, C4K 7**, PD 8, MSPD 9,
+  LSPD 10, **HQ 11**, FULL 12, FULL_LQ 13, STILL 14, MOVIE_HS 16, STILL_HS 17, MSHDR 18, HSMR 19. They are printed by
+  an enum printer.[^fw1]
+- **Per-mode table.** It is 76 B, indexed by mode id.[^fw1][^inf1]
+    - HQ is 2 × 2 with 1976 lines, the full-area 4:3 readout.
+    - 4K and C4K are 1:1 with 3044 lines (the 16:9 band).
+    - FULL, FULL_LQ and STILL are 1:1 with 3956 lines.
+
+### Request types
+
+A chooser and a table map the exposure (AE) request type to a mode. 35 → HQ, 37 → 4K, 38 → C4K, 52 → FULL.[^fw1]
+
+Type 35 is sent from only one place, called from the Wi-Fi remote code. So HQ is in use today, likely for the OI.Share
+remote live view.[^fw1][^inf1]
+
+### Frame rate
+
+The frame-rate estimate comes from lines × the line-time field. MSSC at 120 fps and 4K at 30 fps give the same
+rate.[^inf1]
+
+- HQ reaches up to about 80 fps.[^inf1]
+- FULL reaches up to about 23.5 fps. That matches C4K being 24p only.[^inf1]
+- This is not a measured limit.[^inf1]
 
 ## Image pipeline crop and scale
 
-- Geometry table 0x604f1444 (24-byte entries, index = mode, getter 0x6036e377): **4K reads a 1:1 centre crop 4088 x 2348**
-  (out 4080 x 2295, then to 3840 x 2160, about 1.27x crop); **C4K reads the full width 5208 x 2800** (out 5184 x 2734, scaled to
-  4096 x 2160); FHD uses a 2x2 16:9 band 2640 x 1522 (out 2592 x 1458). No entry gives a 4:3 video output. [code]+[inferred] 2026-11-21
-- The movie scaler is the fixed pipeline set from these tables (non-integer ratios already used). DSP job 10 is not in
-  the movie path (caller is the still task). [code]+[inferred] 2026-11-21
+The geometry table has 24-byte entries, indexed by mode, with a getter. No entry gives a 4:3 video output.[^fw1][^inf1]
+
+| mode | reads | output | final |
+|---|---|---|---|
+| 4K | 1:1 centre crop 4088 × 2348 | 4080 × 2295 | 3840 × 2160 (about 1.27x crop) |
+| C4K | full width 5208 × 2800 | 5184 × 2734 | 4096 × 2160 |
+| FHD | 2 × 2 16:9 band 2640 × 1522 | 2592 × 1458 | |
+
+*Pipeline geometry per movie mode. Read in the firmware.*
+
+The movie scaler is the fixed pipeline set from these tables, and it already uses non-integer ratios. Image-engine job
+10 is not in the movie path, because its caller is the still task.[^fw1][^inf1]
 
 ## Encoder and playback
 
-- H.264 only (Panasonic-style AVpi framework). **Rate-control level table tops at Level 5.1** (MaxMBPS 983040, jump at
-  0x6117e4ba): at most 36864 macroblocks per frame. 2560 x 1920 30p, 1920 x 1440 60p, 2880 x 2160 30p fit; 3328 x 2496
-  only to 30 fps. [code]+[inferred] 2026-11-21
-- About 21 encoder branches test `height == 2160` (4K special cases), two test `>= 2160`; other heights take FHD
-  branches. 2880 x 2160 would ride the 4K branches. [code] 2026-11-21
-- The video-source size list (CAvpiVsoVideoSource, 0x6118ce61..0x6118d0ff) already has **2048 x 1536 and 2560 x 1920**
-  besides 3840/4096 x 2160; unlisted sizes get a small default class. [code] 2026-11-21
-- The playback decoder (CAvpiVdeCodec, 0x6116ac26) rejects width > 4096 or height > 2160, so taller clips wouldn't
-  play in camera. [code] 2026-11-21
-
-- Encoder size switch 0x603ecf4b (rec-init chain): resolution byte 5 → 4096 x 2160, 6 → 3840 x 2160, 2 → 1280 x 720,
-  3 → 640 x 480, 4 → 640 x 360, else 1920 x 1080; max size 4096 x 2160 only for 5/6. One switch, but 4096/3840/1920 ×
-  2160/1080 constants recur across many movie modules (ISP setup, YC buffers, display, metadata). [code] 2026-11-21
+- **Codec.** H.264 only, in a Panasonic-style AVpi framework.[^fw1]
+- **Level.** The rate-control level table tops at Level 5.1 (MaxMBPS 983040). That allows at most 36864 macroblocks per
+  frame.[^fw1][^inf1]
+    - 2560 × 1920 30p, 1920 × 1440 60p and 2880 × 2160 30p fit.
+    - 3328 × 2496 fits only to 30 fps.
+- **Height branches.** About 21 encoder branches test `height == 2160` (4K special cases). Two test `>= 2160`. Other
+  heights take FHD branches. 2880 × 2160 would ride the 4K branches.[^fw1]
+- **Video-source sizes.** The video-source size list (`CAvpiVsoVideoSource`) already has 2048 × 1536 and
+  2560 × 1920, besides 3840 and 4096 × 2160. Unlisted sizes get a small default class.[^fw1]
+- **Playback.** The playback decoder (`CAvpiVdeCodec`) rejects width > 4096 or height > 2160. So taller clips wouldn't
+  play in camera.[^fw1]
+- **Size switch.** The encoder size switch sits in the rec-init chain. Resolution byte 5 → 4096 × 2160, 6 → 3840 × 2160,
+  2 → 1280 × 720, 3 → 640 × 480, 4 → 640 × 360, else 1920 × 1080. The max size is 4096 × 2160 only for 5 and 6.[^fw1]
+- **Size constants.** There is one switch, but the width constants 4096, 3840 and 1920 and the height constants 2160 and 1080 recur across many
+  movie modules (ISP setup, YC buffers, display, metadata).[^fw1]
 
 ## Memory and throughput
 
-- Movie YC pool 0x2f00 slots are 0xca8000 = 4096 x 2160 x 1.5: a 4:2:0 frame up to about 3424 x 2568 fits. [code] 2026-11-21
-- Pipeline input today: 4K30 crop about 288 Mpx/s, C4K24 about 350 Mpx/s (C4K has no 30p). Full 1:1 4:3 needs 489 Mpx/s at
-  24p; the 2x2 full-area mode needs 153 Mpx/s at 30p. The sensor reads full frames at 30 fps for bursts, so the limit
-  is the pipeline/DRAM, not the sensor. Rolling shutter is 1.31x the 4K band. [inferred] 2026-11-21
-- Electronic IS needs a crop margin (4K works at 4288 x 2416), so open gate means sensor-shift IS only. [inferred] 2026-11-21
+- **YC pool.** Movie YC pool slots are `0xca8000` bytes, which is 4096 × 2160 × 1.5. A 4:2:0 frame up to about
+  3424 × 2568 fits.[^fw1]
+- **Pipeline input today.** The 4K30 crop needs about 288 Mpx/s and C4K24 about 350 Mpx/s. C4K has no 30p.[^inf1]
+- **Open gate needs.** Full 1:1 4:3 needs 489 Mpx/s at 24p. The 2 × 2 full-area mode needs 153 Mpx/s at 30p.[^inf1]
+- **Where the limit is.** The sensor reads full frames at 30 fps for bursts. So the limit is the pipeline or DRAM, not
+  the sensor.[^inf1]
+- **Rolling shutter.** It is 1.31x that of the 4K band.[^inf1]
+- **Stabilisation.** Electronic IS needs a crop margin (4K works at 4288 × 2416). So open gate means sensor-shift IS
+  only.[^inf1]
 
 ## Other bodies
 
-- OM-5 1.2 and E-M1 III 1.6 share every table above; OM-1 has a new engine and HEVC. None has open gate, anamorphic or
-  4:3 movie strings: nothing to port. 10-bit would need a new encoder (OM-1 class), so it isn't part of this. [code]+[inferred] 2026-11-21
+The OM-5 1.2 and E-M1 III 1.6 share every table above. The OM-1 has a new engine and HEVC. None has open gate,
+anamorphic or 4:3 movie strings, so there is nothing to port. 10-bit would need a new encoder (OM-1 class), so it isn't
+part of this.[^fw1][^inf1]
 
-## Is the limit deliberate? (2026-11-21)
+## Hardware limit or product limit
 
-Probably not product segmentation: the E-M1 III (flagship, same processor) has the same 4K crop, C4K 24p-only and
-Level 5.1 tables; only the OM-1's new processor goes further. 4K30 uses a 1:1 crop instead of full width, which only
-makes sense if full-width 30p doesn't fit the budget. The limit could still be thermal or bandwidth headroom rather
-than hard silicon, so a short-clip test might go further. [inferred] 2026-11-21
+The limit is probably not product segmentation.[^inf1]
 
-## Next
+- The E-M1 III (flagship, same processor) has the same 4K crop, the same 24p-only C4K and the same Level 5.1 tables.
+  Only the OM-1's new processor goes further.[^inf1]
+- 4K30 uses a 1:1 crop instead of the full width. That only makes sense if full-width 30p doesn't fit the
+  budget.[^inf1]
+- The limit could still be thermal or bandwidth headroom rather than hard silicon. So a short-clip test might go
+  further.[^inf1]
 
-Still open: the ISP geometry entry for HQ and each movie size, and whether movie raw frames sit in DRAM (a Wi-Fi shell
-peek while recording at each size would settle it without changing the firmware). The smallest experiment would
-reuse the 720p setting with sensor mode HQ (request type 35), ISP output 1920 x 1440 and encoder code 2 →
-1920 x 1440. [inferred] 2026-11-21
+## Older bodies
 
-## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
+This was not checked in depth. Both older bodies use the same sensor-mode names. But their recording stack, encoder
+and sensor readout code are different code on a different chip (E-M5 II) or an older one (E-M5 Mark I). So none of
+this page's tables apply.[^fw1][^inf1]
 
-- Not checked in depth. Both older bodies use the same sensor-mode names, but their recording stack, encoder and sensor readout code are different code on a different chip (E-M5 II) or an older one (E-M5 Mark I), so none of this page's tables apply. [code]+[inferred]
+See also: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i).
 
-Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+## Open questions
+
+- The ISP geometry entry for HQ and each movie size.[^inf1]
+- Whether movie raw frames sit in DRAM. A Wi-Fi shell peek while recording at each size would settle it without
+  changing the firmware.[^inf1]
+- The smallest experiment would reuse the 720p setting with sensor mode HQ (request type 35), ISP output 1920 × 1440
+  and encoder code 2 → 1920 × 1440.[^inf1]
+
+## Address reference
+
+E-M5 III 1.7 block0 addresses (base `0x60021020`).
+
+| item | address |
+|---|---|
+| sensor readout records (16 × 104 bytes) | `0x601b9428`, copy at `0x601b9c50` |
+| sensor mode enum printer | `0x6015908e` |
+| per-mode table (76 B, index = mode id) | `0x601de514` |
+| AE request type to mode | chooser `0x60411219`, table `0x60542874` |
+| only sender of request type 35 | `0x6044c385` |
+| its caller in the Wi-Fi remote code | `0x61232f2f` |
+
+*Sensor readout.*
+
+| item | address |
+|---|---|
+| pipeline geometry table (24-byte entries) | `0x604f1444`, getter `0x6036e377` |
+| encoder size switch | `0x603ecf4b` |
+| encoder level table jump | `0x6117e4ba` |
+| `CAvpiVsoVideoSource` size list | `0x6118ce61` to `0x6118d0ff` |
+| `CAvpiVdeCodec` playback size check | `0x6116ac26` |
+| movie YC pool | pool id `0x2f00` |
+
+*Pipeline, encoder and memory.*
+
+## Sources and dates
+
+The small numbers in the text point here. Each note says how a fact is known and when.
+
+[^fw1]: Read in the firmware, 2026-11-21.
+[^inf1]: Inferred, not traced or tested, 2026-11-21.
+

@@ -1,8 +1,16 @@
 # Docs map
 
-These notes describe how the Olympus OM-D E-M5 Mark III's firmware and hardware work, and how far its design is
-shared with newer bodies (mainly the OM-5). Start with the [overview](overview.md) for a
-plain tour. Each page below opens with a short introduction and explains its terms.
+These notes describe how the Olympus OM-D E-M5 Mark III's firmware and hardware work. They come from a love of these
+cameras. The more I learn about them, the more the engineering behind them surprises and impresses me. The hardware and
+software are both remarkable pieces of engineering, and the people behind them deserve more praise than I can give.
+Thank you for what must have been decades of careful, hard work. Exploring it has given me a real sense of wonder and
+discovery.
+
+**This is a research wiki.** It explains how the camera works and gives advice on making mods. It doesn't ship mods,
+builds or decompiled code.
+
+The notes also cover how far the camera's design is shared with newer bodies (mainly the OM-5). Start with the
+[overview](overview.md) for a plain tour. Each page below opens with a short introduction and explains its terms.
 
 Conventions used throughout:
 
@@ -63,7 +71,7 @@ Conventions used throughout:
 | [Live ND](features/live-nd.md) | the digital ND filter from the OM-5, working on the camera ([technical notes](features/live-nd-technical.md)) |
 | [Handheld High Res Shot](features/hhhr.md) | the OM-5's hand-held 50 MP mode, part-way ported ([technical notes](features/hhhr-technical.md)) |
 | [USB webcam](features/webcam.md) | enumerates and streams its own picture; live view parked ([technical notes](features/webcam-technical.md)) |
-| [Focus stacking](features/focus-stacking.md) | any lens, and 3 to 8 shots ([technical notes](features/focus-stacking-technical.md), [patch bytes](patches/focus-stacking-any-lens.md)) |
+| [Focus stacking](features/focus-stacking.md) | any lens, and 3 to 8 shots ([technical notes](features/focus-stacking-technical.md), [how the patch works](patches/focus-stacking-any-lens.md)) |
 | [Card mods](features/card-mods.md) | load features from the SD card instead of flashing, with a menu row each |
 | [Wi-Fi debug shell](features/wifi-debug-shell.md) | a card file that starts a debug network and shell ([technical notes](features/wifi-debug-shell-technical.md)) |
 | [Starry Sky AF](features/starry-sky-af.md) | what it is made of and a first test build ([technical notes](features/starry-sky-af-technical.md)) |

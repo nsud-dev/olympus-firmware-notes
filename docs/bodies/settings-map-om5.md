@@ -1,7 +1,16 @@
 # Settings map E-M5 III ↔ OM-5
 
 <!-- human page -->
-> The dense reference for this page is [Settings map E-M5 III ↔ OM-5: technical notes](settings-map-om5-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The E-M5 III and the OM-5 share about 2,000 settings, and most of them differ only in their number.
+- A saved settings image can't be copied from one camera to the other, because each camera resets an image with the
+  other's layout to its defaults.
+- A settings image can be converted between the two layouts on a PC in both directions, with a value falling back to
+  the factory value where the target camera lacks that choice.
+- The map comes from reading both firmware files and has not been tried on a camera yet.
 
 The OM-5 is the E-M5 III's successor and runs almost the same firmware. This page compares the two cameras' settings
 one by one. It also explains how saved settings could move from one camera to the other, in both directions. It is
@@ -40,7 +49,7 @@ number. So a foreign image is never misread. The settings are reset to their def
 - **E-M5 III only (18 settings).** A High Res option for RAW editing (the OM-5 keeps it elsewhere), and 17 settings at
   the end of the E-M5 III's list that we could not name yet.
 
-## Converting settings
+## Conversion
 
 A settings image can be converted from one camera's layout to the other's on a PC. It works both ways. Every value
 is read with the source camera's list, translated where needed, and written out with the target camera's list. We
@@ -62,19 +71,16 @@ that list you can set up the other camera by hand, with nothing changed on eithe
 Getting a settings image out of a camera and back in is the harder part, and we have not done it. Setting the
 camera up by hand from the checklist always works.
 
-
 ## Credits
 
 Built by the project from both stock firmware files. The idea of keeping card-mod values inside the camera's own
 settings image came from earlier project work on [saved settings and menu rows](../features/saved-settings-and-menu-rows.md).
 
-<details><summary>Where in the firmware</summary>
+## Further reading
 
-| what | E-M5 III 1.7 | OM-5 1.2 |
-|---|---|---|
-| setting number → stored value | 0x604de68c | 0x60514fec |
-| saved-settings list (layout number) | 0x60098998 (0x32) | 0x6009f030 (0x0a) |
-| settings image in memory | 0x623d1000, 256 KB | 0x623de800, 256 KB |
-| custom modes | value 0x85d4, 3,300 per slot | value 0x85d4, 3,786 per slot |
+- [Settings map E-M5 III ↔ OM-5: technical notes](settings-map-om5-technical.md) has the firmware tables, the full map
+  and the conversion rules, with their addresses.
+- [Saved settings and menu rows](../features/saved-settings-and-menu-rows.md) explains how our card mods keep values in
+  the settings image.
+- [Settings and menus](../firmware/settings-and-menus.md) covers setting ids and properties.
 
-</details>

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: >-
+  If you use, quote or summarise these notes, please credit "Oly Firmware Notes and Mods" and link the page you used.
+  The notes are shared under CC BY 4.0.
+title: Oly Firmware Notes and Mods
+abstract: >-
+  Research notes on how Olympus and OM System cameras work inside, deepest on the E-M5 Mark III.
+type: dataset
+authors:
+  - name: Oly Firmware Notes and Mods contributors
+license: CC-BY-4.0
+repository-code: https://github.com/nsud-dev/olympus-firmware-notes
+keywords:
+  - Olympus
+  - OM System
+  - camera firmware
+  - reverse engineering
+  - right to repair

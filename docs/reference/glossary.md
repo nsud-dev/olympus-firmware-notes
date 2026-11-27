@@ -1,10 +1,18 @@
 # Glossary
 
 <!-- human page -->
+<!-- house style -->
+
+## Key points
+
+- The firmware uses its own internal names, often Japanese-English abbreviations.
+- Our notes add shorthand of their own.
+- This page explains both in one table.
+- Terms are grouped roughly by topic.
 
 The firmware uses its own internal names (often Japanese-English abbreviations), and our notes add shorthand of their
-own. This list explains both. Terms are grouped roughly by topic: hardware, firmware structure, Live ND, other
-features, and our build process.
+own. This list explains both. Terms are grouped roughly by topic. The groups are hardware, firmware structure, Live ND,
+other features and our build process.
 
 | term | meaning |
 |---|---|
@@ -24,13 +32,50 @@ features, and our build process.
 | **IS / IBIS / bc** | image stabilisation (in-body); "bc" (Blurring Correction) is the main-program module that drives the IS sub-CPU |
 | **LUKE** | block 3 of the firmware file, very likely the IS sub-CPU's program |
 | **PDAF** | phase-detect autofocus using pixels on the sensor |
+| **S-AF / C-AF** | single and continuous autofocus |
+| **infinity pre-drive** | moving the lens to its stored infinity position before focusing |
+| **Dual IS** | Panasonic's scheme for combining lens and body stabilisers |
+| **SoC** | system-on-chip: the one main chip that holds the control CPUs, the image engine and the other blocks |
+| **NMI** | non-maskable interrupt, which the CPU takes even with interrupts locked |
+| **KCB** | kernel control block, the operating system state kept for each core |
+| **EVF** | electronic viewfinder |
+| **SLVS** | the fast serial standard that carries picture data from the sensor to the main chip |
+| **EFS** | electronic first curtain shutter |
+| **STB** | strobe, the firmware's name for flash |
+| **ECC** | error correction on flash reads |
+| **EMC** | the DRAM controller |
+| **UDF** | user-defined function unit, the MN103 maths helper for multiply and floating point |
+| **IAGR** | the MN103 register that names the interrupt group being served |
+| **VID / PID** | vendor ID and product ID, the numbers a USB device reports so the computer knows what it is |
+| **PTP** | Picture Transfer Protocol, which cameras use for tethering through numbered operations |
+| **MTP** | Media Transfer Protocol, the USB mode in which the camera shows as a media device |
+| **UVC** | USB Video Class, the standard USB webcam protocol |
+| **HID** | human interface device, the USB class for keyboards and simple remote controls |
+| **CIC** | the hardware block that packs and unpacks raw sensor data for raw (ORF) files |
+| **ORF** | Olympus raw format, the camera's raw file |
+| **DCF** | Design rule for Camera File system, the standard for the DCIM folder and file names |
+| **IFD** | image file directory, one block of tags in an EXIF or TIFF header |
+| **MPO** | Multi-Picture Object, a file that holds several pictures |
+| **DPOF** | Digital Print Order Format, the print order file on the card |
+| **PictBridge** | standard for printing from a camera straight to a printer over USB |
+| **C4K / FHD** | Cinema 4K (4096 x 2160) and Full HD (1920 x 1080) movie sizes |
+| **UAC** | USB Audio Class, the standard USB microphone and speaker interface |
+| **ETTR** | exposing to the right: as bright as possible without clipping highlights |
+| **doorbell** | a register write that raises an interrupt on another core |
+| **c3d** | the pair of firmware tasks that own the vector GPU |
+| **fd1 / fd2** | the two pixel-defect map stores in flash. fd1 also holds the phase-detect AF tables |
 | **μITRON** | the RTOS on the MN103 |
 | **OXF / Rhapsody** | IBM Rhapsody framework generating the C++ state machines |
 | **olycompress** | LZ4-block compressed sections in some block0s |
 | **block0..5** | container blocks: main program, GUI, resources, loader, data, sub-CPU |
 | **section 1-10** | RAM load units of block0, loaded in the background at boot |
-| **slack / cave** | 0xFF space after a section's end, used for our code once the end constant is raised |
+| **slack / cave** | `0xff` space after a section's end, used for our code once the end constant is raised |
 | **boot guard** | our check that a target section is ready before a hook jumps into it |
+| **ready bit** | the per-section flag that says a block0 section has been loaded and can be used |
+| **join point** | a place where ported code calls native code, or native code enters ported code |
+| **setting id** | the number the menu code uses to name one setting |
+| **card mod** | a change our mod loader applies in RAM at start-up from a file on the SD card |
+| **preflash check** | our static check, run on every build before it goes on the camera |
 | **hook / trampoline** | a native jump or call redirected into our code / the small wrapper that saves and restores registers around it |
 | **donor** | the newer body we port code from (OM-5 1.2) |
 | **property** | a numbered value in the camera's settings store |
@@ -51,7 +96,7 @@ features, and our build process.
 | **pixshift SR / iseq_pixshift_sr** | High Res Shot; handheld = HHHR (state PixShiftSrHandHeldEnd) |
 | **HHHR** | Handheld High Res |
 | **mdet** | motion-detect module (tracking, HHHR motion estimation, DL subject detect on newer bodies) |
-| **LAF / EMS / PDT** | parts of the mdet tracker generation |
+| **LAF / EMS / PDT** | parts of the mdet tracker: `mdet_laf` = the tracker; EMS1 (0x9b500000) = block motion search unit, EMS2 (0x9b600000) = colour/size search unit; PDT = phase-detect depth tracker ([autofocus](../features/autofocus-technical.md)) |
 | **Astro AF / fcs_astro** | Starry Sky AF |
 | **fcs** | focus control task / module |
 | **take_focus** | AF sequencer layer |
@@ -71,6 +116,11 @@ features, and our build process.
 | **M block** | Live ND's RAM log/state area 0xa07b4800 |
 | **LNDM3.ARM / LND3B7** | Live ND request file on card / log file written by the next silent single |
 | **armed** | our gate: request file + S/M mode; hooks do nothing unless armed |
-| **bdelta** | build stored as a delta vs stock 1.7 |
 | **Take lease** | our name for holding the ARM powered via the camera's CA9 power manager (owner "Take") |
 | **[camera] / [code] / [inferred]** | how a fact is known: seen on the camera / read in the firmware / follows from evidence but not tested |
+
+*Terms used in these notes and in the firmware, grouped by topic.*
+
+## Further reading
+
+- [Overview](../overview.md)

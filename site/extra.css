@@ -4,3 +4,18 @@
 .md-typeset p.shots a { flex: 1 1 200px; max-width: 360px; }
 .md-typeset p.shot img, .md-typeset p.shots img { display: block; width: 100%; height: auto; border-radius: 4px; }
 .md-typeset p.shot + p, .md-typeset p.shots + p { font-size: .75rem; color: var(--md-default-fg-color--light); max-width: 46rem; margin-top: 0; }
+
+/* Evidence footnotes on technical pages: the footnote name carries the type (cam, fw, inf, pol, fix), the colour shows it. */
+.md-typeset a.footnote-ref[href^="#fn:cam"] { color: #2e7d32; font-weight: 700; }
+.md-typeset a.footnote-ref[href^="#fn:fw"] { color: #1565c0; font-weight: 700; }
+.md-typeset a.footnote-ref[href^="#fn:inf"], .md-typeset a.footnote-ref[href^="#fn:pol"], .md-typeset a.footnote-ref[href^="#fn:emu"], .md-typeset a.footnote-ref[href^="#fn:ext"] { color: var(--md-default-fg-color--light); }
+.md-typeset a.footnote-ref[href^="#fn:fix"] { color: #b26a00; }
+[data-md-color-scheme="slate"] .md-typeset a.footnote-ref[href^="#fn:cam"] { color: #81c784; }
+[data-md-color-scheme="slate"] .md-typeset a.footnote-ref[href^="#fn:fw"] { color: #64b5f6; }
+[data-md-color-scheme="slate"] .md-typeset a.footnote-ref[href^="#fn:fix"] { color: #ffb74d; }
+
+/* Diagrams: Mermaid scales a small diagram up to the full text width, so cap the box. Wider diagrams shrink to fit. */
+.md-typeset .mermaid { max-width: 34rem; margin: 1em auto; }
+
+/* Corrections note at the end of every page (build_site.py) */
+.md-typeset .corrections { margin-top: 2.5em; padding-top: 0.8em; border-top: 1px solid var(--md-default-fg-color--lightest); font-size: 0.75rem; color: var(--md-default-fg-color--light); }

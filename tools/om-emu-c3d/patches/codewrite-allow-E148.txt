@@ -1,0 +1,4 @@
+# Pages stock E148 1.1 (OM-5 II) itself writes through the cached view in sections 1-9 (boot to the shooting screen,
+# MENU, Gear tab), from a run with OM_CODEWRITE on 2026-11-27. Use: OM_CODEWRITE_ALLOW=@codewrite-allow-E148.txt
+0x61110000
+0x61111000

@@ -1,7 +1,14 @@
 # Sync IS with Panasonic lenses
 
 <!-- human page -->
-> The dense reference for this page is [Sync IS with Panasonic lenses: technical notes](sync-is-panasonic-technical.md).
+<!-- house style -->
+
+## Key points
+
+- With an Olympus stabilised lens, the E-M5 III can run the lens stabiliser and its own stabiliser together.
+- With a stabilised Panasonic lens, the camera uses one stabiliser or the other, never both.
+- The lens reports whether it can share the work, so there is no switch in the body to flip.
+- Splitting the work between lens and body is the most promising route, but nothing has been built yet.
 
 With an Olympus stabilised lens, the E-M5 III can run the lens's stabiliser and its own in-body stabiliser together.
 Olympus calls this Sync IS. Panasonic lenses use Panasonic's own scheme, called Dual IS. So on an E-M5 III with a
@@ -9,11 +16,8 @@ stabilised Panasonic lens you get one stabiliser or the other, never both.
 
 This page explains why a simple patch cannot change that, and which routes might.
 
-## Status
-
-The idea has been studied. Nothing has been built.
-
 ## Patch limits
+
 It is the lens that tells the body whether it can do Sync IS. At start-up the body asks the lens, and stores the answer.
 An Olympus lens answers yes. A Panasonic lens does not understand the question in that form, because it speaks Dual IS.
 
@@ -37,6 +41,12 @@ would need its own study.
 A separate project, om-c-firmware by azqeurio, has an aperture-ring hack for Panasonic lenses. It is worth reading for
 ideas.
 
+## Status
+
+The idea has been studied. Nothing has been built.
+
 ## Further reading
 
+- [Sync IS with Panasonic lenses: technical notes](sync-is-panasonic-technical.md) has the lens query, the flags and
+  their addresses.
 - [Image stabiliser](../hardware/stabiliser.md) explains how the body and lens share the stabilising work.

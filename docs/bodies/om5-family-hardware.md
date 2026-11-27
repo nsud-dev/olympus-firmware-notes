@@ -1,16 +1,21 @@
 # E-M5 III family hardware
 
 <!-- human page -->
+<!-- house style -->
 
-This page compares the hardware of the E-M5 Mark III, the OM-5 and the OM-5 Mark II, as read from their firmware.
+## Key points
+
+- The E-M5 III, OM-5 and OM-5 II are built on one platform, with the same main chip, sensor, memory and stabiliser
+  controller.
+- The bodies differ in board support and storage layout, such as the USB socket, the I/O expander, the Wi-Fi module and
+  where saved settings and factory data sit.
+- Each body's program is tied to it by its flash addresses, factory adjustment data and board-level drivers, and the
+  OM-5 II's program also by its Wi-Fi module.
+- Most of what these notes describe for the E-M5 III applies to the OM-5 with only the addresses changed.
+
+This page compares the hardware of the E-M5 III, the OM-5 and the OM-5 II, as read from their firmware.
 The three cameras are built on one platform. The firmware shows how much of it is carried forward from one model
 to the next.
-
-
-## Status
-
-The comparison is read from the three firmware files. Parts of it were confirmed in an emulator and on an
-E-M5 III.
 
 ## Shared hardware
 
@@ -37,6 +42,8 @@ These parts are the same on all three bodies.
 | factory adjustment table | its own order | entries added, most offsets moved | one more entry |
 | saved settings layout | its own | different, see the [settings map](settings-map-om5.md) | a third layout |
 | menu system | older | older | new |
+
+*How the three bodies differ, as read from their firmware.*
 
 Each body marks its saved settings with its own layout number. A program that finds another body's number resets the
 settings and does not misread them.
@@ -71,15 +78,25 @@ Features are developed, tuned and tested for the body they ship on. The sensor c
 and the thermal limits are measured per model. A feature being present in a newer program says nothing about
 whether it was validated on older hardware.
 
-
 ## Lessons
 
 - Storage layout and board drivers are where the bodies differ. Check those first when comparing two models.
 - An emulator is a useful first test of a comparison. It cannot test a driver for a chip it does not model.
 - Leave the factory adjustment data untouched in any experiment.
 
+## Status
+
+The comparison is read from the three firmware files. Parts of it were confirmed in an emulator and on an
+E-M5 III.
+
 ## Credits
 
 The emulator runs used [om-emu](https://github.com/flatpanda/om-emu) by the om-emu contributors.
 
-Related: [Body comparison](comparison.md), [Settings map](settings-map-om5.md), [Recovery](../firmware/recovery.md).
+## Further reading
+
+- [Body comparison](comparison.md) puts these bodies beside the other cameras we have looked at.
+- [Settings map](settings-map-om5.md) compares the E-M5 III's and the OM-5's saved settings.
+- [Recovery](../firmware/recovery.md) covers the card updater.
+
+

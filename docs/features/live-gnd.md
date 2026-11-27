@@ -2,17 +2,20 @@
 
 
 <!-- human page -->
-> The dense reference for this page is [Live GND: technical notes](live-gnd-technical.md).
+<!-- house style -->
+
+## Key points
+
+- Live GND does the job of a graduated ND filter inside the camera, darkening the sky while leaving the foreground alone.
+- The OM-1 II has a working version, and the OM-5 and E-M5 III do not.
+- The OM-1 II's gain curve lives in its image-engine program, which can't run on the E-M5 III.
+- A design for the E-M5 III reuses the Live ND capture and merge and adds its own gain pass. Nothing has been built.
 
 A graduated ND filter darkens the sky while leaving the foreground alone. Live GND does the same job inside the camera.
 It shoots several frames and blends them with a strength that changes across the picture.
 
-Only the OM-1 II has a working version. This page explains how it works there, and how it could be built on the
+The OM-1 II has a working version, and the OM-5 and E-M5 III do not. This page explains how it works there, and how it could be built on the
 E-M5 III from our Live ND work.
-
-## Status
-
-A design has been written from the OM-1 II's firmware. Nothing has been built.
 
 ## On the OM-1 II
 
@@ -39,6 +42,8 @@ OM-1 II's image-engine program. That engine is a newer design and its programs c
 | E-M5 II | no, would be a new port |
 | E-M5 (Mark I) | no, very likely impossible |
 
+*Live GND across bodies. Read in each body's firmware.*
+
 ## A design for the E-M5 III
 
 The E-M5 III can already capture and average several frames for Live ND. Live GND would reuse that.
@@ -57,7 +62,13 @@ Three questions are open:
 - where the E-M5 III's raw picture starts and how wide its margins are
 - whether the main processor is fast enough for the gain pass
 
+## Status
+
+A design has been written from the OM-1 II's firmware. Nothing has been built.
+
 ## Further reading
 
+- [Live GND: technical notes](live-gnd-technical.md) has the OM-1 II parameters, the gain stages already in the
+  E-M5 III and the design details.
 - [Live ND](live-nd.md) covers the capture and merge that Live GND builds on.
 - [Image engine](../hardware/image-engine.md) explains why the OM-1 II's own programs cannot be reused.

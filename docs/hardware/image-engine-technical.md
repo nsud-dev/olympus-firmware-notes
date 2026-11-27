@@ -1,293 +1,311 @@
 # Image engine: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Image engine](image-engine.md).
+<!-- house style -->
+> **Technical reading.** The detailed version of [Image engine](image-engine.md), for readers who want the internals.
 
-Next to the control CPUs, the SoC has an image engine: hardware built for heavy pixel work such as developing raw
-frames, resizing and merging. It doesn't run the main program. Instead, the control CPU loads a small program for it
-(a "job"), fills in a parameter record and submits it. We call this engine "the DSP" and its programs "jobs"; the
-programs themselves are wide microcode words. Their instruction set isn't decoded yet; the word format and the branch
-target field are known (see [Program format](#program-format-2026-11-19)).
+*Last reviewed 2026-11-27.*
 
-This page explains where the job programs are stored, which jobs exist on which camera, what we have worked out about
-the E-M5 III's own jobs 0 to 10, and how to submit a job without hanging the camera. Two of our feature ports depend on
-jobs: Live ND's frame merge is job 11 and Handheld High Res (HHHR) uses jobs 14 to 17.
+The system-on-chip (SoC) has an image engine beside the control CPUs. It is hardware built for heavy pixel work, such as developing raw
+frames, resizing and merging. It doesn't run the main program. The control CPU loads a small program for it, called a
+job, fills in a parameter record and submits it. We call the engine "the DSP" and its programs "jobs". The programs
+are wide microcode words.
 
-Tags: **[code]** read in the firmware, **[camera]** seen on a real E-M5 III, **[inferred]** not traced or tested.
+This page covers where the job programs are stored, which jobs each camera has, the E-M5 III's own jobs 0 to 10, what
+our camera tests showed about job 11, and how to submit a job without hanging the camera. Two of our feature ports
+depend on jobs. Live ND's frame merge is job 11, and Handheld High Res (HHHR) uses jobs 14 to 17.
+
+The instruction set is now largely decoded. That decode is the work of atx, on the E-M10 II, in the fenykl project
+(https://github.com/atx/fenykl, branch `feat-dsp`, and the write-up https://m.atx.name/dsp.html). The E-M10 II uses the
+same instruction format as the E-M5 III. Read the model there. This page keeps our own findings. Where an earlier
+reading of our own turned out wrong under that model, the page gives the corrected reading, and the
+[History](#history) section lists what changed.
+
+The small numbers after a fact link to [Sources and dates](#sources-and-dates), which say how the fact is known and when.
+On the notes site the number's colour shows the evidence: green = seen on our camera, blue = read in the firmware,
+grey = inferred.
 
 ## Where the programs live
 
-In flash, the job programs sit in block 2 of the firmware file, in resource **0x8007** (we call it "bank 6"), one entry
-per job, indexed by job number. [code]
+In flash, the job programs sit in block 2 of the firmware file, in resource `0x8007`. We call it "bank 6". It has one
+entry per job, indexed by job number.[^fw1]
 
-- The E-M5 III's own programs end at flash 0x45c77400. Our Live ND staging used 0x45c77400-0x45c86e00, and
-  0x45c86e00-0x45d60000 (868 KB of zeros) is free for HHHR jobs. [code]
+- After the E-M5 III's own programs, bank 6 has room. Our Live ND staging used the first part of it, and 868 KB of
+  zeros after that are free for HHHR jobs. The [address reference](#address-reference) lists the ranges.[^fw1]
 
-At run time the programs are copied into RAM:
+At run time the programs are copied into RAM.
 
-- Native programs run from RAM 0xa411f540 (job 0) to 0xa4277140 (end of job 10). The next 296 KB,
-  0xa4277140-0xa42bf540, has no code references. [code]
-- Jobs from another body (the "donor") can't use their own load addresses: OM-5 job 14 loads at 0xa42a7d40, which
-  overlaps E-M5 job 9 (0xa422d140-0xa4265140). Load them elsewhere. [code]
-- The loader is 0x6005a177(a0=dst, a1=flash, d0=size, d1=258). The destination must be in 0xa0000000-0xbfffffff or the
-  camera resets. [camera]
-- Jobs don't need their native address: job 11 ran from spare RAM after section 4 and from a descriptor pool slot.
-  [camera]
+- Native programs occupy one RAM range, from job 0 to the end of job 10. The 296 KB after it has no code references.[^fw1]
+- Jobs from another body (the "donor") can't use their own load addresses. OM-5 job 14's load address overlaps E-M5
+  job 9. Load them elsewhere.[^fw1]
+- The program loader takes a destination, a flash address, a size and the constant 258.[^cam1]
+- Jobs don't need their native address. Job 11 ran from spare RAM after section 4 and from a descriptor pool slot.[^cam1]
 
-## Which jobs each camera has
+> [!WARNING]
+> The loader's destination must be in the uncached view of RAM (`0xa0000000` to `0xbfffffff`). Any other destination
+> resets the camera.
+
+See also: [Frame pools and memory](../guides/frame-pools-and-memory.md).
+
+## Jobs by camera
 
 | job | E-M5 III | E-M1 III 1.6 | OM-5 1.2 | OM-5 II | use |
 |---|---|---|---|---|---|
-| 0-10 | yes | same | same | same | the camera's own jobs; see the next section |
-| 11 | empty (0x600 placeholder) | 0x4400 | same | same | **Live ND photo merge** (average of N raw frames) |
-| 12 | empty | 0xb600 | same | same | **Live ND live-view accumulator** (start/add/roll) |
+| 0-10 | yes | same | same | same | the camera's own jobs, see the next section |
+| 11 | empty (`0x600` placeholder) | `0x4400` | same | same | **Live ND photo merge** (average of N raw frames) |
+| 12 | empty | `0xb600` | same | same | **Live ND live-view accumulator** (start, add, roll) |
 | 13 | empty | empty | empty | empty | placeholder everywhere |
-| 14 | empty | 0x48000 | 0x41800 | 0x42a00 (changed) | HHHR compose into 4 planes |
-| 15 | empty | 0xe000 | 0xd600 | 0x9000 (changed) | HHHR hole fill |
-| 16 | empty | 0x29c00 | same | same | HHHR RGB |
-| 17 | empty | 0x7200 | 0x7600 | same | HHHR resize |
-| 18 | absent | 0x4400 | same | same | unknown (OM-5 setter 0x603292c0) |
+| 14 | empty | `0x48000` | `0x41800` | `0x42a00` (changed) | HHHR compose into 4 planes |
+| 15 | empty | `0xe000` | `0xd600` | `0x9000` (changed) | HHHR hole fill |
+| 16 | empty | `0x29c00` | same | same | HHHR RGB |
+| 17 | empty | `0x7200` | `0x7600` | same | HHHR resize |
+| 18 | absent | `0x4400` | same | same | unknown (OM-5 setter `0x603292c0`) |
 
-**PEN-F 3.1 and E-M5 II 4.1 (TruePic VII, 2026-11-21):** the same program format, in block 2 bank 5. The empty 0x600 stub and the memcpy job (their job 16 = E-M5 III job 8) are byte-identical to the E-M5 III's, but the other programs are their own: E-M5 II jobs 7-13 and 15-17, PEN-F 7, 13, 15, 16, 17 (identical between the two). Both reference the job-program register 0x9d200010. So an older engine generation with the same sequencer program format; whether a TruePic VIII/IX job (OM-5 job 11) runs on it is untested. [code] for the hashes, [inferred] for the generation. **E-M5 (Mark I) 2.3:** no programs of this format in any block and no 0x9d200010 reference. [code] See [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21). **E-M5 II jobs 8-12 as field-map material (2026-11-21):** jobs 7, 13, 15, 16 and 17 match PEN-F byte for byte; jobs 8, 9, 10 and 12 match no program in any other body (best similarity 0.05), and job 11 is about 36% like the TruePic IX job 6. Over all 112 fields of our field map, these five jobs use no lane or field value that the E-M5 III, E-M1 III, OM-5, OM-5 II and PEN-F programs don't already use. The one exception is a control-op variant (bits 313-319 = 0x0f, 30 words, job 9 only). So they add no new operations (no add, max or min we haven't seen); they are only more examples of the known vocabulary. [code] Source: dsp-isa ext.py bank 5 base 43160000 on, field histogram from flow/fields.py.
+*Job programs by body, with the program size in bytes. Read in each body's firmware file.*
 
-Sizes are in bytes. The OM-1 and OM-1 II have a new engine: **none** of their job programs match any of the above
-(compared by sha256 per entry), so OM-1 jobs can't be used. [code]
+### Older and newer bodies
 
-## The E-M5 III's own jobs 0 to 10 (mapped 2026-11-06)
+- **PEN-F 3.1 and E-M5 II 4.1** (TruePic VII) use the same program format, in block 2 bank 5. Their empty
+  `0x600` stub and their memcpy job (their job 16, our job 8) are byte-identical to the E-M5 III's. Their other programs
+  are their own. The E-M5 II has jobs 7-13 and 15-17, the PEN-F has jobs 7, 13, 15, 16 and 17, and those five are
+  identical between the two. Both reference the job-program register `0x9d200010`. So this is an older engine
+  generation with the same program format. Whether a TruePic VIII or IX job (OM-5 job 11) runs on it is untested.[^fw2]
+- **E-M5 II jobs 8 to 12** match no program in any other body (best similarity 0.05). Its job 11 is about
+  36% like the TruePic IX job 6. Over all 112 fields of our field map, these jobs use no lane or field value that the
+  E-M5 III, E-M1 III, OM-5, OM-5 II and PEN-F programs don't already use. The one exception is a control-op variant
+  (bits 313-319 = `0x0f`, 30 words, job 9 only). So they add no new operations. They are only more examples of the known
+  vocabulary.[^fw6]
+- **PEN-F** job 16 is byte-identical to our job 8 (hardware memcpy). Its job 7 is 88% the same as job 2 (Live
+  Composite). Only words 1411-1589 differ. Its jobs 13, 15 and 17 match nothing in the newer bodies. So the PEN-F (2016)
+  to the OM-5 II (2023) share one microcode generation.[^fw3]
+- **E-M5 (Mark I) 2.3** has no programs of this format in any block and no `0x9d200010` reference.[^fw3] See
+  [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i).
+- **OM-1 and OM-1 II** have a new engine. **None** of their job programs match any of the above (compared by sha256 per
+  entry), so OM-1 jobs can't be used.[^fw3]
 
+See also: [Body comparison: technical notes](../bodies/comparison-technical.md).
 
+## The E-M5 III's own jobs 0 to 10
 
-How the firmware runs them: [code]
+### How the firmware runs them
 
-- Wrapper functions 0x60318301..0x603185c3 reload a job's program if bit `1<<job` of 0x8ff001b8 is set (jobs 2-7 and
-  9), then call 0x603185eb(job, 0, rec, flags), which copies 17 record words. Records start {callback, context, ...}. [code]
-- A table of "setter" functions at 0x60257b88 writes each job's parameters. Setters for jobs 3-6 and 9 choose a window
-  slot from record byte +0x3f: window = 0x9d000000 + slot<<24, so **0x9e000000 is slot 1 of the same engine** (job 0
-  always uses it). [code]
-- Jobs 2, 3, 5, 7, 9 and 10 read default values from the end of their own program (job 14 does the same).
+- A wrapper function per job reloads the job's program if bit `1<<job` of the reload mask is set (jobs 2-7 and 9).
+  It then calls the submit function with (job, 0, record, flags), which copies 17 record words. Records start with {callback,
+  context, ...}.[^fw4]
+- A table of setter functions writes each job's parameters. The setters for jobs 3-6 and 9 choose a
+  window slot from record byte `+0x3f`. The window is `0x9d000000 + (slot << 24)`, so **`0x9e000000` is slot 1 of the same
+  engine**. Job 0 always uses it.[^fw4]
+- Jobs 2, 3, 5, 7, 9 and 10 read default values from the end of their own program. Job 14 does the same.
 
-What each job does:
+### What each job does
 
 | job | RAM program | size | purpose |
 |---|---|---|---|
-| 0 | 0xa411f540 | 0x51400 | AF image processing (FCS_IP cluster, caller 0x606aff4c) [inferred] |
-| 1 | after job 0 | 0x5b200 | unknown (no setter; frame + rectangle; callers 0x602aaa89, 0x6056281e) |
-| 2 | 0xa41cc140 | 0x19000 | full-sensor raw combine of 2-3 frames, used by **Live Composite** (0x602a7745 → 0x602bf7b4 → 0x603720a9) [inferred]. One 0/1 option (record word 10); natively only 0 runs. The blend mode is inside the microcode: 0 = lighten [inferred], 1 unknown; proving it needs a camera run. [code] |
-| 3 | 0xa41e5540 | 0x14400 | focus-stack merge step (6 buffers) [inferred] |
-| 4 | 0xa41f9d40 | 0x11400 | **motion-compensated warp**: aligns a 4736×3616 YC frame using a 22×16 motion-vector field (buffer 0x36016 from `MDET_CALC_FLAME_VECTOR` 0x605de1f5) into 4480×3360 planar (caller 0x60381776) [code]; part of a native multi-frame align-and-merge pipeline (shot kind 19, maybe in-camera HDR) [inferred] |
-| 5 | 0xa420b540 | 0xb600 | resize to full and half size [inferred] |
-| 6 | 0xa4217540 | 0x4800 | focus-stack merge step (3 buffers) [inferred] |
-| 7 | 0xa421c540 | 0xe800 | focus-stack merge step (3 buffers, also the final pass) [inferred] |
-| 8 | 0xa422b540 | 0x1600 | **hardware memcpy** (`CAvpiPcomMemToMemHwcpy`, 0x603f43b8: 128 KB chunks, waits on flag 0x60041200; window 0x00 src, 0x04 dst, 0x08 len) [code] |
-| 9 | 0xa422d140 | 0x38000 | raw development in 8 strips (14-bit OB/WB clip) [inferred] |
-| 10 | 0xa4265540 | 0x11c00 | fixed-coefficient filter or resampler, **not a gain map** (2026-11-19): record = input 0x10, output 0x14, mode class 0x18 (from caller record +40); the setter 0x60319cfd copies static tables from 0x604e22dc.. by mode: 3-tap weights summing to 1024 (614/205/205, 410/614/...), a monotonic index ramp (0,1,3,4,6,8,...), and 102 phase weights in steps of 71 = 853/12. No per-pixel or per-row gain input, so it can't give a smooth GND. (still task 0x6056175a, caller 0x60561eb2) [code]/[inferred] |
+| 0 | `0xa411f540` | `0x51400` | AF image processing (FCS_IP cluster, caller `0x606aff4c`)[^inf3] |
+| 1 | after job 0 | `0x5b200` | unknown (no setter, frame + rectangle, callers `0x602aaa89`, `0x6056281e`) |
+| 2 | `0xa41cc140` | `0x19000` | full-sensor raw combine of 2-3 frames, used by **Live Composite** (`0x602a7745` → `0x602bf7b4` → `0x603720a9`).[^inf3] One 0/1 option (record word 10). Natively only 0 runs. The blend mode is inside the microcode. 0 is likely lighten.[^inf3] 1 is unknown, and proving it needs a camera run.[^fw4] |
+| 3 | `0xa41e5540` | `0x14400` | focus-stack merge step (6 buffers)[^inf3] |
+| 4 | `0xa41f9d40` | `0x11400` | **motion-compensated warp**. It aligns a 4736 × 3616 YC frame into 4480 × 3360 planar, using a 22 × 16 motion-vector field (buffer `0x36016` from `MDET_CALC_FLAME_VECTOR` `0x605de1f5`, caller `0x60381776`).[^fw4] Part of a native multi-frame align-and-merge pipeline (shot kind 19, maybe in-camera HDR).[^inf3] |
+| 5 | `0xa420b540` | `0xb600` | resize to full and half size[^inf3] |
+| 6 | `0xa4217540` | `0x4800` | focus-stack merge step (3 buffers)[^inf3] |
+| 7 | `0xa421c540` | `0xe800` | focus-stack merge step (3 buffers, also the final pass)[^inf3] |
+| 8 | `0xa422b540` | `0x1600` | **hardware memcpy** (`CAvpiPcomMemToMemHwcpy`, `0x603f43b8`). 128 KB chunks, waits on flag `0x60041200`. Window `0x00` source, `0x04` destination, `0x08` length[^fw4] |
+| 9 | `0xa422d140` | `0x38000` | raw development in 8 strips (14-bit OB/WB clip)[^inf3] |
+| 10 | `0xa4265540` | `0x11c00` | fixed-coefficient filter or resampler, **not a gain map**. Record: input `0x10`, output `0x14`, mode class `0x18` (from caller record +40). The setter `0x60319cfd` copies static tables from `0x604e22dc`.. by mode: 3-tap weights summing to 1024 (614/205/205, 410/614/...), a monotonic index ramp (0,1,3,4,6,8,...), and 102 phase weights in steps of 71 = 853/12. It has no per-pixel or per-row gain input, so it can't give a smooth GND. Still task `0x6056175a`, caller `0x60561eb2`[^fw4][^inf3] |
 
-Jobs 3 to 7 together are the **in-camera focus-stack merge** (2026-11-06). That is shot kind 19: 3-15 frames plus a
-reference; the motion detector (MDET) estimates motion vectors coarse then fine, job 4 warps each frame, then jobs
-5, 3, 6 and 7 run in that order. [inferred, strong] In the same kind table, 11 = HDR1/HDR2 and 14 = Hand-held
-Starlight; both also use `MDET_CALC_FLAME_VECTOR` but merge through the IPCR command path `0x603741e0`. [code]
+*Jobs 0 to 10 on the E-M5 III. RAM program is the load address. Size is in bytes.*
 
-What this means for reuse: job 8 gives fast frame copies; job 2 gives lighten-style raw stacking (mode not yet proven);
-job 4 plus the motion vectors give native frame alignment, the missing piece for handheld multi-frame noise reduction or
-handheld Live ND. No native average, minimum or subtract job was found, so Live ND still needs the OM-5's job 11.
-[inferred]
+### The focus-stack pipeline
 
-## Program format (2026-11-19)
+Jobs 3 to 7 together are the **in-camera focus-stack merge**. That is shot kind 19, which takes 3-15
+frames plus a reference. The motion detector (MDET) estimates motion vectors, first coarse and then fine. Job 4 warps
+each frame. Jobs 5, 3, 6 and 7 then run in that order.[^inf2]
 
-Worked out by comparing the job programs of the E-M5 III, OM-5 1.2, OM-5 II 1.1, E-M1 III 1.6 and PEN-F 3.1 byte for
-byte.
+In the same kind table, 11 is HDR1/HDR2 and 14 is Hand-held Starlight. Both also use `MDET_CALC_FLAME_VECTOR`, but they
+merge through the IPCR command path.[^fw4]
 
-- **A program is an array of 64-byte lines.** In a code line only the first 40 bytes (one **320-bit** instruction
-  word, little-endian) are used and the last 24 bytes are zero. Lines whose last 24 bytes aren't zero are data (the
-  defaults that jobs 1, 2, 3, 5, 7, 9 and 14 read from the end of their own program, 2 to 22 lines). [code]
-- Identical instructions encode identically at every position (the placeholder program repeats lines), so the words
-  aren't scrambled or encrypted. [code]
-- The words are dense: 31,148 code words over the OM-5's 19 programs, 27,993 different. Every bit position varies
-  except bits 133-140 and 233-239, which are always 1. So this is horizontal (VLIW-style) microcode with many fields
-  per word, not a compact opcode stream. [code]
-- Every program starts with the same 10-11 words (a shared start sequence). The 0x600 "empty" program (E-M5 jobs
-  11-17, job 13 everywhere) is that start sequence plus an end: a stub that does nothing. [code]
-- **Branch targets are absolute word indexes**, 13 bits: low 8 bits in bits 15-22, high 5 bits in bits 128-132.
-  Where one version of a program inserts or removes words, exactly this field moves by the size of the change in
-  every word that points past it (OM-5 vs OM-5 II job 14: +35/+37/+68 in ~75 words; OM-5 vs E-M1 III job 17: -19;
-  OM-5 vs OM-5 II job 15: -117; PEN-F job 7 vs job 2: -2/+4). Example: word 2845 of OM-5 job 14 targets 2844 (a
-  loop). [inferred, strong: every changed branch fits]
-- The same bits mean other things in non-branch words. **Branch format marker:** words with bits 315-319 = 0 and
-  bit 229 = 0 are branch words. In OM-5's programs 1,013 words match, and 1,012 of them have a target inside their own
-  program. 159 of the 231 branches confirmed by diffs have this form. Most of the rest have bits 315-319 = 2, a second
-  format that sometimes carries a target (perhaps conditional or loop control). Bits 315-319 look like the word's
-  format/opcode selector (31 = the most common, non-branch). Script `cls.py`. [inferred, strong]
-- **Control ops (first pass, 2026-11-19):** bits 315-319 take values 0-18 and 31 (31 = no control op, 15,024 of
-  31,148 OM-5 words). Op 0 = jump. **Op 1 with bit 229 = 0 ends the job**: it is the last real word of every program
-  (job 8 word 79, job 11 word 264, the stub's word 12), always with field value 256, followed by a few padding words.
-  [inferred, strong]
-- **Jump conditions:** bits 224-228 = 31 on the one jump that must be unconditional (word 0, "skip to the setup at
-  word 10" in every job). All other jumps have small values there (2, 4, 5, 6, 7), together with a selector in bits
-  120-127. So bits 224-228 are the condition code, 31 = always. Self- and near-loops such as job 11 word 127 → 126
-  look like wait loops. [inferred]
-- **Job 11 skeleton** (OM-5, 272 words): entry jump to 10, setup 10-69 (word 65 can exit straight to the end), main loop
-  70-259 (word 259 jumps back to 70), end at 264. Job 8 (memcpy, 88 words): loop 50-53, exit jump 27 → 79, end 79.
-  First-pass listings: private notes (made by `ddis.py`). [inferred]
-- **Field boundaries** (bits that change together between consecutive words; horizontal fields keep their value until
-  rewritten; `chg.py`): bits 0-14 are small fields of 1-3 bits; 15-22 branch low; 23-30 one 8-bit field; 33-104 mostly
-  4-bit fields (nibbles), likely lane A register/operand selects; 109-119 window/address; 120-127 condition selector;
-  128-132 branch high; 133-140 constant; 141-208 again mostly 4-bit fields (lane B); 224-228 condition; 229 branch flag;
-  then 1-2-bit control bits up to 291 and wider fields 292-312; 315-319 control op. [inferred]
-- **Constants:** apart from branch targets, the commonest change between versions of the same job (OM-5 vs OM-5 II /
-  E-M1 III jobs 14, 15, 17; PEN-F job 7 vs job 2) is bits 0-14 alone: 3584 → 4096, 3072 → 3584 (OM-5 vs OM-5 II job
-  14 words 1792-1793), 8 → 16 (job 15, with bits 105-108 1 → 2 in the same words). So bits 0-14 carry an immediate
-  (sizes, counts) in some word formats. In others they hold flag bits (128 is common), so the meaning depends on the
-  format. Script `nonbr.py`. [inferred]
-- **Lane fields:** the 4-bit fields of both lanes (bits 33-104 and 141-208) use 15 as "idle" and 0-14 as values. Most
-  of them use nearly all of 0-14, which fits 15-entry register or operand selects. Jobs share no code apart from the
-  start sequence and the end, even with the address, constant and branch fields masked, so the meaning of these fields
-  can't be read off by comparing jobs. [inferred]
+### Reuse
 
-### Camera tests on job 11 (2026-11-19)
+- Job 8 gives fast frame copies.
+- Job 2 gives lighten-style raw stacking. Its mode is not yet proven.
+- Job 4 with the motion vectors gives native frame alignment. That is the missing piece for handheld multi-frame noise
+  reduction or handheld Live ND.
+- No native average, minimum or subtract job was found, so Live ND still needs the OM-5's job 11.[^inf3]
 
-A first test build ran OM-5 job 11 382 times on 80 × 64 test images (A = 256 + 32x, B = 1280), each time with lane A
-or lane B of one main-loop word made idle.
-- **No change stalled or crashed the engine**: all 382 passes ended cleanly. Each run took 10.5-11 ms whatever the
-  change, so at this size the time is fixed overhead. [camera]
-- Job 11's output is exactly (A + B) / 2, black level included. [camera]
-- 95 changes altered the output (49 lane A, 46 lane B); 285 did nothing visible. [camera]
-- Most effects hit only the start of a line or only its end, and the start and end words repeat at a fixed offset
-  (lane A 116-122 ↔ 129-135, 155-161 ↔ 172-178): the main loop holds copies of one block per line segment. [inferred]
-- Word groups [camera result, meaning inferred]: input B fetch or add (w151 B, w155 A, w130/172/173/213/228 B: output
-  becomes (A + 256) / 2); black-level add-back (w194 B: −256); weights (w129 B: A + B − 640, w171 B: A at full
-  weight, w198 A: slope 20 instead of 16); clip (w211 A → 4095); constants (w128 B → 640, w199 B → 256).
-- **Second test (2026-11-19) [camera]:** flipped single bits in the active lane of the 8 words above, 474 passes, all
-  clean (10.1-10.9 ms). Baseline is exactly (A + B) / 2 with A = 256 + 32x, B = 1024 + 16x. 40 bits change the output:
-  w155 A 45-52, w198 A 77/79 (weight), w211 A 41-44 and 79 (79 = saturate to 4095), w151 B and w194 B 147-150,
-  w129 B and w171 B 155-158, w171 B 179-181, w199 B 163-164/167-170 (output becomes 256).
-- **Operand-select fields [inferred]:** 4-bit fields, 8 bits apart, in both lanes: lane A bits 41-44 and 49-52, lane B
-  147-150 and 155-158 (+106 bits), plus 167-170 (w199, likely the output/destination select). Stock values in job 11's
-  main loop are 0-3, or 15 = none (idle lane), so there is a small register/tap set 0-3. One flipped bit reads an empty
-  register (0) or the black-level constant.
+## Program format
 
-### Lane field map, offline after the camera tests (2026-11-19)
-- **Two identical lanes.** Over all 19 OM-5 jobs (35,496 word pairs), bits that change together split each lane into
-  the same run of 4-bit fields: lane A 37-40, 41-44, 45-48, 49-52, 53-56, 57-60, 61-64, 65-68, 72-75, 76-79, 84-87
-  (plus 69-71, 80-83); lane B is the same layout **106 bits later** (147-150, 151-154, 155-158 ... 190-193). Bits 23-36
-  of lane A and 133-146 of lane B hold all ones in job 11's main loop. [code]
-- **15 registers + "none".** These fields hold 0-14, or 15 for unused, in every job (jobs 0, 1, 9, 14-16 use up to 14).
-  Job 11 uses only 0-5 (main loop mostly 0-3); jobs 6, 11 and 17 are the small ones. Fits the second test's result: one flipped
-  bit selects another register, which is empty (0) or holds the black-level constant. [code]/[inferred]
-- **Values are held.** A field keeps its value over long runs of words (10-60 in job 11) and changes only where the
-  program needs it, like mux or register selects that stay set. Camera-test effects concentrate on the words where the
-  pattern changes (116-135, 154-178, 198-212, 222-229). [code]/[inferred]
-- **Job 11 control flow:** entry 0 → 10; setup 11-69; branch 65 → 264 (end); main part 70-259 with a loop 97-140 (back
-  jump at 140, condition c07), a skip 92 → 145, short waits 85/87 → 86, 127 → 126, 169 → 168, 221/224 → 223, and 259 → 70
-  per line; END at 264. Words 230-251 changed nothing in either camera test at Number 2: they likely serve other inputs (more
-  frames) or another segment not sampled. [code]/[inferred]
-- **Not settled offline:** which 4-bit field is a destination and which a source. The values alone do not say it, and
-  the semantics of fields 53-87 are unknown. Settling it needs a camera test that writes chosen values (D3: all 16 values
-  in a few fields of w151, w194, w199, w211, reading the result each time). [inferred]
-- Correction to "106 bits later": the first fields line up exactly (41-68 ↔ 147-174), but the tail does not: lane A
-  69-71, 72-75, 76-79, 80-83, 84-87 vs lane B 175-178, 179-181, 182-185, 186-189, 190-193 (co-change boundaries). [code]
-- **Third camera test (2026-11-19):** every value of 84 fields (register fields of w211 A and w151/w194/w199 B, operation
-  fields of w198/w211 A and w171 B, each middle bit 88-127 of w151), 746 passes, all clean, even with bits 88-127 changed.
-  10 fields matter. [camera]
-  - **Destination:** w199 B 167-170 (stock 1): any other value leaves the output at the black level (256). [camera]/[inferred]
-  - **Source:** w151 / w194 B 147-150 (stock 0): any other value reads an empty register (input B lost / black-level
-    add-back lost). [camera]/[inferred]
-  - **Register contents**, read through w211 A 41-44 at the line start: r0 = 256 (black level), r1 = the result,
-    r2 = 4095 (clip level), r5 = a value that changes along the line, r14 = 3515, r15 = 181, the rest 0. The black level and
-    clip level most likely come from the window (W+388, W+420). [camera]/[inferred]
-  - **Gain stage:** w198 A 76-79 scales around the black level, (x - OB) * g + OB. Stock g = 1.0; other values pick 1.25,
-    1.18 or 1.01 (constants not in job 11's data lines). The natural place for per-ND brightness. [camera]/[inferred]
-  - **Saturate:** w211 A bit 79 (values 8-15) forces 4095. w171 B 179-181 (stock 1): values 2-7 set the middle segment to
-    the black level. [camera]
-  - **Middle bits of w151:** 106-109 replace or break input A, 110-116 act like a read offset (middle/end segments),
-    123-127 drop input B in the middle/end segments; 88-105 and 117-122 no effect. [camera]/[inferred]
-- **Fourth camera test (2026-11-19):** only the record changed (black level 0-512 per input, clip 1000-4095), 73
-  passes, all clean. [camera]
-  - **Black level:** each input's own black level is subtracted, and input 0's is added back to the output (r0 = input
-    0's black level). Values below the black level go negative and still average correctly. [camera]
-  - **Clip:** WBClip clips **each input before the merge**, at black level + clip. The gain comes after the clip.
-    [camera]
-  - **Fixed constants:** r2 = 4095 whatever the clip, r14 = 3514, r15 = 181. The gains of w198 A 76-79 (1.25, about
-    1.177, about 1.013) do not follow the black level, so an earlier guess (g = 1 + black level / 1024) was wrong.
-    r5 changes between runs (likely not set). [camera]/[inferred]
-  - **Meaning:** the record sets black levels and clips but not brightness. Live ND does not need a gain: the merge is
-    an average, so ND32 needs more inputs. The record has room for 32 inputs (32 × 12 bytes before the output address
-    at +384); our guard and the native callers stop at 16 today. Live GND (a gain across the frame) has no ready
-    mechanism. [inferred]
-- **Fifth test built 2026-11-19** (not run yet): job 11 unchanged, record only. 1-32 inputs (ND32; our guard's limit
-  raised from 16 to 32 for it), black frames among the inputs (darkening by an exact fraction, a possible stepped Live
-  GND), bands of rows and narrower widths. [code]
-  Its first run stopped at the first 3-input pass: our harness bridge refuses Number > (its input-size words) / 12
-  with 0xa124, and the harness had left them at 2 inputs. A fixed build replaces it. [camera]/[code]
-  The fixed build's run (2026-11-19) merged 2, 3, 4, 8, 15 and 16 inputs: every value is the per-pixel mean above black,
-  **rounded to nearest** (3 and 15 inputs only fit rounding), in the same ~10 ms for 2 or 16 inputs. [camera]
-  17 inputs was refused before the engine ran (0xa224) by a second 16-input check in our own Live ND code (job-11
-  completion gate); a build with both checks raised to 32 is next. [camera]/[code]
-- **Fifth test results (2026-11-19, all 36 passes):** job 11 merges **up to 32 inputs** unchanged, ~10 ms whatever N,
-  rows or width. Exact rule (fits every printed value): out = OB + round_half_even(Σ(in − OB) × ceil(2^19/N) / 2^19)
-  [camera]/[inferred]. Input order does not matter. Black inputs darken by exactly k/N. A record can cover a band of
-  rows (1-row granularity); width is written in 10-pixel groups (Hw 45 writes 50). So ND32 is a frame-count and memory
-  question, not microcode, and a stepped Live GND can be built from job 11 runs on row bands with black inputs. [camera]
+We first worked out the format by comparing the job programs of the E-M5 III, OM-5 1.2, OM-5 II 1.1,
+E-M1 III 1.6 and PEN-F 3.1 byte for byte. Readings that atx's decoded model corrected carry a note.
 
-### Static analysis limit (2026-11-19)
+### Lines and words
 
-Control flow, field boundaries, constants and the host side are readable from the code alone. **What the lane fields
-compute is not:** no shared code, no documentation, and no simulator. The fastest way to settle it is differential
-testing on the camera (see the camera tests above).
-- **Window offsets appear as immediates.** In OM-5 job 11, the 11-bit field from bit 109 holds the job's window byte
-  offsets far more often than in any other job: 396 (pitch) 30 times, 400 (Hw) 28, 384 (output) 18, 398, 392, 390, and
-  12 (the stride of the input table) 27 times. So that field is (part of) a load address/offset into the window.
-  Exact field edges not settled. Script `imm.py`. [inferred]
-- **Rough unit layout** (bytes of the 40-byte word; "idle" = byte 0xff, the value an unused field holds): bytes 0-2
-  change in every word (sequencer: branch target low bits, next-word control). Bytes 3-10 and 17-23 behave as a matched
-  pair: both stay idle in job 8 (memcpy) and the stub, both are lightly used in jobs 6 and 12, and both are busy in the
-  heavy jobs. That looks like two parallel datapath lanes. Bytes 12-16 are busy in every job, including job 8: these
-  carry the window and memory address fields (bits 104-120) and the branch high bits (128-132). Bytes 29-39 hold
-  further control fields, including the always-1 bits. This is a first sketch from per-byte idle rates,
-  not a decode. [inferred]
-- **PEN-F has the same engine.** Its job programs are in block 2 resource 5 (not 6), with fewer jobs: its job 16 is
-  byte-identical to job 8 (hardware memcpy), its job 7 is 88% the same as job 2 (Live Composite; the end part, words
-  1411-1589, differs), and its jobs 13, 15 and 17 match nothing in the newer bodies. So PEN-F (2016) to OM-5 II (2023)
-  share one microcode generation; only the OM-1 class differs. [code]
+- **A program is an array of 64-byte lines.** In a code line only the first 40 bytes are used. They hold one
+  **320-bit** instruction word, little-endian. The last 24 bytes are zero.[^fw5]
+- Lines whose last 24 bytes aren't zero are data. They hold the defaults that jobs 1, 2, 3, 5, 7, 9 and 14 read from the
+  end of their own program, 2 to 22 lines.[^fw5]
+- Identical instructions encode identically at every position, because the placeholder program repeats lines. So the
+  words aren't scrambled or encrypted.[^fw5]
+- The words are dense. The OM-5's 19 programs hold 31,148 code words, and 27,993 of them are different. Every bit
+  position varies except bits 133-140 and 233-239, which are always 1. So this is horizontal (VLIW-style) microcode
+  with many fields per word, not a compact opcode stream.[^fw5]
 
-### Is it a known commercial core? (2026-11-19)
+### The common frame
 
-- No vendor or core name appears in any E-M5 III block. Searched for: Milbeaut, Socionext, Fujitsu, CEVA, Tensilica/Xtensa,
-  Synopsys, VLIW, microcode, Venus. The only vendor strings are Panasonic device-tree names (`panasonic,dc13`,
-  `panasonic,irqcon`, ...). [code]
-- The SoC is Panasonic's (later Nuvoton Japan's) "dc13" family, which is the same lineage as the Lumix Venus Engine.
-  The control CPU is Panasonic's own MN103, and the 320-bit horizontal microcode with a per-job parameter window looks
-  like an in-house Panasonic image engine, not licensed DSP IP. So a published instruction set is unlikely.
-  [inferred]
-- Public Panasonic sources (searched 2026-11-19) give no instruction set for this engine. The closest descriptions:
-  Matsushita patent US6671708 (1998) describes a program-controlled image processor with a sequencer, **two address
-  generators, two data memories and two pipeline units**, plus fixed-function pipelines. That matches our sketch of a
-  sequencer, an address field group and two matched datapath lanes. Panasonic's UniPhier media SoCs (Panasonic
-  Technical Journal 58-1, 2012) pair an "Instruction Parallel Processor" (IPP) with a "Data Parallel Processor" (DPP2:
-  128-bit SIMD, some 256-bit). Other hits were unrelated (MPEG decoders, ARM NEON, a Ricoh SIMD patent). Treat these as
-  hints only: none names this chip. [inferred]
-- Lumix bodies of the same era probably run the same engine, but **we don't use Lumix firmware**.
-  Panasonic's download licence forbids reverse engineering, and our five Olympus bodies are enough to compare. [policy]
+- Every program starts with the same 10-11 words. The `0x600` "empty" program (E-M5 jobs 11-17, and job 13 everywhere)
+  is that start sequence plus an end. It is a stub that does nothing.[^fw5]
+- **Every E-M5 III and OM-5 program has the same frame**[^fix1]. Word 0 calls the job routine at word
+  10. The routine's last real word is a return. The halt is word 5, where the call returns. Our own lister checked this
+  on all 19 OM-5 programs and on E-M5 III jobs 0-10, which have one halt each, at word 5.[^fw5]
+
+### Control ops[^fix1]
+
+The op field is bits 313-319 (7 bits).[^fw5]
+
+| op | meaning |
+|---|---|
+| 0 | `loop`, a counted loop end. It branches back while ra > 0 and writes ra - 1 back |
+| 1 | `brf`, branch if ra == 0 |
+| 2 | `br`, branch if ra != 0 |
+| 3 | jump. It is a call when its delay slots store the return word |
+| 4 | return, a jump to the word a G register holds |
+| 7 | halt |
+| 8-73 | data ops |
+| 127 | idle |
+
+*Control ops in the op field.*
+
+- Every control op has four delay slots.[^fw5]
+- The branch condition is the register named by ra (bits 123-127).[^fw5]
+- Bits 224-228 name the G register that a write port (enable bits 272-273) writes.[^fw5]
+
+### Branch targets
+
+- **Branch targets are absolute word indexes**, 13 bits. The low 8 bits are in bits 15-22 and the high 5 bits in bits
+  128-132. Every changed branch fits this reading.[^inf4]
+- The evidence is version diffs. Where one version of a program inserts or removes words, exactly this field moves by
+  the size of the change, in every word that points past it. Examples are OM-5 vs OM-5 II job 14 (+35, +37 and +68 in
+  about 75 words), OM-5 vs E-M1 III job 17 (-19), OM-5 vs OM-5 II job 15 (-117) and PEN-F job 7 vs job 2 (-2 and +4).
+  Word 2845 of OM-5 job 14 targets 2844, a loop.
+- In OM-5's programs, 1,013 words have bits 315-319 = 0 and bit 229 = 0, and 1,012 of them have a target inside their
+  own program. 159 of the 231 branches confirmed by diffs have this form. Most of the rest have bits 315-319 = 2.[^inf4]
+### Immediates
+
+- Apart from branch targets, the commonest change between versions of the same job is in bits 0-14 alone. Examples are
+  3584 → 4096 and 3072 → 3584 (OM-5 vs OM-5 II job 14, words 1792-1793), and 8 → 16 (job 15, with bits 105-108 going
+  from 1 to 2 in the same words). Bits 0-14 are the X0 and X1 immediates. In some formats they hold flag bits instead
+  (128 is common).[^fw5][^fix1]
+- **Parameter offsets appear as immediates.** They are op-slot immediates of local-memory loads, counted in words
+  (96, 99, 100 and 102 × 4 = 384, 396, 400 and 408). In OM-5 job 11, the 11-bit field from bit 109 holds the job's window
+  byte offsets far more often than in any other job. It holds 396 (pitch) 30 times, 400 (Hw) 28, 384 (output) 18, and
+  398, 392 and 390. It also holds 12, the stride of the input table, 27 times.[^fw5][^fix1]
+
+### Job 11 and job 8 skeletons
+
+- **Job 11** (OM-5, 272 words).[^fix1] Word 0 calls word 10. The routine runs from word 10 to its return
+  at 264. Setup is words 10-69, and word 65 is a `brf` that skips to the return when there is nothing to do. The
+  per-line loop is words 70-259 (`br` 259 → 70). The per-input accumulation loop is words 97-140 (`br` 140 → 97). The
+  output stage is words 145-251. The short back-jumps (127 → 126, 169 → 168, 221 and 224 → 223) are counted `loop`
+  ops.[^fw5]
+- **Job 8** (memcpy, 88 words). The routine runs from word 10 to its return at 79.[^fw5]
+
+## Job 11 on the camera
+
+We ran OM-5 job 11 on the E-M5 III in five rounds of tests, at 80 × 64 pixels. The test inputs were
+gradients and constants, such as A = 256 + 32x and B = 1280. Each round changed the program or the record, ran the
+job and compared the output. Over 1,700 passes ran.[^cam2]
+
+### Robustness
+
+- **No change stalled or crashed the engine.** All 382 passes of round 1 (one lane of one main-loop word made idle),
+  all 474 of round 2 (single flipped bits), all 746 of round 3 (every value of 84 fields) and all 73 of round 4
+  (record only, black level 0-512 per input, clip 1000-4095) ended cleanly.[^cam2]
+- A run at this size takes 10-11 ms whatever the change, so the time is fixed overhead.[^cam2]
+
+### The merge rule
+
+- With two inputs the output is exactly (A + B) / 2, black level included.[^cam2]
+- The full rule fits every printed value: out = OB + round_half_even(Σ(in − OB) × ceil(2^19/N) / 2^19).[^cam3]
+- Job 11 merges **up to 32 inputs** unchanged, in about 10 ms whatever N, the rows or the width. 3 and 15 inputs only
+  fit rounding to nearest.[^cam2]
+- Input order does not matter. Black inputs darken the result by exactly k/N.[^cam2]
+- A record can cover a band of rows, at 1-row granularity. Width is written in 10-pixel groups (Hw 45 writes 50).[^cam2]
+- So ND32 is a frame-count and memory question, not a microcode one. A stepped Live GND can be built from job 11 runs
+  on row bands with black inputs.[^cam2]
+
+See also: [Live ND: technical notes](../features/live-nd-technical.md).
+
+### Black level and clip
+
+- Each input's own black level is subtracted, and input 0's black level is added back to the output.[^cam2]
+- Values below the black level go negative and still average correctly.[^cam2]
+- WBClip clips **each input before the merge**, at black level + clip.[^cam2]
+- The record sets black levels and clips but not brightness. Live ND does not need a gain, because the merge is an
+  average. So ND32 needs more inputs.[^inf5]
+- The record has room for 32 inputs (32 × 12 bytes before the output address at +384). Our guard and the native callers
+  stopped at 16.[^cam4]
+
+### What single words do
+
+Rounds 1 to 3 changed single words of the main loop and recorded the effect. The words "destination", "source" and
+"gain" in our first notes were guesses. Under the decoded model each is a write-port register number or an operand
+of a vector unit. The camera results below stand.[^cam3]
+
+- 95 of the 382 lane changes altered the output (49 in lane A, 46 in lane B). 285 did nothing visible. Most effects hit
+  only the start or only the end of a line. The start and end words repeat at a fixed offset (116-122 ↔ 129-135,
+  155-161 ↔ 172-178), so the main loop holds one copy of a block per line segment.
+- Word groups:
+    - input B fetch or add (w151, w155, w130, w172, w173, w213, w228). Changing them gives (A + 256) / 2.
+    - black-level add-back (w194). Changing it removes 256.
+    - weights (w129 gives A + B − 640, w171 gives A at full weight, w198 gives slope 20 instead of 16)
+    - clip (w211 → 4095)
+    - constants (w128 → 640, w199 → 256)
+- Round 2 found 40 bits that change the output: w155 bits 45-52, w198 bits 77 and 79 (weight), w211 bits 41-44 and 79
+  (79 saturates to 4095), w151 and w194 bits 147-150, w129 and w171 bits 155-158, w171 bits 179-181, and w199 bits
+  163-164 and 167-170 (output becomes 256).
+- Round 3 found 10 fields that matter.
+    - w199 bits 167-170 (stock 1). Any other value leaves the output at the black level (256).
+    - w151 and w194 bits 147-150 (stock 0). Any other value reads an empty register, so input B or the black-level
+      add-back is lost.
+    - Read through w211 bits 41-44 at the line start, the registers hold r0 = 256 (black level), r1 = the result,
+      r2 = 4095 (clip level), r5 = a value that changes along the line, r14 = 3515 and r15 = 181. The rest hold 0.
+    - w198 bits 76-79 scale around the black level, as (x - OB) * g + OB. Stock g is 1.0. Other values pick 1.25, about
+      1.177 or about 1.013. These constants are not in job 11's data lines, and they do not follow the black level.
+    - w211 bit 79 (values 8-15) forces 4095. w171 bits 179-181 (stock 1) set the middle segment to the black level for
+      values 2-7.
+    - In the middle bits of w151, bits 106-109 replace or break input A, bits 110-116 act like a read offset (middle and
+      end segments), and bits 123-127 drop input B in the middle and end segments. Bits 88-105 and 117-122 have no
+      effect.
+- Words 230-251 changed nothing in rounds 1 and 2 at two inputs. They likely serve more inputs or a line segment the
+  tests did not sample.[^cam3]
+- Round 4 showed that r2 stays 4095 whatever the clip, r14 = 3514 and r15 = 181. r5 changes between runs and is likely
+  not set.[^cam2]
+
+### Harness lessons
+
+- The first run of round 5 stopped at the first 3-input pass. Our harness bridge refuses Number > (its input-size
+  words) / 12 with `0xa124`, and the harness had left those words at 2 inputs.[^cam4]
+- 17 inputs were refused before the engine ran (`0xa224`), by a second 16-input check in our own Live ND code (the job-11
+  completion gate). A build with both checks raised to 32 then ran all 36 passes.[^cam2]
 
 ## The parameter window at 0x9d000000
 
-The address range from 0x9d000000 is how the CPU hands parameters to a job: a **parameter window** of the job engine,
-not separate hardware. Each job has a setter function in a per-job table (E-M5 III **0x60257b88**, OM-5
-**0x6025f8e8**, indexed by job number). A setter writes the job's parameter words, and writes the job's program address
-to **0x9d200010**. [code]
+The address range from `0x9d000000` is how the CPU hands parameters to a job. It is a **parameter window** into the
+engine's local memory, not separate hardware. Each job has a setter function in a per-job table, indexed by job
+number. A setter writes the job's parameter words and writes the job's program address to `0x9d200010`.[^fw5]
 
-- On the E-M5 III, job 8 uses 0x00-08, job 10 uses 0x10-18 and job 7 uses 0xac-c0; 0x1c-0x54 is unused. [code]
-- The OM-5's job 12 setter 0x6032a739 writes 15 words at 0x1c-0x54, including **65536/N and log2(N)** from field +36
-  (N = number of frames). The job 18 setter 0x603292c0 writes 0x1c-0x3c. [code] Porting the Live ND live-view preview
-  needs job 12's setter. [inferred]
-- **Correction (2026-11-19):** the job 11 setter (OM-5 0x6032a626) *does* write window words. It reaches the window
-  through a computed base (0x9d000000 + slot<<24), which is why a search for absolute 0x9d addresses missed it. It copies
-  the record into the window (layout under [The job 11 record](#the-job-11-record-420-bytes)). [code]
-- The HHHR setters (OM-5 0x6032a094 / a26f / a2d6 / a419) don't call other functions. Job 14's writes 610 words and
-  reads defaults from the last 0x100 bytes of its own program (prog+0x41700), so if you move the program, move that
-  pointer with it. [code]
+- On the E-M5 III, job 8 uses `0x00`-08, job 10 uses `0x10`-18 and job 7 uses `0xac`-c0. The range `0x1c`-0x54 is unused.[^fw5]
+- The OM-5's job 12 setter writes 15 words at `0x1c`-0x54. They include **65536/N and log2(N)** from field +36, where N
+  is the number of frames. The job 18 setter writes `0x1c`-0x3c.[^fw5] Porting the Live ND
+  live-view preview needs job 12's setter.[^inf5]
+- The OM-5's job 11 setter writes window words through a computed base (`0x9d000000 + (slot << 24)`). A search for
+  absolute `0x9d` addresses misses it for that reason. It copies the record into the window, with the layout in the next
+  section.[^fw5]
+- The OM-5's four HHHR setters don't call other functions. Job 14's setter writes 610 words.
+  It reads defaults from the last `0x100` bytes of its own program (`prog + 0x41700`). If you move the program, move that
+  pointer with it.[^fw5]
 
 ## The job 11 record (420 bytes)
 
-Job 11 (the Live ND merge) takes everything from one record in memory:
+Job 11 (the Live ND merge) takes everything from one record in memory.
 
 | offset | field |
 |---|---|
@@ -296,60 +314,233 @@ Job 11 (the Live ND merge) takes everything from one record in memory:
 | 396 / 400 / 404 / 408 | Number, MemHw (pitch), Hw (width), Vw (height) |
 | 412 | 4 × u16 WBClip |
 
-What we saw on the camera: [camera]
+*Job 11 record layout. Offsets are in bytes.*
 
-- OB (black level) read 1025 (= 256<<2). For a full frame: Number N, 5240/5240/3912, stride 0x1f47600. [camera]
-- The output is the average of the inputs, in the same packed 12-bit format (checked on 80/80 sampled pixels).
-- The same input address may appear more than once, which is how ND2 and ND4 work (input i = frame (i mod K)).
-- Timing: 2 frames 32.5 ms, 8 frames ~87 ms, 16 frames 142.5 ms.
+What we saw on the camera:[^cam1]
+
+- OB (black level) read 1025 (256<<2). A full frame has Number N, 5240/5240/3912 and stride `0x1f47600`.
+- The output is the average of the inputs, in the same packed 12-bit format. We checked 80 of 80 sampled pixels.
+- The same input address may appear more than once. That is how ND2 and ND4 work (input i = frame (i mod K)).
+- Timing: 2 frames 32.5 ms, 8 frames about 87 ms, 16 frames 142.5 ms.
 - The output can be written in place into one of the input frames, which then becomes the saved photo.
 
-How the setter hands the record to the microcode (OM-5 0x6032a626; W = 0x9d000000 + slot<<24): [code]
+How the OM-5's job 11 setter hands the record to the microcode (`W = 0x9d000000 + (slot << 24)`):[^fw1]
 
 | window | value |
 |---|---|
 | W+12i, i < Number | input i address |
-| W+12i+4 / +8 | input i OB pairs, each u16 >> 2 (mask 0x3ffc3ffc, so OB 1025 becomes 256) |
+| W+12i+4 / +8 | input i OB pairs, each u16 >> 2 (mask `0x3ffc3ffc`, so OB 1025 becomes 256) |
 | W+384 | output address |
 | W+388 / +392 | output OB = max(OB0, OB3) >> 2, both halves (the setter also writes this back into record +388/+392) |
-| W+396 | MemHw / 10 × 16: line pitch in bytes, because the packed format stores **10 pixels per 16 bytes** (12-bit, padded) |
+| W+396 | MemHw / 10 × 16, the line pitch in bytes, because the packed format stores **10 pixels per 16 bytes** (12-bit, padded) |
 | W+400 / +404 / +408 | Hw, Vw, Number |
 | W+412 / +416 | engine slot, constant 2 |
 | W+420 / +424 | WBClip pairs |
-| W+0x200010 | program address (OM-5 0xa4297540) |
+| W+0x200010 | program address (OM-5 `0xa4297540`) |
 
-So the microcode reads its parameters from the window, at fixed word offsets. Those offsets (for example Number at
-word 102) are the first thing to look for inside the job 11 program. [inferred]
+*Window words written by the OM-5's job 11 setter. W is the window base of the slot.*
 
-## How the worker drives the engine (E-M5 III, 2026-11-19)
+The black level and clip level in registers r0 and r2 most likely come from W+388 and W+420.[^inf1]
 
-Read in the E-M5 III worker code 0x603185eb-0x60319646. Per engine slot s (0 or 1, the low nibble of packet byte +71),
-E = 0x9d000000 + s<<24. [code]
+## How the worker drives the engine
 
-- **Submit** 0x603185eb(d0=job, d1, a0=record, a1=flags) allocates a 76-byte packet, copies 17 words, stores job at
-  +68, a global mode byte (0x8050) at +69, d1 at +70 and a1 at +71 (low nibble = slot, high nibble = chained-job
-  flag), then either runs it at once (mode 1) or posts it to the worker queue. [code]
-- **Lock:** each slot has a semaphore (4103 for slot 0, 4104 for slot 1; table 0x604e1f08) and an event flag (4132 /
-  4133; table 0x604e1efc). [code]
-- **Start** (0x60319559): memory-port select words at 0x99200264 / 0x99300264 / 0x99b00264 + 4s (16 on the port named
-  by packet +69, else 0); interrupt enable 0x98800148 = 1<<(21+s); E+0x800000 = 0, E+0x800040 = 1, E+0x603404 = 15;
-  call the job's setter (it fills the window and E+0x200010 = program address); E+0x200004 = 0; E+0x200000 |= 0x400 |
-  8 | 2; E+0x80000c = 1; then **E+0x800004 = 1 starts the program**. [code]
-- **Status:** E+0x200000 bit 5 (0x60319485). **Stop:** E+0x800040 = 0, E+0x800000 = 1, interrupt clear 0x988001c4 =
-  1<<(21+s). **Reset:** E+0x800004 = 0, E+0x800000 = 2, then wait for E+0x800008 bit 2. [code]
-- **Completion:** the worker waits on the slot's event flag (set from the slot's interrupt, bit 21+s) with a per-job
-  timeout in ms (table 0x604e1f98): job 0 20, 1 13, 2-4 2000, 5-7 1000, 8 100, 9 4000, 10 4, 11 600, 12 18, 13 100,
-  14 2000, 15 500, 16 3500, 17 500. The E-M5 III already has entries for jobs 11-17, so the framework was never cut
-  down for the missing programs. A wait result of -50 is a timeout. [code]
-- Besides the setter table, each job has four more hook tables in RAM, called around the run (0x61e92ff0,
-  0x61e93038, 0x61e93080, 0x61e930c8, 0x61e93110, indexed by job). [code]
+```mermaid
+flowchart LR
+  subgraph CPU["Control CPU"]
+    T["Calling task"]
+    W["Engine worker"]
+  end
+  subgraph ENG["Image engine, slot s"]
+    WIN[("Parameter window")]
+    RUN["Job program"]
+  end
+  T -- "job packet" --> W
+  W -- "parameters" --> WIN
+  W -- "start" --> RUN
+  WIN -- "parameters" --> RUN
+  RUN -- "done" --> W
+  W -- "result" --> T
+```
 
-## Submitting a job safely (learned on the camera)
+*A job's path on the E-M5 III. Arrows show data flow. The table below says what moves on each arrow and who starts it.
+s is the engine slot, 0 or 1, and E is that slot's window base.[^fw5]*
 
-- Submit with 0x603185eb(d0=job, d1=1, a0=packet, a1=16). The worker then sets C+4: 2 = done, 3 = worker failed.
-  [code]
-- A bridge function checks every record (capacity = min(BC+12, BC+16)/12, limits on Number). **If it refuses a record,
-  the worker parks and the camera hangs the next time anything uses the image processor, until you pull the battery**
-  Read the bridge's checks for every change you make to a record. [camera]
-- Running job 12 without its setter "executes, output unverified". [camera]
+| from | to | what moves | path | started by | how often |
+|---|---|---|---|---|---|
+| calling task | engine worker | 76-byte packet with 17 record words, `submit(job, d1, record, flags)` | worker queue, or started at once in mode 1[^fw5] | calling task | per job |
+| engine worker | parameter window | record words and the program address at `E+0x200010` | the job's setter, after memory-port select and IRQ 21+s enable[^fw5] | engine worker, holding slot semaphore 4103 + s | per job |
+| engine worker | job program | start | write `E+0x800004 = 1`[^fw5] | engine worker | per job |
+| parameter window | job program | its parameters | engine local memory, base E[^fw5] | job program reads | per run |
+| job program | engine worker | done | interrupt bit 21+s sets event flag 4132 + s[^fw5] | image engine | once per job |
+| engine worker | calling task | C+4 = 2 done or 3 failed. A wait result of -50 is a time-out.[^fw5] | the job record | engine worker | per job |
+
+*Interfaces on a job's path.*
+
+Read in the E-M5 III's engine worker. Per engine slot s (0 or 1, the low nibble of packet byte +71),
+`E = 0x9d000000 + (s << 24)`.[^fw5]
+
+- **Submit.** The submit function (d0=job, d1, a0=record, a1=flags) allocates a 76-byte packet and copies 17 words. It stores
+  the job at +68, a global mode byte (`0x8050`) at +69, d1 at +70 and a1 at +71 (low nibble = slot, high nibble =
+  chained-job flag). It then either runs the job at once (mode 1) or posts it to the worker queue.[^fw5]
+- **Lock.** Each slot has a semaphore (4103 for slot 0, 4104 for slot 1) and an event flag (4132 and 4133).[^fw5]
+- **Start**, in order:[^fw5]
+    1. Memory-port select words at `0x99200264` / `0x99300264` / `0x99b00264` + 4s. The port named by packet +69 gets 16, the
+       others 0.
+    2. Interrupt enable `0x98800148 = 1 << (21 + s)`.
+    3. `E+0x800000 = 0`, `E+0x800040 = 1`, `E+0x603404 = 15`.
+    4. Call the job's setter. It fills the window and sets `E+0x200010` to the program address.
+    5. `E+0x200004 = 0`, `E+0x200000 |= 0x400 | 8 | 2`, `E+0x80000c = 1`.
+    6. **`E+0x800004 = 1` starts the program.**
+- **Status** is `E+0x200000` bit 5.[^fw5]
+- **Stop:** `E+0x800040 = 0`, `E+0x800000 = 1`, interrupt clear `0x988001c4 = 1 << (21 + s)`.[^fw5]
+- **Reset:** `E+0x800004 = 0`, `E+0x800000 = 2`, then wait for `E+0x800008` bit 2.[^fw5]
+- **Completion.** The worker waits on the slot's event flag, which the slot's interrupt (bit 21+s) sets. A wait result
+  of -50 is a timeout. The per-job timeouts in ms are below.[^fw5]
+
+| job | 0 | 1 | 2-4 | 5-7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| timeout (ms) | 20 | 13 | 2,000 | 1,000 | 100 | 4,000 | 4 | 600 | 18 | 100 | 2,000 | 500 | 3,500 | 500 |
+
+*Time limit per job in the E-M5 III's timeout table.*
+
+- The E-M5 III already has entries for jobs 11-17, so the framework was never cut down for the missing programs.[^fw5]
+- Besides the setter table, each job has four more hook tables in RAM, called around the run and indexed by job.[^fw5]
+
+## Safe submission
+
+- Call the submit function with d0=job, d1=1, a0=packet and a1=16. The worker then sets C+4 to 2 when done, or 3 when the
+  worker failed.[^fw1]
+- A bridge function checks every record. Capacity is min(BC+12, BC+16)/12, and there are limits on Number.[^cam1]
+
+> [!WARNING]
+> If the bridge refuses a record, the worker parks. The camera then hangs the next time anything uses the image engine,
+> until the battery is pulled. Read the bridge's checks for every change you make to a record.
+
+- Running job 12 without its setter "executes, output unverified".[^cam1]
+
+## Origin of the engine
+
+- No vendor or core name appears in any E-M5 III block. We searched for Milbeaut, Socionext, Fujitsu, CEVA,
+  Tensilica/Xtensa, Synopsys, VLIW, microcode and Venus. The only vendor strings are Panasonic device-tree names
+  (`panasonic,dc13`, `panasonic,irqcon`, ...).[^fw5]
+- The SoC is Panasonic's (later Nuvoton Japan's) "dc13" family, the same lineage as the Lumix Venus Engine. The control
+  CPU is Panasonic's own MN103. The 320-bit horizontal microcode with a per-job parameter window looks like an in-house
+  Panasonic image engine, not licensed DSP IP. So a published instruction set is unlikely.[^inf5]
+- Public Panasonic sources give no instruction set for this engine. The closest description is
+  Matsushita patent US6671708 (1998). It describes a program-controlled image processor with a sequencer, **two
+  address generators, two data memories and two pipeline units**, plus fixed-function pipelines. Panasonic's UniPhier
+  media SoCs (Panasonic Technical Journal 58-1, 2012) pair an "Instruction Parallel Processor" (IPP) with a "Data
+  Parallel Processor" (DPP2, 128-bit SIMD, some 256-bit). Other hits were unrelated (MPEG decoders, ARM NEON, a Ricoh
+  SIMD patent). Treat these as hints only, because none names this chip.[^inf5]
+- Lumix bodies of the same era probably run the same engine, but **we don't use Lumix firmware**. Panasonic's download
+  licence forbids reverse engineering, and our Olympus bodies are enough to compare.[^pol1]
+
+
+## Address reference
+
+E-M5 III 1.7 addresses unless a body is named. Functions are block0 addresses (base `0x60021020`).
+
+### Memory
+
+| item | address |
+|---|---|
+| job programs in flash, bank 6 (block 2 resource `0x8007`) | end of native programs `0x45c77400` |
+| our Live ND staging | flash `0x45c77400`-0x45c86e00 |
+| free for HHHR jobs (868 KB of zeros) | flash `0x45c86e00`-0x45d60000 |
+| native programs in RAM | `0xa411f540` (job 0) to `0xa4277140` (end of job 10) |
+| unreferenced RAM after them (296 KB) | `0xa4277140`-0xa42bf540 |
+| OM-5 job 14 native load address | `0xa42a7d40` (overlaps E-M5 job 9 at `0xa422d140`-0xa4265140) |
+| OM-5 job 11 program address | `0xa4297540` |
+| reload mask (bit per job) | `0x8ff001b8` |
+
+*Memory ranges.*
+
+### Functions and tables
+
+| item | E-M5 III | OM-5 |
+|---|---|---|
+| program loader (a0=dst, a1=flash, d0=size, d1=258) | `0x6005a177` | |
+| job wrappers | `0x60318301`..`0x603185c3` | |
+| submit function | `0x603185eb` | |
+| engine worker | `0x603185eb`-0x60319646 | |
+| start function | `0x60319559` | |
+| status check | `0x60319485` | |
+| setter table | `0x60257b88` | `0x6025f8e8` |
+| job 11 setter | | `0x6032a626` |
+| job 12 setter | | `0x6032a739` |
+| job 18 setter | | `0x603292c0` |
+| HHHR setters (jobs 14-17) | | `0x6032a094`, `0x6032a26f`, `0x6032a2d6`, `0x6032a419` |
+| semaphore table (per slot) | `0x604e1f08` | |
+| event flag table (per slot) | `0x604e1efc` | |
+| timeout table (per job) | `0x604e1f98` | |
+| hook tables (per job) | `0x61e92ff0`, `0x61e93038`, `0x61e93080`, `0x61e930c8`, `0x61e93110` | |
+| IPCR command path (HDR, Hand-held Starlight) | `0x603741e0` | |
+
+*Functions and tables. Block0 addresses, base 0x60021020.*
+
+### Registers
+
+| register | address |
+|---|---|
+| parameter window, slot 0 / slot 1 | `0x9d000000` / `0x9e000000` (`0x9d000000 + (slot << 24)`) |
+| job program address | window + `0x200010` (`0x9d200010` for slot 0) |
+| memory-port select, per core | `0x99200264`, `0x99300264`, `0x99b00264` (+4 per slot) |
+| engine interrupt enable | `0x98800148` (bit 21 + slot) |
+| engine interrupt clear | `0x988001c4` (bit 21 + slot) |
+
+*Engine registers.*
+
+## Sources and dates
+
+The small numbers in the text point here. Each note says how a fact is known and when.
+
+[^fw1]: Read in the firmware.
+[^cam1]: Seen on our E-M5 III.
+[^inf1]: Inferred, not tested directly.
+[^fw2]: Hashes read in the firmware. The generation is inferred, 2026-11-21.
+[^fw3]: Read in the firmware, 2026-11-21.
+[^fw4]: Read in the firmware, 2026-11-06.
+[^inf2]: Inferred from strong evidence, 2026-11-06.
+[^inf3]: Inferred, not tested directly, 2026-11-06.
+[^fw5]: Read in the firmware, 2026-11-19.
+[^fw6]: Read in the firmware, 2026-11-21. Bank 5 at base 0x43160000 in the E-M5 II file, field histogram over all words.
+[^inf4]: Inferred from strong evidence, 2026-11-19.
+[^cam2]: Seen on our E-M5 III, 2026-11-19.
+[^cam3]: Seen on our E-M5 III. The meaning is inferred, 2026-11-19.
+[^inf5]: Inferred, not tested directly, 2026-11-19.
+[^cam4]: Seen on our E-M5 III and read in the firmware, 2026-11-19.
+[^pol1]: Project policy, 2026-11-19.
+[^fix1]: Corrected on 2026-11-24 under atx's decoded model of the instruction set. The older reading is in [History](#history).
+
+## History
+
+- 2026-11-19: before the decoded model, the static analysis limit was the lane fields. Control flow, field boundaries,
+  constants and the host side were readable from code. What the lane fields compute was not, so we used differential
+  camera tests.
+- 2026-11-19: we read bits 315-319 as the op field. They are the top five bits of the 7-bit op field 313-319, so our
+  "op 0" lumped ops 0-3 together and our "op 1" lumped ops 4-7. Corrected 2026-11-24.
+- 2026-11-19: we read the words job 8 word 79, job 11 word 264 and the stub's word 12 as "END". They are returns.
+  Corrected 2026-11-24.
+- 2026-11-19: we read bits 224-228 as a condition code and the short back-jumps in job 11 as wait loops. Bits 224-228
+  name a G register, and the back-jumps are counted loops. Corrected 2026-11-24.
+- 2026-11-19: we read the word as two identical lanes, lane B being lane A 106 bits later, with 4-bit register fields
+  holding 0-14 and 15 for unused. The first fields lined up (41-68 ↔ 147-174) but the tail did not. Under the decoded
+  model there are no two lanes. The word has four SIMD heads over 32 lanes. Withdrawn 2026-11-24.
+- 2026-11-19: a field-boundary sketch from bits that change together between words. Bits 0-14 small fields, 15-22
+  branch low, 23-30 one 8-bit field, 33-104 and 141-208 mostly 4-bit fields (taken as lanes A and B), 109-119 window
+  address, 120-127 condition, 128-132 branch high, 133-140 constant, 1-2-bit control bits up to 291, wider fields
+  292-312. Fields held their value over runs of 10-60 words in job 11 and changed where the camera tests had effects
+  (words 116-135, 154-178, 198-212, 222-229). Job 11 used register values 0-5 only. Superseded 2026-11-24 by the
+  decoded model.
+- 2026-11-19: an early control-flow read of job 11 had a skip 92 → 145, short waits 85/87 → 86, a loop condition c07
+  and END at 264. The skeleton above replaces it.
+- 2026-11-19: a byte-level sketch of the word from per-byte idle rates (two datapath lanes, address bytes 12-16).
+  Superseded 2026-11-24.
+- 2026-11-19: the window was first thought to be separate hardware. It is the engine's local memory. Corrected
+  2026-11-24.
+- 2026-11-19: a guess that the w198 gain is 1 + black level / 1024 was wrong. Round 4 showed the gains do not follow
+  the black level.
+- 2026-11-19: the job 11 setter was first thought not to write the window, because a search for absolute `0x9d`
+  addresses missed its computed base. Corrected the same day.
+- 2026-11-19: job 10 was a candidate gain map for Live GND. It is a fixed-coefficient filter or resampler.
 

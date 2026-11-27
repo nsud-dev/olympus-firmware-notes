@@ -1,19 +1,26 @@
 # Color and Monochrome Profiles
 
 <!-- human page -->
-> The dense reference for this page is [Color and Monochrome Profiles: technical notes](pen-f-profiles-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The PEN-F and E-P7 offer Color Profile and Monochrome Profile, two picture modes no other Olympus body offers to
+  the user.
+- The E-M5 III firmware already holds both modes, and only the way to pick and edit them was missing.
+- Our test builds add both modes to the Picture Mode list and add an on-camera editor with a colour wheel.
+- Nothing is released to install, and a free tone curve is still in progress.
 
 The PEN-F and E-P7 have two picture modes that no other Olympus body offers to the user. Color Profile lets you set
 the strength of twelve colours one by one. Monochrome Profile gives you a film-style black and white with a colour
 filter, grain and edge shading. Both keep three saved slots, so you can build your own looks and switch between them.
 
-The E-M5 Mark III does not offer either of them. Its firmware already contains the picture modes, the processing and
+The E-M5 III does not offer either of them. Its firmware already contains the picture modes, the processing and
 the saved settings. Only the way to pick and edit them was missing, and our test builds now add that.
 
+## Editor features
 
-## Status
-
-As of 22 November 2026, on the E-M5 III:
+On the E-M5 III, our test builds do the following.
 
 - **Both modes can be picked** in the Picture Mode list, with three slots each, and the choice survives power-off.
 - **There is an on-camera editor** with a colour wheel, reached the way you would expect from the picture mode.
@@ -25,13 +32,8 @@ As of 22 November 2026, on the E-M5 III:
   only, and the curve row shows the camera's own curve grid with the live histogram behind it.
 - **Hue, saturation and lightness per colour.** One row holds a strip of the twelve colours. INFO switches between
   saturation, hue and lightness, and the dials change the selected colour.
-- **A free tone curve is in progress.** Instead of the Olympus controls, a profile can use a curve of five points you
-  move yourself. It works in the emulator. On the camera the first version changed nothing, because the develop step
-  only builds a curve when an Olympus tone value is set. The fix is built, and live view is still being traced.
 
-Nothing is released to install.
-
-## The look of the editor
+## Editor layout
 
 The PEN-F puts its profile controls in a bar across the top of the screen. The OM-3 and OM-5 II use a side bar down
 the left. We chose the side bar, because the dials keep the roles they have everywhere else in the camera, and it sits
@@ -74,8 +76,17 @@ The idea of bringing these profiles to bodies that lack them comes from the Cadu
 OM-5 II. The free tone curve was inspired by androidfanman. The wheel code and the artwork are Olympus's own, from the
 E-M1 III and the PEN-F.
 
+## Status
+
+A free tone curve is in progress. Instead of the Olympus controls, a profile can use a curve of five points you move
+yourself. It works in the emulator. On the camera the first version changed nothing, because the develop step only
+builds a curve when an Olympus tone value is set. The fix is built, and live view is still being traced.
+
+Nothing is released to install.
+
 ## Further reading
 
-- [Color and Monochrome Profiles: technical notes](pen-f-profiles-technical.md) has the settings, addresses and the build history.
+- [Color and Monochrome Profiles: technical notes](pen-f-profiles-technical.md) has the settings, addresses and the
+  history of the work.
 - [Settings and menus](../firmware/settings-and-menus.md) explains how saved settings and menu rows work.
 - [Drawing on the GUI layers](../hardware/osd-drawing.md) covers how the editor's own graphics are drawn.

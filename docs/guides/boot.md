@@ -1,12 +1,21 @@
 # Boot
 
-*Guide 2 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 2 · E-M5 III firmware 1.7 · draft 1. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*
 
-This guide follows the main program from the moment it gets control until the camera is up: the first instructions,
-the copy into RAM, the operating system starting, the first tasks, and the background loading of the rest of the
-program. It ends with what can go wrong, because the way this camera boots is the main reason a patch can work most of
-the time and still fail now and then.
+## Key points
+
+- The main program runs from RAM, but only a small always-ready part is copied there before the operating system starts.
+- The other ten sections load in the background, and code that needs a section waits for its ready bit.
+- A patch that jumps into a section before it is loaded fails now and then, which is why our hooks carry a boot guard.
+- The card updater starts only near the end of the boot, so a build that can't boot that far can't be fixed from the card.
+
+This guide follows the main program from the moment it gets control until the camera is up. It covers the first
+instructions, the copy into RAM, the operating system starting, the first tasks, and the background loading of the
+rest of the program. It ends with what can go wrong, because the way this camera boots is the main reason a patch can work
+most of the time and still fail now and then.
 
 The early part (first instructions, copies, first tasks, section loading) is mapped from the code. What runs before
 the main program, and the last stretch up to the first live-view frame, are not.
@@ -18,28 +27,24 @@ RAM all at once. The boot code copies a small part straight away, starts the ope
 leaves the rest to a loader task that brings it in as ten **sections** while the camera is already starting up.
 Every later stage waits for the sections it needs.
 
+```mermaid
+flowchart TD
+  P(["Power on"]) --> B["Entry point and boot stub"]
+  B --> S0["Operating system and stage 0"]
+  S0 --> S1["Stage 1"]
+  S1 --> L["Loader tasks on CPU1 and CPU2"]
+  S1 --> S25["Stages 2 to 5"]
+  L -- "sets" --> R[("Section ready bits")]
+  R -. "waited on" .-> S25
+  S25 --> D(["Camera ready"])
+  classDef focus stroke-width:3px
+  class L focus
 ```
- power on
-   │  (a loader we can't see)
-   ▼
- entry point ──► boot stub ──► copy the always-ready code and the initialised data
-                                   │
-                                   ▼
-                            start the OS (runs from the always-ready code)
-                                   │
-                                   ▼
-                stage 0: drivers, watchdog, power, battery, buttons
-                                   │
-                                   ▼
-                stage 1: start the loader tasks ──► sections 1, 7, 2, 3, 4, 5, 6, 8, 9, 10
-                                   │                    load in the background
-                                   ▼
-                stages 2-5: wait for each section, start the tasks that live in it
-                (sequencer and exposure after section 2; focus, recording, USB after section 4)
-                                   │
-                                   ▼
-                       camera ready; card updater available after section 10
-```
+*Boot runs in two tracks. Solid arrows show start-up order, the dotted arrow shows waiting. The loader tasks have a bold outline.*
+
+Stage 0 starts the drivers, the watchdog, power control, the battery check and the buttons. Stages 2 to 5 start the
+sequencer and exposure tasks after section 2, and focus, recording and USB after section 4. The card updater becomes
+available after section 10.
 
 ## 1. Before the main program
 
@@ -59,6 +64,8 @@ anything.
 | boot area (never written by our files) | flash 0x40000000-0x40060000 | [code] |
 | no self-check on the boot path | boot stub, loader 0x60045e2e | [code] |
 | updater checks every component first | validator 0x60c3aa36 | [code] |
+
+*The entry point and the boot area in flash.*
 
 Sources: [recovery](../firmware/recovery-technical.md#what-checks-what-at-power-on),
 [boot and sections](../firmware/boot-and-sections.md#addresses).
@@ -81,13 +88,15 @@ Pointing the vectors at code that is not in RAM yet is safe because interrupts s
 | RAM set-up | 0x60021486 over 0x61f22900-0x61f27670 and 0x62527100-0x626b0888 | [code]; "clears them" [inferred] |
 | stack | sp = 0x470007fc | [code] |
 
-Source: [what the boot stub does](../firmware/boot-and-sections.md#what-the-boot-stub-does-2026-11-19).
+*What the first instructions set up.*
+
+Source: [what the boot stub does](../firmware/boot-and-sections.md#boot-stub).
 </details>
 
 ## 3. The boot stub
 
 The boot stub copies everything that every later step depends on from flash into RAM, then starts the operating
-system. It runs four steps:
+system. It runs four steps.
 
 1. **Memory and clock set-up**, by writing hardware registers.
 2. **The copy.** Six blocks go from flash to RAM:
@@ -120,7 +129,9 @@ described by what their code touches, not by their names.
 | step 3 (marks GIS/GIE, DSS/DSE) | 0x6006783d, 0x600547de | [code]; purpose [open] |
 | step 4, OS start (mark OIS) | `jmp` 0x6003009c → 0x60032696 | [code]; "OS start" [inferred] |
 
-Source: [what the boot stub does](../firmware/boot-and-sections.md#what-the-boot-stub-does-2026-11-19).
+*The boot stub's steps, the blocks it copies, and the trace marks of each step.*
+
+Source: [what the boot stub does](../firmware/boot-and-sections.md#boot-stub).
 </details>
 
 ## 4. The operating system and the first tasks
@@ -130,7 +141,7 @@ The main program runs **μITRON**, a real-time operating system, with Olympus's 
 `1_1`, `1_2`, ... for stage 1), which is how they can be told apart.
 
 **Stage 0** initialises the drivers and debug support, then starts the first tasks. Their names say what they are
-for:
+for.
 
 - **PER_WDT**, the watchdog keeper. The watchdog itself lives in a small always-on part of the main chip (the [power block](../hardware/power-block.md)) and resets the camera if it
   isn't "kicked" regularly. Boot sets its timeout to 10 (unit not confirmed) and PER_WDT kicks it every 3 seconds.
@@ -152,21 +163,24 @@ before going on.
 | stage 1 | 0x60045841 (tags `1_1` ... `1_8`); waits with 0x60045eb3(1) | [code] |
 | which task is which loader | ids at 0x60040b68, 0x60041132, 0x60041294 | [inferred] |
 
-Sources: [start-up stages 0 and 1](../firmware/boot-and-sections.md#start-up-stages-0-and-1-2026-11-19),
+*Start-up stages 0 and 1, and the watchdog.*
+
+Sources: [start-up stages 0 and 1](../firmware/boot-and-sections.md#start-up-stages-0-and-1),
 [recovery](../firmware/recovery-technical.md#what-checks-what-at-power-on).
 </details>
 
-## 5. Sections load in the background
+## 5. Background section loading
 
-The rest of the main program is ten sections, loaded from flash by a loader task in a fixed order: 1, 7, 2, 3, 4, 5, 6,
-8, 9, 10. For each section the loader copies it into RAM, sets up memory and cache for it, and then sets the section's
-**ready bit**. Code that needs a section waits on that bit.
+The rest of the main program is ten sections, loaded from flash in number order by two loader tasks, one on CPU1 and one
+on CPU2 ([CPU1 and CPU2](../hardware/cpu1-cpu2.md#loading-the-program-sections)). Earlier notes gave the order 1, 7, 2, 3,
+4, 5, 6, 8, 9, 10, which the code doesn't support. For each section the loader copies it into RAM, sets up memory and
+cache for it, and then sets the section's **ready bit**. Code that needs a section waits on that bit.
 
 While a section is still loading, the loader also programs a hardware access monitor over the address range of the
 sections not yet loaded, and turns it off after the last one. What exactly it traps isn't known, but it is one more
 reason never to touch a later section before it is ready.
 
-Each section ends in a stretch of unused space (0xFF bytes) up to the next one. That slack is where our own code goes:
+Each section ends in a stretch of unused space, filled with `0xff` bytes, up to the next one. That slack is where our own code goes:
 raising a section's end value in the loader table makes the loader copy our code along with the section.
 
 <details><summary>Where in the firmware</summary>
@@ -180,18 +194,21 @@ raising a section's end value in the loader table makes the loader copy our code
 | access monitor | 0x99700040.., driver 0x60065a6a, built at 0x60045f0c..0x60045f40, off at 0x60065f63 | [code] |
 | section ranges | table on the reference page | [code] |
 
+*The section loader, its ready bits and the access monitor.*
+
 Source: [sections load in the background](../firmware/boot-and-sections.md#sections-load-in-the-background).
 </details>
 
 ## 6. Stages 2 to 5
 
 Code in section 1 continues the start-up in stages 2 to 5. Each stage waits for the sections it needs and then starts
-the tasks whose code lives there:
+the tasks whose code lives there.
 
-1. When section 2 is ready: the shooting sequencer (STB_SEQ), exposure (TAKE_EXPOSE), the image-engine tasks (DSP0 and
-   DSP1), movie recording and the display output.
+1. When section 2 is ready, it starts the flash (strobe) sequencer (STB_SEQ), exposure (TAKE_EXPOSE), the image-engine
+    tasks (DSP0 and DSP1), movie recording and the display output. See
+    [flash metering](../firmware/exposure-technical.md#flash-metering-is-separate) for why STB_SEQ is the flash sequencer.
 2. Section 3.
-3. When section 4 is ready: focus (FCS), face detection, recording (REC), USB and the image sequencer (ISEQ).
+3. When section 4 is ready, it starts focus (FCS), face detection, recording (REC), USB and the image sequencer (ISEQ).
 4. Sections 5 and 6.
 5. Sections 7 to 10.
 
@@ -209,6 +226,8 @@ How the camera gets from here to the first live-view frame on the screen is not 
 | section 4 ready point | trace `3_4`, 0x6019cf48 | [code] |
 | card updater server | FIRMUP_SRV id 18, entry 0x60c3a638, started in USRSTART5 (0x6019de8a) | [code] |
 | card updater client | FIRMUP_CLI id 88, entry 0x60c3a1b3 | [code] |
+
+*Stages 2 to 5 and the card updater tasks.*
 
 Sources: [boot order](../firmware/boot-and-sections.md#boot-order-and-why-hooks-need-a-guard),
 [card updater](../firmware/recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
@@ -244,6 +263,8 @@ every build ([recovery](../firmware/recovery.md)).
 | writes outside data windows reset the camera | flash guard 0x600c4680 | [code] |
 | stores into the program image (other bodies) | E-P7, OM-5 II | [camera] (their reports) |
 
+*Boot guards, deliberate resets and the flash guard.*
+
 Sources: [boot and sections](../firmware/boot-and-sections.md#boot-order-and-why-hooks-need-a-guard),
 [recovery](../firmware/recovery.md), Atlas-linked projects.
 </details>
@@ -262,5 +283,14 @@ re-checked ourselves.
 | watchdog reset on any fault | yes | not checked | not checked | not checked | not checked | not checked | E-P7: same NMI → 1 s watchdog pattern |
 | card updater inside the main program | yes (FIRMUP_CLI) | not checked | not checked | not checked | not checked | reported (FIRMUP_CLI) | E-P7: same task design |
 
+*Each boot step on other bodies, from their firmware files and from other projects' reports.*
+
 Sources: [boot and sections](../firmware/boot-and-sections.md), Atlas-linked projects,
 oly_fw_analysis notes.
+
+## Further reading
+
+- [Boot and section loading](../firmware/boot-and-sections.md), the detailed reference for this guide.
+- [Recovery](../firmware/recovery.md), what can go wrong and how to get back.
+- [CPU1 and CPU2](../hardware/cpu1-cpu2.md), the two cores that load the sections.
+- [Operating system and framework](../firmware/os-and-framework.md), the operating system the boot starts.

@@ -1,7 +1,15 @@
 # Image stabiliser
 
 <!-- human page -->
-> The dense reference for this page is [Image stabiliser: technical notes](stabiliser-technical.md).
+<!-- house style -->
+
+## Key points
+
+- A separate small processor runs the stabiliser. The main program only sends it commands.
+- The stabiliser reports camera movement once per live-view frame, and we use that to restart the Live ND preview.
+- The firmware holds drives for constant-speed and rotating sensor movement that stock never uses.
+- The OM-5's movie IS Level setting is half there on the E-M5 III. A test build for one of its levels waits for a
+  camera run.
 
 The E-M5 III's in-body stabiliser moves the sensor to cancel camera shake. Small motors called voice coils move it,
 and sensors measure where it is. Gyros and an accelerometer measure how the camera moves.
@@ -9,14 +17,7 @@ and sensors measure where it is. Gyros and an accelerometer measure how the came
 The main program does not run the stabiliser itself. A separate small processor does that work, and the main program
 sends it commands.
 
-## Status
-
-- **How the main program drives the stabiliser is mapped,** including the full command set.
-- **Its movement reports work as a motion sensor.** We use them to restart the Live ND preview when the camera moves.
-- **The OM-5's movie "IS Level" setting is half there.** A test build for one of its levels is made but has not been
-  run.
-
-## The stabiliser processor
+## Stabiliser processor
 
 The stabiliser has its own processor, separate from the main chip. It runs the fast control loop that reads the gyros
 and drives the sensor. The main program talks to it over a serial link.
@@ -63,6 +64,8 @@ clear.
 | picked up | about 250 |
 | panning | about 360 |
 
+*Movement per frame on our E-M5 III in different situations.*
+
 Waving a hand in front of the lens does not change the values, so they measure the camera and not the picture. It is
 still open whether they are the raw shake or what is left after the sensor has corrected it.
 
@@ -81,8 +84,21 @@ per-axis limits and a body/lens ratio. The two stabiliser firmwares differ in 42
 code that moved. The OM-5's program handles the same commands with the same code, minus support for early prototype
 boards.
 
+The OM-5 and OM-5 II use the same control loop, filter settings and tuning values as the E-M5 III. The OM-5 adds the
+movie "IS Level" setting. The OM-5 II adds a set of spare gyro filters that the stock program does not use, and one
+new read command. [Stabiliser controller](is-controller.md) has the details.
+
+## Status
+
+- **How the main program drives the stabiliser is mapped,** including the full command set.
+- **Its movement reports work as a motion sensor.** We use them to restart the Live ND preview when the camera moves.
+- **The OM-5's movie "IS Level" setting is half there.** A test build for one of its levels is made but has not been
+  run.
+
 ## Further reading
 
+- [Image stabiliser: technical notes](stabiliser-technical.md) has the command table, the IS Level details and the
+  addresses.
 - [Sync IS with Panasonic lenses](../features/sync-is-panasonic.md) explains why body and lens cooperation is decided by
   the lens.
 - [Live ND](../features/live-nd.md) uses the movement reports.

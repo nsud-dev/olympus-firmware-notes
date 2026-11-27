@@ -1,23 +1,23 @@
 diff --git a/emu/host/olyfwenv.mjs b/emu/host/olyfwenv.mjs
-index 7a52ba2..773e737 100644
+index 81267c5..cfcd68c 100644
 --- a/emu/host/olyfwenv.mjs
 +++ b/emu/host/olyfwenv.mjs
 @@ -1,5 +1,5 @@
  // olyfw patches 0005/0006 (MIT, see om-emu's LICENSE): turn the optional checks on from the environment.
--// usage: OM_CODEWRITE=FILE (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
-+// usage: OM_SERTAP=FILE (patch 0011) OM_CODEWRITE=FILE (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
+-// usage: OM_CODEWRITE=FILE [OM_CODEWRITE_ALLOW=PAGES|@FILE] (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
++// usage: OM_SERTAP=FILE (patch 0011) OM_CODEWRITE=FILE [OM_CODEWRITE_ALLOW=PAGES|@FILE] (patch 0010) OM_CPU1=native (patch 0009) OM_CPU2=native [OM_CPU2_OUT=FILE] (patch 0008) OM_KCHECK=FILE (patch 0007) OM_DCACHE=report[:KIB[:WAYS]] [OM_DCACHE_ALL=1] OM_DCACHE_OUT=FILE OM_SECMON=FILE OM_HEAP_FILL=HEXWORD \
  //        node --import ./host/olyfwenv.mjs bin/session.mjs ...
  // Writes the cache model's reports (OM_DCACHE_OUT) and the section monitor's record (OM_SECMON) as JSON at exit.
- import { writeFileSync } from 'node:fs';
-@@ -14,6 +14,7 @@ if (env.OM_DCACHE) {
- if (env.OM_SECMON) OLYFW.secmon = true;
- if (env.OM_KCHECK) OLYFW.kcheck = true;
- if (env.OM_CODEWRITE) OLYFW.codewrite = true;
+ import { readFileSync, writeFileSync } from 'node:fs';
+@@ -18,6 +18,7 @@ if (env.OM_CODEWRITE_ALLOW) {             // pages stock writes in sections 1-9:
+   const t = env.OM_CODEWRITE_ALLOW.startsWith('@') ? readFileSync(env.OM_CODEWRITE_ALLOW.slice(1), 'utf8') : env.OM_CODEWRITE_ALLOW;
+   OLYFW.codewriteAllow = t.split(/[\s,]+/).filter((x) => /^0x[0-9a-f]+$/i.test(x)).map((x) => parseInt(x, 16) >>> 0);
+ }
 +if (env.OM_SERTAP) OLYFW.sertap = true;
  if (env.OM_CPU2) {
    if (!['native', 'stand-in'].includes(env.OM_CPU2)) throw new Error(`OM_CPU2: native or stand-in, not '${env.OM_CPU2}'`);
    OLYFW.cpu2 = env.OM_CPU2;
-@@ -29,5 +30,6 @@ process.on('exit', () => {
+@@ -33,5 +34,6 @@ process.on('exit', () => {
    if (env.OM_KCHECK && OLYFW.made.kcheck) writeFileSync(env.OM_KCHECK, JSON.stringify(OLYFW.made.kcheck.summary(), null, 1));
    if (env.OM_CPU2_OUT && OLYFW.made.cpu2) writeFileSync(env.OM_CPU2_OUT, JSON.stringify(OLYFW.made.cpu2.report(), null, 1));
    if (env.OM_CODEWRITE && OLYFW.made.codewrite) writeFileSync(env.OM_CODEWRITE, JSON.stringify(OLYFW.made.codewrite.summary(), null, 1));
@@ -119,7 +119,7 @@ index 0000000..f36c5a9
 +  };
 +}
 diff --git a/emu/src/machine.mjs b/emu/src/machine.mjs
-index 4bd1260..b3ca081 100644
+index 22ff6de..cd171c5 100644
 --- a/emu/src/machine.mjs
 +++ b/emu/src/machine.mjs
 @@ -3,11 +3,11 @@
@@ -145,7 +145,7 @@ index 4bd1260..b3ca081 100644
  
  export { Unported, TbUndecidable };
 @@ -233,6 +234,15 @@ export function createMachine({ rom, dramBytes = BOARD.dram_size, insnLimit = 10
-     const cw = createCodeWriteMonitor({ lo: IMAGE_BASE, hi: starts[0], secHi: IMAGE_BASE + rom.length, pc: () => R[PC] >>> 0, insns: () => S.insns });
+     const cw = createCodeWriteMonitor({ lo: IMAGE_BASE, hi: starts[0], secHi: IMAGE_BASE + rom.length, codeHi: starts[9], allow: OLYFW.codewriteAllow ?? [], pc: () => R[PC] >>> 0, insns: () => S.insns });
      olyObs.push(cw); OLYFW.made.codewrite = cw;
    }
 +  if (OLYFW.sertap) {                   // olyfw patch 0011: the serial-bus tap (src/core/sertap.mjs)

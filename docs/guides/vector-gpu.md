@@ -1,11 +1,20 @@
 # Vector GPU
 
-This guide covers the E-M5 III's second drawing engine: the small vector graphics processor (GPU) that draws the colour
-wheels in the Color and Monochrome Profile editors. It covers three ways to use it: through Olympus's own driver,
-through the graphics library with your own code, and by writing the GPU's command lists yourself.
+<!-- house style -->
+
+## Key points
+
+- The E-M5 III has a small vector graphics processor that draws the colour wheels in the profile editors.
+- A pair of firmware tasks owns it, and the screens that use it only send those tasks messages.
+- You can use it through Olympus's own driver, through the graphics library with your own code, or by writing its command lists yourself.
+- Everything here was read from the firmware and run in an emulator, and none of it has run on a camera yet.
+
+This guide covers the E-M5 III's second drawing engine. It is the small vector graphics processor (GPU) that draws the colour
+wheels in the Color and Monochrome Profile editors. It covers three ways to use it. You can go through Olympus's own driver,
+call the graphics library from your own code, or write the GPU's command lists yourself.
 [Drawing to the screen](drawing-to-the-screen.md) explains where its picture goes on screen and is worth reading
 first. [Drawing your own graphics](drawing-your-own.md) covers the other engine, for boxes, text and pictures on the
-GUI layers.
+graphical user interface (GUI) layers.
 
 Everything here was read from the stock 1.7 firmware. The second and third routes were then run in the om-emu emulator,
 which runs the camera's own code. None of it has been run on a camera yet. The facts and addresses are on the
@@ -13,14 +22,13 @@ reference page [c3d GPU](../hardware/c3d-gpu.md).
 
 ## Overview
 
-```
-GUI screen (e.g. the Color Creator)
-   │  start / update / end messages
-   ▼
-c3d task ──► a "draw kind": its renderer ──► OpenVG library ──► command lists ──► GPU ──► draw buffer
-                                                                                            │
-display controller: picture layer 2 (IMG2), under the GUI layers ◄──────────────────────────┘
-```
+A drawing passes through these steps in order.
+
+1. A GUI screen, such as the Color Creator, sends start, update and end messages to the c3d task.
+2. c3d runs the renderer of a "draw kind".
+3. The renderer calls the OpenVG library.
+4. The library writes command lists, and the GPU reads them and draws into a draw buffer.
+5. The display controller shows that buffer as picture layer 2 (IMG2), under the GUI layers.
 
 - **c3d** is a pair of firmware tasks that own the GPU. The GUI never draws on the GPU itself. It sends c3d messages.
 - **OpenVG 1.1** is the standard vector graphics interface (paths, paints, images, matrices). The camera carries a
@@ -28,15 +36,15 @@ display controller: picture layer 2 (IMG2), under the GUI layers ◄────
 - The GPU draws into one of two **draw buffers**. The display controller then shows that buffer as an extra picture
   layer under the GUI's own layers, with per-pixel transparency.
 
-You can step in at three levels, each lower than the last:
+You can step in at three levels, each lower than the last.
 
-1. **The Olympus driver**: use one of c3d's nine "draw kinds" and feed it data, as the profile editors do.
-2. **Your own renderer**: put your code where a draw kind's renderer would be, and call OpenVG directly.
-3. **Raw command lists**: skip the library and write what the GPU reads.
+1. **The Olympus driver.** Use one of c3d's nine "draw kinds" and feed it data, as the profile editors do.
+2. **Your own renderer.** Put your code where a draw kind's renderer would be, and call OpenVG directly.
+3. **Raw command lists.** Skip the library and write what the GPU reads.
 
 ## 1. Components
 
-c3d is two tasks. **c3d_main** takes the GUI's messages: start a kind, update it, end it. **c3d_exe** does the drawing.
+c3d is two tasks. **c3d_main** takes the GUI's messages to start a kind, update it and end it. **c3d_exe** does the drawing.
 For each kind it has a set-up step, a renderer and a tear-down step. A kind is one thing c3d knows how to draw, such as
 the Color Creator wheel or the art filter wheel. It brings its own surface size, its place on screen, a work buffer,
 and optional artwork sheets.
@@ -54,17 +62,19 @@ registers and starts each command list.
 | GPU registers | 0x9c200000 | [code] |
 | render manager task | DMP_RD_MGR, entry 0x611c6090 | [code] |
 
+*The c3d components in the firmware.*
+
 </details>
 
 ## 2. The Olympus driver
 
-Every kind follows the same three messages:
+Every kind follows the same three messages.
 
-- **Start**: c3d checks that no other kind is running and sets up the surface. The caller passes in the two draw
+- **Start.** c3d checks that no other kind is running and sets up the surface. The caller passes in the two draw
   buffers. c3d then loads the kind's artwork and builds its paths and paints.
-- **Update**: the caller sends a small block of data (the hue, a cursor position, which icon is selected). c3d copies
+- **Update.** The caller sends a small block of data (the hue, a cursor position, which icon is selected). c3d copies
   it and runs the kind's renderer, which draws one frame. c3d answers with the buffer it drew into, and the GUI shows it.
-- **End**: c3d frees everything, so another kind can start.
+- **End.** c3d frees everything, so another kind can start.
 
 The nine kinds and what they need:
 
@@ -80,22 +90,26 @@ The nine kinds and what they need:
 | Scene top | 720 × 480 | full screen | sheet 2 | 4 bytes |
 | Select shooting | 720 × 480 | full screen | sheet 2 | 30 bytes |
 
-The kinds with artwork draw mostly **sprites**: rectangles cut from a sheet, each placed with a translate (and
+*The nine draw kinds. Positions are on the rear screen.*
+
+The kinds with artwork draw mostly **sprites**. A sprite is a rectangle cut from a sheet, each placed with a translate (and
 sometimes a scale or a rotation) and drawn with one image call. The Color Creator adds a path for the arc and moves a
 cursor along it. Four kinds have no artwork and an empty renderer: Color Creator 2, Monochrome Creator, Shading Creator
 and Tough Gear. Those empty renderers are where your own drawing goes. The profile editors use Color Creator 2 and
 Monochrome Creator this way, and that use is proven on the camera.
 
-To add your own drawing with the driver: pick an empty kind, point its renderer at your code, size the work buffer,
+To add your own drawing with the driver, pick an empty kind, point its renderer at your code, size the work buffer,
 and start it from a GUI screen the way the profile editors do. Section 9 of the reference page has the seven steps.
 
 <details><summary>Where in the firmware</summary>
 
 | what | where | known from |
 |---|---|---|
-| per-kind tables (surfaces, layer rows, sheets, sprites) | [c3d GPU section 9](../hardware/c3d-gpu.md#9-the-olympus-driver-kind-by-kind-2026-11-21) | [code] |
+| per-kind tables (surfaces, layer rows, sheets, sprites) | [c3d GPU section 9](../hardware/c3d-gpu.md#the-olympus-driver-kind-by-kind) | [code] |
 | sprite draw | 0x60c2764e(kind, id, x, y) | [code] |
 | empty renderers | CC2 0x60c26bdb, MC 0x60c26beb, SC 0x60c26bfb, TG 0x60c27096 | [code] |
+
+*The driver's kinds in the firmware.*
 
 </details>
 
@@ -115,8 +129,8 @@ wrong, and the header handles both:
   a pointer it returns to the wrong place. Call `eglSwapBuffers` on c3d's display and surface instead. The header's
   `c3d_submit` does this.
 
-The example draws on the empty Tough Gear kind: a half-transparent rounded panel, an orange dot and a white arc,
-turned by an angle sent in the update data. It uses `vguRoundRect`, `vguEllipse`, `vguArc`, colour paints, fill and
+The example draws on the empty Tough Gear kind. It draws a half-transparent rounded panel, an orange dot and a white
+arc, turned by an angle sent in the update data. It uses `vguRoundRect`, `vguEllipse`, `vguArc`, colour paints, fill and
 stroke, translate and rotate. It runs in the emulator, and it reached the right registers on the first try.
 
 The emulator run caught two mistakes worth knowing about:
@@ -131,10 +145,12 @@ there) and keep static data in mind when you place the code.
 
 | what | where | known from |
 |---|---|---|
-| argument rule, evidence | [c3d GPU section 11](../hardware/c3d-gpu.md#11-driving-the-library-yourself-2026-11-21) | [code] + [emu] |
+| argument rule, evidence | [c3d GPU section 11](../hardware/c3d-gpu.md#driving-the-library-yourself) | [code] + [emu] |
 | eglSwapBuffers / c3d's display and surface | 0x6119e454 / 0x6253c4a0, 0x6253c4ac | [code] + [emu] |
 | stock submit (call only) | 0x60c2639f | [code] + [emu] |
 | header, example and list tools | these notes' `tools/c3d_vg/` | |
+
+*Library calls used by own renderers.*
 
 </details>
 
@@ -173,7 +189,7 @@ same path can be drawn anywhere.
 
 To check the format, we wrote a list for one green rectangle by hand. We compared it with the list the library itself
 makes for the same rectangle in the emulator. The pixel list matched word for word. The geometry list differed only
-where it should: the buffer addresses, and the way the rectangle's edges were written.
+where it should, in the buffer addresses and in the way the rectangle's edges were written.
 
 Starting a list means handing the render manager a request that holds the two lists' addresses and sizes. That is
 the step only a camera can test, because the emulator has no GPU model. Section 12b of the reference page has the
@@ -185,7 +201,9 @@ recipe.
 |---|---|---|
 | list registers (address, size in 8-byte units, start) | +0x10d4 / +0x10dc / +0x10d0, second list +0x10e4 / +0x10ec / +0x10e0 | [code] |
 | request post | 0x611c5fed(count, requests); VG list = request type 1, 8 or 10 | [code] |
-| format, registers, path buffers | [c3d GPU section 12](../hardware/c3d-gpu.md#12-raw-command-lists-what-is-known-so-far-2026-11-21) | [code] + [emu] |
+| format, registers, path buffers | [c3d GPU section 12](../hardware/c3d-gpu.md#raw-command-lists) | [code] + [emu] |
+
+*Starting command lists in the firmware.*
 
 </details>
 
@@ -229,8 +247,16 @@ in these notes' `tools/om-emu-c3d/` folder, and the header, example renderer and
 | own renderer in the emulator | confirmed | not checked | not checked | not checked | not checked | not checked | not checked |
 | command-list format | confirmed (emulator capture) | not checked | not checked | not checked | not checked | not checked | not checked |
 
+*Each step checked on other bodies' firmware.*
+
 ## Credit
 
 The emulator is om-emu, by the om-emu contributors (MIT licence). Its c3d support and the list captures were built by
 our emulator work on top of it. The profile editors' camera runs (our looks work) proved the driver route and its GUI
 start path. The OpenVG and EGL signatures are the public Khronos specifications.
+
+## Further reading
+
+- [c3d GPU](../hardware/c3d-gpu.md) has the reference notes, the addresses and the step-by-step recipes.
+- [Drawing to the screen](drawing-to-the-screen.md) explains where the GPU's picture goes on screen.
+- [Drawing your own graphics](drawing-your-own.md) covers the other drawing engine.

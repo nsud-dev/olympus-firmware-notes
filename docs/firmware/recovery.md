@@ -1,21 +1,21 @@
 # Recovery
 
 <!-- human page -->
-> The dense reference for this page is [Recovery: technical notes](recovery-technical.md).
+<!-- house style -->
+
+## Key points
+
+- A bad update file is harmless, because the camera checks the whole file and refuses a corrupt, truncated or
+  wrong-model one before it writes anything.
+- Holding OK at power-on runs a card updater in a small loader at the start of flash memory, so the rescue does not
+  need the main program to work.
+- The rescue depends on that loader staying intact, and normal firmware files never write there.
+- Anything we add stays switched off until the camera has fully started, and a spare card with the stock firmware should
+  always be at hand.
 
 Flashing your own firmware always carries a risk. The camera might not start, or it might crash and restart over and
 over, which is called a bootloop. This page explains what you can recover from with just an SD card, and what you
 cannot. It ends with the steps to follow when a camera will not start.
-
-## Summary
-
-- **A bad file is harmless.** The camera checks the whole update file before it writes anything. A corrupt, truncated
-  or wrong-model file is refused, and the camera is left as it was.
-- **The card rescue does not need the main program.** A small loader at the start of flash memory has its own card
-  updater. Holding OK at power-on runs that one. It does not need the main program to work.
-- **The rescue depends on that loader staying intact.** Normal firmware files never write there.
-- **Still keep new code quiet during start-up.** Anything we add stays switched off until the camera has fully
-  started. Keep a spare card with the stock firmware on it.
 
 ## Power-on
 
@@ -59,8 +59,9 @@ erased, written and read back. There is no rollback.
 Our firmware files never touch the camera's start-up area or its factory adjustment data. Those are written only by
 special update types that we never make.
 
-Cutting the power while the main program is being written is the one moment that can leave a camera that no card can
-rescue. Always start a flash with a full battery, and never open the battery door while the lamp is lit.
+> [!WARNING]
+> Cutting the power while the main program is being written is the one moment that can leave a camera that no card can
+> rescue. Always start a flash with a full battery, and never open the battery door while the lamp is lit.
 
 ## Card updater
 
@@ -79,6 +80,8 @@ The lamp tells you what happened.
 | slow blink | finished, switch off |
 | fast blink | file refused, nothing written |
 
+*What the lamp shows during a card update.*
+
 ## Recoverable failures
 
 | problem | way back |
@@ -91,6 +94,8 @@ The lamp tells you what happened.
 | Damage to the start-up loader itself | no card rescue. This needs a service centre or a flash programmer. |
 | Power cut while the main program is written | probably beyond a card rescue |
 | A bad setting or a trigger file on the card | survives a reflash. Remove the card files and reset settings from the menu. |
+
+*Kinds of failure and the way back from each.*
 
 ## Recovery steps
 
@@ -133,6 +138,8 @@ name.
 | OM-1 | `E143????.BIN` |
 | PEN-F | `E122????.BIN` |
 
+*The update file name each body's card updater looks for.*
+
 ## Open questions
 
 - Does the start-up loader also offer a rescue over USB or the serial port? We found none so far.
@@ -143,6 +150,8 @@ name.
 
 ## Further reading
 
+- [Recovery: technical notes](recovery-technical.md) has the flash map, the loader's checks and the pre-flash check
+  list.
 - [Boot](../guides/boot.md) follows the camera from power-on to live view.
 - [Firmware files and updates](../guides/firmware-file.md) explains what is inside an update file.
 - [Modifying the firmware](patching-techniques.md), section 13, covers recovering from a bad flash.

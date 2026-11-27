@@ -1,7 +1,14 @@
 # Display controller
 
 <!-- human page -->
-> The dense reference for this page is [Display controller registers](vsc-display-controller-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The display controller is the last stop before the screen. It mixes the live picture with the menu layers.
+- Because everything shown passes through it, it is the natural place for view assists that change only what you see.
+- A red night view and an RGB clipping view already work on the camera as card mods.
+- Zebras need more work, because the camera keeps rewriting the registers involved.
 
 The display controller is the last stop before the screen. It reads the live-view picture and the menu and information
 layers from memory, mixes them, applies a few picture adjustments, and sends the result to the rear screen, the
@@ -11,14 +18,7 @@ Because everything you see passes through it last, it is the natural place for *
 you see, never the photo. Examples are a red night view, zebra stripes on bright areas, an RGB clipping view and
 peaking colours.
 
-## Status
-
-- **The registers are mapped.** The firmware carries a table naming all 422 of them, and most now have a known function
-  that writes them.
-- **Two view assists work on the camera** as card mods, a red night view and an RGB clipping view.
-- **Zebras need more work,** because the camera keeps rewriting the registers involved.
-
-## What it can do
+## Picture blocks
 
 The controller has several built-in picture blocks:
 
@@ -70,8 +70,17 @@ The E-M5 III, OM-5, E-M1 III and OM-5 II have the identical controller, with the
 OM-1 II have a newer one with native zebras, night vision and colour management. The E-M5 II and PEN-F have an older
 one.
 
+## Status
+
+- **The registers are mapped.** The firmware carries a table naming all 422 of them, and most now have a known function
+  that writes them.
+- **Two view assists work on the camera** as card mods, a red night view and an RGB clipping view.
+- **Zebras need more work,** because the camera keeps rewriting the registers involved.
+
 ## Further reading
 
+- [Display controller registers: technical notes](vsc-display-controller-technical.md) has the register map, the
+  driver functions and the camera results.
 - [Drawing to the screen](../guides/drawing-to-the-screen.md) explains the layers the controller mixes.
 - [Card mods](../features/card-mods.md) covers how the view assists are loaded.
 - [Graphics pipeline](graphics-pipeline.md) and [Display and live-view frames](display.md) cover the parts before the

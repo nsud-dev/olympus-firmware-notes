@@ -1,28 +1,41 @@
 # Drawing to the screen
 
-*Guide 18 · E-M5 III firmware 1.7 · accepted 2026-11-20. New to these guides? Read
+<!-- house style -->
+
+*Guide 18 · E-M5 III firmware 1.7. New to these guides? Read
 [Before you start](before-you-start.md) and [Live view](live-view.md) first. Open questions:
 research gaps.*
 
+## Key points
+
+- Almost everything on screen is drawn into three GUI layers by a 2D engine, and the display controller lays them over the live picture.
+- The colour wheels come from a separate vector-graphics processor and appear as a layer of their own.
+- Adding screens, pictures and sliders on the GUI layers works on our E-M5 III.
+- A wheel can be drawn correctly in memory and still never appear if the wrong layer layout is chosen.
+
 This guide explains how the camera puts menus, icons and the colour wheel on the rear screen and in the viewfinder.
-There are two drawing systems. The **GUI layers** carry almost everything you see. A 2D engine draws them, and the display
+There are two drawing systems. The **GUI layers** (GUI for graphical user interface) carry almost everything you see. A 2D engine draws them, and the display
 controller lays them over the live picture. The **c3d layer** is used only by the colour-wheel editors and is drawn by a
-small vector-graphics GPU. The second half follows the Color and Mono Profile editors we added, which use both.
+small vector-graphics processor (GPU). The second half follows the Color and Mono Profile editors we added, which use both.
 
 We are on firm ground with the GUI layers. We have added screens, pictures and sliders, and they work on the camera.
 For the c3d layer we know how to start it, feed it and get its picture on screen, but so far we have only run existing
-renderers through it. **More on the GPU is coming soon:** separate research will map the GPU itself, and this
-guide will grow when it reports.
+renderers through it. The [Vector GPU](vector-gpu.md) guide covers the GPU itself.
 
 ## Overview
 
+```mermaid
+flowchart TD
+  GUI["GUI screens and widgets"] -- "draw requests" --> ENG["2D draw engine"]
+  ENG --> GL[("three 8-bit GUI layers")]
+  C3D["c3d task, OpenVG library, vector GPU"] --> CL[("256 × 256 colour layer")]
+  LV[("live-view frame from the image engine")]
+  GL --> DC["display controller"]
+  CL --> DC
+  LV --> DC
+  DC --> OUT["screen, EVF or HDMI"]
 ```
-GUI screens and widgets ──► draw requests ──► 2D draw engine ──► three 8-bit GUI layers ─┐
-                                                                                           │
-c3d task ──► OpenVG library ──► vector GPU ──► 256 × 256 colour layer ─────────────────────┤
-                                                                                           ▼
-live-view frame (from the image engine) ──────────────────────────────────► display controller ──► screen / EVF / HDMI
-```
+*The three paths into the display controller. Arrows show data flow.*
 
 ## 1. The display controller
 
@@ -41,6 +54,8 @@ plane at it, once per frame.
 | display controller registers | 0x9c000000 + channel × 0x4000; channel 0 rear screen or EVF, 1 HDMI | [code] |
 | six planes, latched at the frame boundary | IMG1-3, OSD1-3; enables at +0x30 | [code] |
 | live-view plane address | set every frame by 0x60194e50; copy in RAM 0xa26538c4 + channel × 0xe28 | [code] |
+
+*The display controller in the firmware.*
 
 Sources: [graphics pipeline](../hardware/graphics-pipeline.md), [display and OSD](../hardware/display.md).
 </details>
@@ -63,7 +78,9 @@ the buffer at 1:1.
 | palette | 128 entries per layer, index 127 transparent, colours stored as YCbCr with alpha | [code] (om-emu) |
 | EVF scaling | 640 → 1024 | [code] (om-emu) |
 
-Sources: [graphics pipeline: OSD buffers and palettes](../hardware/graphics-pipeline.md#2-osd-buffers-and-palettes).
+*The GUI layers in the firmware.*
+
+Sources: [graphics pipeline: OSD buffers and palettes](../hardware/graphics-pipeline.md#osd-buffers-and-palettes).
 </details>
 
 ## 3. The 2D draw engine
@@ -87,7 +104,9 @@ change together.
 | show the new buffers | `gpiUpdateDisplay` 0x60c9588b, held to the next live-view frame | [code] (om-emu) |
 | a menu redraw | ~125 bitmap + ~13 copy + 1 fill | [code] (om-emu run) |
 
-Sources: [graphics pipeline: GUI drawing](../hardware/graphics-pipeline.md#1-gui-drawing-goes-through-a-hardware-osd-engine).
+*The 2D draw engine in the firmware.*
+
+Sources: [graphics pipeline: GUI drawing](../hardware/graphics-pipeline.md#osd-drawing-engine).
 </details>
 
 ## 4. Screens, widgets and pictures
@@ -100,8 +119,8 @@ object made from a table. The screen has a list of **child widgets**, and each c
   screen's redraw code picks the state and shows or hides the child.
 - **Text widgets** show strings from the language table.
 
-Many things that look like text are pictures: the digits and signs on sliders, and labels such as "Color" and "Vivid" in
-the colour editor. Pictures are stored in the graphics block of the firmware, compressed as runs of palette colours,
+Many things that look like text are pictures. Examples are the digits and signs on sliders, and labels such as "Color"
+and "Vivid" in the colour editor. Pictures are stored in the graphics block of the firmware, compressed as runs of palette colours,
 and found by number through a table.
 
 Screens are found by id through a hash table with free slots, so a new screen is a new row plus a small constructor.
@@ -116,6 +135,8 @@ Keys reach the screen as events, and the screen's controls decide what each key 
 | show/hide, pick state | 0x60dfcd4e(child, 0/1) / 0x60dfcd72(child, n) | [code] + [emu] |
 | picture widget states | 8 at most (cached at object +172) | [camera] |
 | picture lookup | 0x60c934bb; header {14, w, h, 8, 0, size, data, 7}; data = 12-bit colour/run tokens | [code] |
+
+*Screens, widgets and pictures in the firmware.*
 
 Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor), [settings and menus](settings-and-menus.md).
 </details>
@@ -152,13 +173,15 @@ The GUI is busy until c3d answers each request, so a key press waits for the whe
 | debug | user shell `c3d dbginfo` / `c3d dbgall` | [camera] |
 | the GPU's registers and command format | DMP SMAPH-F at 0x9c200000, command lists at +0x10d0; opcodes not decoded ([c3d GPU](../hardware/c3d-gpu.md)) | [code] |
 
-Sources: [graphics pipeline: c3d and OpenVG](../hardware/graphics-pipeline.md#5b-the-second-drawing-engine-c3d-and-openvg-2026-11-20),
+*The c3d layer in the firmware.*
+
+Sources: [graphics pipeline: c3d and OpenVG](../hardware/graphics-pipeline.md#the-c3d-vector-engine),
 [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
 ## 6. Layer composition
 
-For a screen that uses the wheel, the GUI and the display task agree on a **layout**: which GUI layers stay on, and
+For a screen that uses the wheel, the GUI and the display task agree on a **layout**. The layout says which GUI layers stay on and
 where the c3d layer goes. The display side sets it up through one of two calls, one for layouts with the GUI layers and
 one without. If the wrong layout is chosen, the wheel can be drawn perfectly in memory and still never appear, or appear
 with the GUI layers switched off.
@@ -175,6 +198,8 @@ screen was still empty.
 | Color Creator | layout 4, GUI layers on | [camera] |
 | `disp get` shows which planes are on | user shell | [camera] |
 
+*Layer composition in the firmware.*
+
 Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
@@ -186,9 +211,11 @@ Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-edit
 | add an icon, a label or a digit | a picture widget child with up to eight states, using stock or own pictures | camera |
 | new label text that is a picture | hook the picture lookup and serve your own picture | camera |
 | a slider | the stock slider pictures as children, one marker per value | camera |
-| lines and boxes over live view | the drawing library's line and rectangle, from a task, after the GUI's own redraw | emulator only (2026-11-21), not yet on the camera |
+| lines and boxes over live view | the drawing library's line and rectangle, from a task, after the GUI's own redraw | emulator only, not yet on the camera |
 | run an existing wheel renderer | start the draw kind, size the work buffer, load its sheets, pick the layout | camera |
-| draw your own vector graphics with OpenVG | own renderer in a stub draw kind (CC2, MC, SC or TG): the kind-by-kind table and 7-step how-to are in [c3d GPU section 9](../hardware/c3d-gpu.md#9-the-olympus-driver-kind-by-kind-2026-11-21) | **not tried** |
+| draw your own vector graphics with OpenVG | own renderer in a stub draw kind (CC2, MC, SC or TG): the kind-by-kind table and 7-step how-to are in [c3d GPU section 9](../hardware/c3d-gpu.md#the-olympus-driver-kind-by-kind) | **not tried** |
+
+*Drawing methods and how far each is proven on the E-M5 III.*
 
 ## 8. Example: the profile editors
 
@@ -199,8 +226,8 @@ The Color Profile and Mono Profile editors were built in this order, and each st
 2. **Port the renderers.** The E-M5 III has empty placeholders for the profile wheels. The E-M1 III's renderers were
    relocated (every helper they call already exists), and the wheel artwork came from the PEN-F, the only body that
    ships it.
-3. **Give c3d enough memory.** The first run failed with "not enough free area". The profile wheels need 10-12 MB of
-   work buffer, not the 6-7 MB the stock table gives them.
+3. **Give c3d enough memory.** The first run failed with "not enough free area". The profile wheels need 10 to 12 MB of
+   work buffer, not the 6 to 7 MB the stock table gives them.
 4. **Find the missing picture.** With memory fixed, a dump showed a perfect wheel in the draw buffer, but the screen
    stayed empty. The cause was one check in the GUI that sets up the display only for the draw kinds the stock E-M5 III
    uses. Adding the two new kinds fixed it.
@@ -209,9 +236,9 @@ The Color Profile and Mono Profile editors were built in this order, and each st
 6. **The eight-state trap.** A digit widget with twelve states reset the camera at the ninth value. A picture widget
    keeps only eight. The emulator read zeros there and didn't crash.
 
-For anyone drawing on this camera, the emulator runs the GUI and the 2D engine well, but it does not run
-the c3d GPU or live view, and stock om-emu skips 4-bit pictures sent without a colour table (title bars, the AF grid,
-value boxes), noting it only in its error output. Our patch 0004 draws them. Check the emulator's error output before
+For anyone drawing on this camera, the emulator runs the GUI and the 2D engine well. It does not run
+the c3d GPU or live view. Stock om-emu also skips 4-bit pictures sent without a colour table (title bars, the AF grid,
+value boxes), and notes it only in its error output. Our patch 0004 draws them. Check the emulator's error output before
 trusting a screenshot. Anything involving the wheel or live view has to be checked on the camera, with the `c3d` and `disp`
 shell commands to see what happened.
 
@@ -224,12 +251,14 @@ shell commands to see what happened.
 | draw-kind check that skipped the display setup | 0x607f3e38 | [camera] |
 | eight-state limit | 0x60cc9888 reads +172 + 4 × state | [camera] |
 
+*The profile editors on our E-M5 III.*
+
 Sources: [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor).
 </details>
 
 ## Our features
 
-- **The Color and Mono Profile editors** use both systems: c3d for the wheel, picture widgets for the side bar, labels
+- **The Color and Mono Profile editors** use both systems. c3d draws the wheel, and picture widgets make the side bar, labels
   and sliders.
 - **The dev settings page** is an ordinary GUI list page, drawn by the stock list view.
 - **Live ND's preview** doesn't draw anything itself. It changes the live-view frame the picture plane shows.
@@ -248,6 +277,16 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | profile editor screens | none (we added them) | none | none | not checked | not checked | **yes**, the only one | — |
 | wheel artwork (texture sheets) | none (from the PEN-F) | not checked | placeholders | not checked | not checked | yes | — |
 
+*Each step checked on other bodies' firmware.*
+
 "Confirmed" in the first three rows means the names are in the firmware. The code wasn't compared.
 Sources: [graphics pipeline](../hardware/graphics-pipeline.md), [profile editor](../features/pen-f-profiles-technical.md#on-camera-editor),
 [body comparison](../bodies/comparison.md).
+
+## Further reading
+
+- [Graphics pipeline](../hardware/graphics-pipeline.md) has the reference notes behind every section.
+- [Vector GPU](vector-gpu.md) covers the c3d layer's processor in depth.
+- [Drawing your own graphics](drawing-your-own.md) shows how to draw boxes, text and pictures on the GUI layers.
+- [Profile editor](../features/pen-f-profiles-technical.md#on-camera-editor) describes the editors built in section 8.
+

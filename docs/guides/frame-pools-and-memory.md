@@ -1,10 +1,19 @@
 # Frame pools and memory
 
-*Guide 14 · E-M5 III firmware 1.7 · accepted 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 14 · E-M5 III firmware 1.7. New to these guides? Read
 [Before you start](before-you-start.md) and [MN103 primer](mn103-primer.md) first. Open questions:
 research gaps.*
 
-This guide covers how the camera's memory is laid out and handed out: the address space, the small heap for ordinary
+## Key points
+
+- The camera almost certainly has 1 GB of RAM, seen by the CPU once through its cache and once without.
+- Small objects come from a heap of fixed-size blocks, and anything bigger than 16 KB comes from a frame pool.
+- Frame pools overlap, so a pool's memory is safe only while the camera is in a mode that uses it.
+- Always ask a pool for a slot's address, because some pools don't place their slots evenly.
+
+This guide covers how the camera's memory is laid out and handed out. It goes through the address space, the small heap for ordinary
 objects, the frame pools that hold every image buffer, and the spare space we use for our own code. Anyone porting a
 feature that needs image memory (Live ND, handheld high res) works with pools from day one.
 
@@ -14,7 +23,7 @@ the RAM is inferred from the pool layout, since nobody has opened the camera to 
 
 ## 1. The address space
 
-The MN103 cores see one 32-bit address space. The parts that matter:
+The MN103 cores see one 32-bit address space. These are the parts that matter.
 
 | range | what |
 |---|---|
@@ -22,6 +31,8 @@ The MN103 cores see one 32-bit address space. The parts that matter:
 | 0x60000000 upwards | RAM, **cached** view: the program, its data, the cores' globals |
 | 0xa0000000-0xdfffffff | RAM, **uncached** view: image buffers, shared tables |
 | 0x8xxxxxxx / 0x9xxxxxxx | hardware registers and small shared areas (locks, doorbells) |
+
+*The main parts of the address space.*
 
 The same RAM appears twice. 0x6xxxxxxx goes through the CPU's cache and 0xaxxxxxxx doesn't, so an address and the same
 address with 0x6 changed to 0xa are the same bytes. As a rule, data only the CPU touches is read through the cached view. Anything a
@@ -45,12 +56,14 @@ though the image engine uses that memory without trouble. We treat that block as
 | CPU read at 0xc4000000 resets the camera | a Live ND test build | [camera] |
 | RAM regions in detail | [memory map](../hardware/memory-map.md#ram-regions-worth-knowing-e-m5-iii) | [code] |
 
+*The address space in the firmware.*
+
 Sources: [memory map](../hardware/memory-map.md), [MN103 CPU: address aliases](../hardware/mn103-cpu.md#address-aliases-cached-and-uncached).
 </details>
 
 ## 2. Three kinds of memory
 
-The firmware gets memory three ways, and each is for a different size of thing:
+The firmware gets memory three ways, and each is for a different size of thing.
 
 | kind | for | how big |
 |---|---|---|
@@ -58,18 +71,22 @@ The firmware gets memory three ways, and each is for a different size of thing:
 | the heap | small objects made while running: messages, records, file buffers | up to 16 KB each, about 786 KB in all |
 | frame pools | image data: raw frames, developed images, display layers | up to 33 MB each, most of the RAM |
 
+*The three kinds of memory and what each is for.*
+
 There is no general allocator for big blocks. Anything bigger than 16 KB comes from a pool, or is a static area.
 
 ## 3. The heap
 
 The heap is not the free-list heap you might know from a desktop C library. It is three stocks of fixed-size blocks,
-picked by the size you ask for:
+picked by the size you ask for.
 
 | class | for requests up to | blocks |
 |---|---|---|
 | small | 128 bytes | 178 |
 | middle | 2 KB | 21 |
 | large | 16 KB | 43 |
+
+*The heap's three block classes.*
 
 Asking for 200 bytes takes a whole 2 KB block. A request over 16 KB fails and returns nothing, with a "Size Over"
 message in the log. A free works out the class from the address, so freeing a pointer that didn't come from the heap is
@@ -106,18 +123,20 @@ The user shell lists the heap with `sc heaplist` and `sc heapshow`, which is the
 | a fourth class of 100 small blocks at 0xa26c9500 | not reached by malloc; "custom" or "apim" in the shell | [code]; use open |
 | how full it gets in use | not measured | open |
 
-Sources: [memory map: the small-object heap](../hardware/memory-map.md#the-small-object-heap-scheap-2026-11-19).
+*The heap in the firmware.*
+
+Sources: [memory map: the small-object heap](../hardware/memory-map.md#the-small-object-heap-scheap).
 </details>
 
 ## 4. Frame pools
 
-Image memory is handed out by **pools**. A pool is a run of equal-sized buffers ("slots") for one kind of image: the
+Image memory is handed out by **pools**. A pool is a run of equal-sized buffers ("slots") for one kind of image, such as the
 live-view raw frames, the full-size still frames, the display layers, the face-detection images, and so on. Each kind
 has a class number, and the pool for class *c* is entry *c* of a table.
 
-Code borrows a slot by asking the pool, and gets back an **id**: the class in the high byte and the slot number in the
-low byte (0x0701 is slot 1 of class 0x07). The id is the handle for everything else: ask the pool for the slot's address,
-add a reference if a second user needs it, release it when done. A slot goes back to the pool when its last reference
+Code borrows a slot by asking the pool, and gets back an **id**. The id has the class in the high byte and the slot
+number in the low byte (0x0701 is slot 1 of class 0x07). The id is the handle for everything else. Code asks the pool
+for the slot's address, adds a reference if a second user needs it, and releases it when done. A slot goes back to the pool when its last reference
 is released.
 
 ```
@@ -144,6 +163,8 @@ Two details caught us early on, both now proven on the camera:
 | geometry query | 0x603f77c4 (pool method at vtable +32) | [camera] |
 | pool object | +8 base, +12 slot size, +20 free count, +24 count, +64 bitmap | [camera] |
 
+*The pool interface in the firmware.*
+
 Sources: [memory map: frame pools](../hardware/memory-map.md#frame-pools).
 </details>
 
@@ -153,7 +174,7 @@ The pools are not carved out of RAM once and for all. The constructors that run 
 and their slots add up to about **4.4 GB**, nearly five times the memory they live in. Most of the buffer area belongs
 to several pools at once.
 
-That works because the pools are alternative layouts of the same memory: the slots a still capture uses, the slots
+That works because the pools are alternative layouts of the same memory. The slots a still capture uses, the slots
 movie recording uses, and the slots a special mode uses overlap, and the camera only ever runs one of those at a time.
 A pool's memory is safe to use only while the camera is in a mode that uses that pool and not its neighbours.
 
@@ -166,20 +187,22 @@ or measured.
 | what | where | known from |
 |---|---|---|
 | pool constructors | run at every boot from the init array 0x6056bca8 (first entry 0x603f657f) | [code] |
-| full pool list, E-M5 III and OM-5 | read from the constructor calls; summary on the [memory map](../hardware/memory-map.md#image-buffer-pool-map-e-m5-iii-vs-om-5-2026-11-12) | [code] |
+| full pool list, E-M5 III and OM-5 | read from the constructor calls; summary on the [memory map](../hardware/memory-map.md#image-buffer-pool-map) | [code] |
 | 64 pools, ~4.4 GB of slots in 924 MB | same list | [code] |
 | which pools are live in which mode | not traced | open |
 
-Sources: [memory map: pool map](../hardware/memory-map.md#image-buffer-pool-map-e-m5-iii-vs-om-5-2026-11-12).
+*Pool construction in the firmware.*
+
+Sources: [memory map: pool map](../hardware/memory-map.md#image-buffer-pool-map).
 </details>
 
 ## 6. The main still pool
 
-Full-size photos are held in the **main pool** (class 0): 20 slots of about 33 MB, each big enough for one raw still.
+Full-size photos are held in the **main pool** (class 0). It has 20 slots of about 33 MB, each big enough for one raw still.
 A burst, a multi-shot mode or a long-exposure noise pass takes several of them.
 
-The main pool is in two blocks, slots 1-8 in one and slots 9-20 in the other, with a gap between them that
-belongs to other pools. So "base + n × size" is wrong for slots 9-20. One of our early Live ND builds made exactly this
+The main pool is in two blocks, slots 1 to 8 in one and slots 9 to 20 in the other, with a gap between them that
+belongs to other pools. So "base + n × size" is wrong for slots 9 to 20. One of our early Live ND builds made exactly this
 mistake and wrote 32 MB over memory that wasn't image memory. The pool's own address function knows about the two blocks,
 which is why the rule is to always ask it.
 
@@ -191,6 +214,8 @@ which is why the rule is to always ask it.
 | two blocks | slots 1-8 from 0xb0000000, 9-20 from 0xc4000000 (last ends 0xdb758800) | [camera] |
 | the two-block bug | Live ND builds E6-E6c; fixed in E6d | [camera] |
 
+*The main still pool in the firmware.*
+
 Sources: [Live ND](../features/live-nd.md), [memory map: frame pools](../hardware/memory-map.md#frame-pools).
 </details>
 
@@ -201,11 +226,13 @@ A few pools that come up often:
 | pool | what | known from |
 |---|---|---|
 | live-view raw | 4 slots of 16 MB; normal live view alternates the first two ([Live view](live-view.md)) | camera |
-| second live-view-sized pool | 4 slots at 0xc4000000, over the main pool's second block; user unknown | code |
-| display and on-screen layers | full-HD display buffers, four OSD layers | code |
+| second live-view-sized pool | 4 slots over the main pool's second block; user unknown | code |
+| display and on-screen layers | full-HD display buffers, four on-screen display (OSD) layers | code |
 | face detection | 11 VGA images | code |
 | Tripod High Res | 8 frames | code |
 | descriptors, metadata | small per-shot records | camera |
+
+*Pools that come up often, and how each is known.*
 
 <details><summary>Where in the firmware</summary>
 
@@ -218,13 +245,15 @@ A few pools that come up often:
 | Tripod High Res | 0x4f00 | [code] |
 | descriptors / metadata | class 0x15 at 0xaeb333c0 (64) / 0xae95d740 (20) | [camera] |
 
+*Other pools in the firmware.*
+
 Sources: [memory map: frame pools](../hardware/memory-map.md#frame-pools), [display](../hardware/display.md).
 </details>
 
 ## 8. Free space
 
 The program is loaded into RAM in sections (see [Boot](boot.md)), and each section is followed by unused space, filled
-with 0xFF in the firmware file. That space is where our code goes. The loader copies each section up to an end address
+with 0xff in the firmware file. That space is where our code goes. The loader copies each section up to an end address
 written into its code, so raising that one number makes the space after a section load with it.
 
 Two kinds of space matter:
@@ -246,6 +275,8 @@ tried on the camera.
 | section end constants | loader switch 0x60045dc5 (section 4 at 0x60045deb, section 9 at 0x60045e13, section 10 at 0x60045e24) | [camera] |
 | regions per feature, measured use | [memory map: spare space](../hardware/memory-map.md#spare-space-for-our-code) | [camera] / [code] |
 | untried gaps after sections 1, 3, 5, 6, 7, 8 | same table | [code] |
+
+*Free space in the firmware.*
 
 Sources: [memory map](../hardware/memory-map.md#spare-space-for-our-code), [boot and sections](../firmware/boot-and-sections.md).
 </details>
@@ -277,4 +308,15 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | main still pool | 20 slots, two blocks | **different**: 18 slots, plus a 19-slot Live ND layout | not checked | not checked | **different**: larger, 0xb8000000-0xff124000 | not checked | — |
 | dedicated Live ND preview pools | none | **different**: 248-slot ring | not checked | not checked | not checked | not checked | — |
 
+*Each step checked on other bodies' firmware.*
+
 Sources: [memory map](../hardware/memory-map.md).
+
+## Further reading
+
+- [Memory map](../hardware/memory-map.md) has the reference notes behind every section.
+- [MN103 CPU](../hardware/mn103-cpu.md#address-aliases-cached-and-uncached) explains the cached and uncached views.
+- [Live ND](../features/live-nd.md) shows the main pool in use.
+- [Boot and sections](../firmware/boot-and-sections.md) explains when each section becomes ready.
+- Research gaps lists the open questions.
+

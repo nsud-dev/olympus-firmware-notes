@@ -1,10 +1,17 @@
 # Oly Firmware Notes and Mods
 
-Notes and tools from taking apart the firmware of the Olympus OM-D E-M5 Mark III (firmware 1.7).
+These notes describe how the Olympus OM-D E-M5 Mark III's firmware and hardware work. They come from a love of these
+cameras. The more I learn about them, the more the engineering behind them surprises and impresses me. The hardware and
+software are both remarkable pieces of engineering, and the people behind them deserve more praise than I can give.
+Thank you for what must have been decades of careful, hard work. Exploring it has given me a real sense of wonder and
+discovery.
 
 The E-M5 III shares a lot of hardware with newer bodies like the OM-5 and E-M1 III, but it never got some of their
 features. I wanted to understand how the camera works and whether some of those features could run on it. Along the
 way I've compared it with the OM-5, OM-5 II, E-M1 III, OM-1, PEN-F, E-M5 II and E-M5 (Mark I).
+
+**This is a research wiki.** It explains how the camera works and gives advice on making mods. It doesn't ship mods,
+builds or decompiled code.
 
 **There's no firmware in this repo.** No firmware images, decoded blocks, disassembly, decompiled vendor code or
 patched builds. It's my own write-up of how things work, plus my own tools. To follow along you'll need your own copy
@@ -14,6 +21,7 @@ This isn't affiliated with or endorsed by OM Digital Solutions or Olympus. Modif
 camera and will void the warranty. Nothing here is a ready-made patch, so use it at your own risk.
 
 ## Guides
+
 The [guides](docs/guides/README.md) explain how processes on the camera work without getting bogged down in reference
 material: what happens when you take a photo, how the camera boots, how a button press reaches the app, how live view
 gets from the sensor to the screen, and more. Start with [Before you start](docs/guides/before-you-start.md).
@@ -24,6 +32,7 @@ This is a spare-time project, so progress can be slow. I have family commitments
 to be flashed and tried on the camera.
 
 ## Contents
+
 - **[docs/](docs/README.md)**: how the firmware and hardware work. Covers the firmware container format, boot and
   section loading, recovery, the MN103 CPU, the memory map, the image engine, the ARM co-processor, the display, USB,
   the stabiliser, the shooting sequencer, settings and menus, patching techniques, and studies of individual features.
@@ -35,6 +44,7 @@ to be flashed and tried on the camera.
   processor module for the MN103 CPU that runs most of the camera.
 
 ## Conventions
+
 - Claims are tagged by how sure I am. **[camera]** means I saw it on a real E-M5 III, **[code]** means I read it in
   the firmware, and **[inferred]** means the evidence points that way but I haven't traced or tested it.
 - Addresses are for the MN103 side of **E-M5 III firmware 1.7**, loaded at `0x60021020`, unless a page says
@@ -69,6 +79,7 @@ GPL-3.0-or-later because it is generated from the GNU binutils opcode table. No 
 `tools/` here is our own code.
 
 ## Reuse and credit
+
 You're welcome to use these notes and tools in your own projects, including firmware ports. Please credit them: CC BY
 4.0 and MIT already require it for anything copied, and for findings you build on (addresses, methods such as the Live
 ND merge or the HHHR path), a line like this is appreciated:

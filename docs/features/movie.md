@@ -1,7 +1,14 @@
 # Movie recording
 
 <!-- human page -->
-> The dense reference for this page is [Movie recording: technical notes](movie-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The E-M5 III's 29 minutes 59 seconds recording limit is one number in the firmware.
+- A card mod that lifts the limit to two hours works in an emulator but has not been tried on the camera.
+- Much of what the OM-5's OM-Log400 profile needs is already in the E-M5 III, but the piece that picks the log curve is missing.
+- The missing Cinema 4K at 30 frames looks like a limit of the processor rather than a product decision.
 
 This page covers two movie questions. The E-M5 III stops recording after 29 minutes 59 seconds, while the OM-5 records
 for longer. The OM-5 also has a flat "OM-Log400" picture profile for colour grading, which the E-M5 III lacks.
@@ -9,15 +16,10 @@ for longer. The OM-5 also has a flat "OM-Log400" picture profile for colour grad
 The recording limit turns out to be one number in the firmware. The log profile is harder. Much of what it needs is
 already in the E-M5 III, but the piece that picks the log curve is missing.
 
-## Status
+## Recording limit
 
-- **Recording limit.** Found and understood. A card mod that lifts it works in the emulator but has not been tried on
-  the camera.
-- **OM-Log400.** Researched. Nothing has been built yet.
-
-## 29:59 limit
 When a recording starts, the camera hands the movie encoder a maximum recording time in milliseconds. On the E-M5 III
-that time is 30 minutes, unless the recording type is one that already gets two hours. The encoder stops when the time
+that time is 30 minutes for every normal movie size. Only the two small 640-pixel-wide sizes get two hours. The encoder stops when the time
 runs out.
 
 The OM-5 and OM-5 II have no 30-minute case at all. They always pass two hours. The E-M1 III and PEN-F carry the same
@@ -29,7 +31,7 @@ the camera handles the 4 GB file split on a longer recording. Heat over a long r
 
 As a card mod, the change is made while the camera runs and undone when the menu row is switched off.
 
-## How a movie is recorded
+## Movie pipeline
 
 The sensor runs in a different mode for each movie size. 4K is a crop from the middle of the sensor. Cinema 4K uses the
 full width, and Full HD reads a band of the sensor at half resolution. A fixed scaler brings each mode to the
@@ -77,8 +79,18 @@ force the existing super flat mode in a movie on the E-M5 III and see what comes
 | OM-1, OM-1 II | no 30-minute number found | not checked here |
 | E-M5 II, E-M5 (Mark I) | yes | no, and an older movie system without the groundwork |
 
+*The recording limit and log profile on each body. Read in each body's firmware.*
+
+## Status
+
+- **Recording limit.** Found and understood. A card mod that lifts it works in the emulator but has not been tried on
+  the camera.
+- **OM-Log400.** Researched. Nothing has been built yet.
+
 ## Further reading
 
+- [Movie recording: technical notes](movie-technical.md) has the encoder settings, the limit's code path and the
+  log-profile study.
 - [Sensor and calibration](../hardware/sensor.md#sensor-modes) lists the sensor modes per movie
   size.
 - [Color and Monochrome Profiles](pen-f-profiles.md) covers the other picture modes we added.

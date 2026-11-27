@@ -1,7 +1,14 @@
 # Gotchas
 
 <!-- human page -->
-> The dense reference for this page is [Gotchas: technical notes](gotchas-technical.md), with every case, its cause and its date.
+<!-- house style -->
+
+## Key points
+
+- Each lesson here cost a flash, a battery pull or a day of work, and each comes with the rule we follow now.
+- The lessons cover addresses, start-up, memory, the image engine, the ARM co-processor and testing.
+- The emulator is not a boot test, and a static check of the start-up path catches what it misses.
+- Some ideas were tried and dropped, and they are listed so nobody repeats them without a new idea.
 
 Each lesson on this page cost a flash, a battery pull or a day of work. They are grouped by theme, with the rule we
 follow now. Read them before designing a build.
@@ -31,7 +38,8 @@ follow now. Read them before designing a build.
   through it put 32 MB of data in the wrong place.
 - **Keep patch state out of program memory.** Storing a byte into code memory restarted the camera on two other bodies.
   Keep state on the heap.
-- **Write code through the uncached view.** Writing code through the cached view resets the camera.
+- **Write code through the uncached view.** Writing code through the cached view resets the camera. This also
+  applies to data words kept in a code section. Write them through the uncached view, then flush the cache.
 - **Keep data aligned.** The processor faults on a misaligned word, but the simulators do not. A 4-byte field must sit
   on a 4-byte boundary.
 
@@ -66,5 +74,6 @@ These were tried and dropped. Please do not repeat them without a new idea.
 
 ## Further reading
 
+- [Gotchas: technical notes](gotchas-technical.md) has every case with its cause, the addresses and the evidence.
 - [Recovery](../firmware/recovery.md) explains what to do when a build does go wrong.
 - [Modifying the firmware](../firmware/patching-techniques.md) has the build rules these lessons led to.

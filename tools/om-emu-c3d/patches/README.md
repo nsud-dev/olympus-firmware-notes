@@ -73,6 +73,13 @@ Copyright (c) 2026 om-emu contributors, MIT (see om-emu's `LICENSE`). Our own sc
   Stock E137 (boot, S1, S2, MENU, play) and stock E148 make 0 such stores. A test build that kept a driver's data in
   a 0xFF gap of the code (black screen on the camera 2026-11-23) makes 31 cached and 55 uncached ones during boot, and
   its fix makes none (it boots). `bin/test-pure.mjs` passes unchanged.
+  2026-11-27: sections 1-9 are judged too. A cached store into them (first section start .. tenth section start) is
+  a FAIL unless its 4 KB page is one stock writes (`OM_CODEWRITE_ALLOW=PAGES` or `@FILE`;
+  `codewrite-allow-E148.txt` here: 0x61110000, 0x61111000 for stock E148 boot + MENU). Why: a mod-loader menu build
+  reset on the camera as soon as a card was in, from three cached stores of row counts into our section-1 extension
+  and one into section 7, and this monitor passed it (those pages are never executed, so an executed-page rule misses
+  them). Now that build FAILs (4 stores, pc 0x602420da..), its fix (writes through the uncached view, then a cache
+  flush) and stock E148 pass. Summary fields `sections`, `allow`, `sec_hits`, `counts.sec`.
 - `0011-olyfw-serial-bus-tap.patch` (2026-11-23): `OM_SERTAP=FILE` logs every transfer and receive the firmware starts
   through its serial controller driver (the starts om-emu already finds per body, fact 'sio'), on every channel: the
   controller index, the bytes (up to 64), their count and the caller. A transfer whose first byte, the IIC address

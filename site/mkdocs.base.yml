@@ -11,6 +11,8 @@ theme:
   - search.highlight
   - content.code.copy
   - toc.follow
+  - content.footnote.tooltips
+  - content.tooltips
   palette:
   - media: '(prefers-color-scheme: light)'
     scheme: default
@@ -36,5 +38,6 @@ markdown_extensions:
 - pymdownx.highlight
 - md_in_html
 - attr_list
+- footnotes
 plugins:
 - search

@@ -1,33 +1,38 @@
 # Buttons
 
-*Guide 7 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 7 · E-M5 III firmware 1.7 · draft 1. New to these guides? Read
 [Before you start](before-you-start.md) and [Operating system](operating-system.md) first. Open questions:
 research gaps.*
 
+## Key points
+
+- A key press goes from an interrupt to the UI_IN task, then through the app event queue to the HLS_EVENT task and the application.
+- The interrupt only records the new key state and wakes UI_IN, which turns every changed bit into an app event.
+- If a full press of the shutter button arrives without a half-press, the decoder sends the half-press first.
+- A stock shell command can press keys over Wi-Fi by setting the same key image the interrupt sets.
+
 This guide follows a button from the moment its contact closes to the moment the camera's application code hears
-about it: the interrupt, the key image, the task that decodes it into an event, and the queue that carries the event to
-the application. It ends with a stock way to press buttons over Wi-Fi, which we use for testing.
+about it. It covers the interrupt, the key image, the task that decodes it into an event, and the queue that carries
+the event to the application. It ends with a stock way to press buttons over Wi-Fi, which we use for testing.
 
 The path up to the application's event queue is traced in the code. What happens after that depends on the screen
 you're on, and the step from "half-press event" to the shooting sequencer is still open.
 
 ## Overview
 
-```
-key contact ──► key-line interrupt ──► callback updates the key image, wakes UI_IN
-                                                         │
-                                       UI_IN task: compare old and new image
-                                                         │
-                                  app event "key 0x100 pressed" (half-press)
-                                                         │
-                                 app event queue ──► HLS_EVENT task ──► application
-                                                                       (menu, playback, shooting)
-```
+1. The key contact closes and the key-line interrupt fires.
+2. A callback updates the key image and wakes the UI_IN task.
+3. UI_IN compares the old and the new image.
+4. It sends an app event, such as "key 0x100 pressed" for a half-press.
+5. The event goes into the app event queue.
+6. The HLS_EVENT task reads it and hands it to the application, such as a menu, playback or shooting.
 
 ## 1. Key lines and groups
 
 The buttons are not scanned one at a time. They are wired to several kinds of inputs, and the firmware treats each kind
-as a **group** with its own bit image, one bit per key:
+as a **group** with its own bit image, one bit per key.
 
 | group | what it covers |
 |---|---|
@@ -36,6 +41,8 @@ as a **group** with its own bit image, one bit per key:
 | dial | the mode dial position |
 | ext | keys on an external input chip |
 | power | the power switch, read through the always-on [power block](../hardware/power-block.md) (wake input 0) |
+
+*The key groups and what each covers.*
 
 Each key has a 4-letter name and a number in a table. Some examples: `Trg1` (0x100) is the shutter button half-pressed,
 `Trg2` (0x101) fully pressed, `Ok` (0x4), `Menu` (0x89), `Play` (0x87), `Info` (0x1205). Cables, card doors and the
@@ -50,6 +57,8 @@ lens show up as "keys" too (`UsbC`, `Hdmi`, `LnsC`), which is why the same modul
 | key names and codes | 0x60251248 | [code] |
 | which physical button each `Cut` code is | needs `ui key debug` on the camera | open |
 
+*The group table, the bit images and the key names.*
+
 Sources: [Wi-Fi debug shell: simulated button presses](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
@@ -62,7 +71,7 @@ the function that was registered for that channel. For the push buttons, that fu
 That is all it does. The interrupt doesn't decide what the key means, doesn't log, and doesn't wait for anything. It
 records the new state and wakes the task that will deal with it (see [interrupt context](operating-system.md#5-interrupts)).
 
-The analogue keys and the power switch use their own drivers, but they end the same way: a callback that updates the
+The analogue keys and the power switch use their own drivers, but they end the same way. A callback updates the
 group's image and sets UI_IN's flag. Registering the power-switch callback takes one of the
 [cross-core lock bits](cores.md#3-lock-bits), so that driver is shared between cores.
 
@@ -77,6 +86,8 @@ group's image and sets UI_IN's flag. Registering the power-switch callback takes
 | analogue key callbacks | 0x60121305 / 0x601213bd | [code]; "adc" [inferred] |
 | power key callback | 0x60121f0d (via 0x60063d13, lock 8) | [code] |
 | UI_IN event flag | u16 at 0x60040dd4, bit 0 | [code] |
+
+*The key-line interrupt, its callbacks and UI_IN's event flag.*
 
 Sources: [Wi-Fi debug shell: from the key line to the app](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
@@ -95,6 +106,8 @@ a 32-bit number made of a kind and the key code:
 | 0x2010000 + code | key released |
 | 0x2020000 + code | value changed (the mode dial: the code plus its new position) |
 
+*The three kinds of app event the key decoder sends.*
+
 One rule is built in here. If a full press of the shutter button (`Trg2`) arrives without a half-press before it, the
 decoder sends the half-press (`Trg1`) first. So the rest of the camera can assume a full press always comes after a
 half-press, however quickly the button was pushed.
@@ -106,6 +119,8 @@ half-press, however quickly the button was pushed.
 | UI_IN task loop | 0x6011f9d8 (wait, clear, decoder 0x6012092f, jog 0x6011fb2d) | [code] |
 | key dispatcher (events, half-press first) | 0x60120ad3 | [code] |
 | event kinds | 0x2000000 / 0x2010000 / 0x2020000 + code | [code] |
+
+*The UI_IN task loop and the key decoder.*
 
 Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
@@ -123,6 +138,8 @@ jog driver after the keys.
 | send a dial event | `JOG_SendEvent` 0x6011fe86 (0x2030000 + 0x1902 / 0x1903) | [code] |
 | how the pulses are counted (timer, interrupt) | not traced | open |
 
+*The jog driver.*
+
 Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
@@ -136,7 +153,7 @@ From here the meaning depends on what the camera is doing. In a menu, `Up` moves
 through images. In shooting mode, a half-press starts focusing and metering.
 
 ```
-pseudocode, written from the disassembly (0x60046008, 0x602e39b9; byte-matching C waits for the decompile)
+pseudocode in our own words, summarised from the disassembly (0x60046008, 0x602e39b9)
 
 post_app_event(event, argument):
     (a few events are dropped in one special mode; meaning open)
@@ -156,6 +173,8 @@ waits its turn among other kinds of events.
 | reader | `appevent::Wait_Event` 0x602e2f49, `Wait_ExecuteEvent` 0x602e32f6 (HLS_EVENT task) | [code] |
 | dropped events | 0x40d00b5 / 0x40d00b6 while byte 0xa25b897e = 119 | [code]; meaning open |
 
+*Posting to the app event queue and reading from it.*
+
 Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses).
 </details>
 
@@ -165,17 +184,19 @@ In shooting mode, the half-press is where [Taking a photo](taking-a-photo.md) be
 runs the focus and exposure states, and then waits in **RdyTrig2Wait** for the full press, which moves it on to the
 capture.
 
-The exact route from the half-press app event to the sequencer's first state change (which component sends what, on
-which queue) hasn't been traced yet. It is the same open question as the hand-over from the generated C++ layer to the
-sequencer in the photo guide.
+The route from the generated C++ layer to the sequencer is known for a take-picture request. The C++ code
+calls a C interface, which puts a message into the sequencer's own queue. See [C++ shooting layer](../firmware/cpp-shooting-layer.md).
+Whether the half-press takes the same route, and which component sends it, hasn't been checked yet.
 
 <details><summary>Where in the firmware</summary>
 
 | what | where | known from |
 |---|---|---|
-| sequencer waits for the full press | state RdyTrig2Wait (5), event 18 | [code] |
+| sequencer waits for the full press | state RdyTrig2Wait (5); the take request arrives as queue event 11 (2026-11-25) | [code] |
 | release seen during capture prep | byte 0x62110640 | [code] |
-| app event → sequencer route | not traced | open |
+| app event → sequencer route | take request: API message type 11 to queue 0x60 (2026-11-25); half-press not checked | [code] / open |
+
+*The sequencer's wait for the full press and the route a take request follows.*
 
 Sources: [shooting sequencer](../firmware/shooting-sequencer.md), [Live ND](../features/live-nd.md).
 </details>
@@ -198,6 +219,8 @@ fake those events.
 | `ui` command / `key` sub-commands | 0x61408cf3 / 0x61408f79 | [code] |
 | set a key | 0x60120327(code, state) | [code] |
 | tried on the camera | not yet | open |
+
+*The shell's key commands.*
 
 Sources: [Wi-Fi debug shell](../features/wifi-debug-shell-technical.md#simulated-button-presses), remote test rig.
 </details>
@@ -224,6 +247,14 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | HLS_EVENT task, `appevent::Wait_Event` | yes | **confirmed** | **confirmed** | **confirmed** | **confirmed** | **confirmed** | OM-5 II (Atlas-linked project): first-half-press work done in the HLS_EVENT task |
 | half-press sent before a lone full press | yes | not checked | not checked | not checked | not checked | not checked | — |
 
+*Each step on other bodies. The last column holds what other projects report.*
+
 "Confirmed" here means the names or the address are present. The code around them wasn't checked.
 [Wi-Fi debug shell](../features/wifi-debug-shell.md), fenykl notes,
 Atlas-linked projects.
+
+## Further reading
+
+- [Wi-Fi debug shell: technical notes](../features/wifi-debug-shell-technical.md#simulated-button-presses), the detailed reference for this guide.
+- [Operating system](operating-system.md), tasks, event flags, queues and interrupt context.
+- [Taking a photo](taking-a-photo.md), what the half-press starts in shooting mode.

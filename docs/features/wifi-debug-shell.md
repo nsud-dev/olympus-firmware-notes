@@ -1,7 +1,14 @@
 # Wi-Fi debug shell
 
 <!-- human page -->
-> The dense reference for this page is [Wi-Fi debug shell: technical notes](wifi-debug-shell-technical.md).
+<!-- house style -->
+
+## Key points
+
+- A small text file on the SD card makes the camera start a debug Wi-Fi network with a command shell.
+- Nothing has to be flashed, and taking the file off the card turns it off again.
+- The shell runs alongside normal shooting and has become our main test tool.
+- Some of its commands write to flash memory, so only reading commands are safe to use.
 
 The E-M5 III has a hidden debug console, most likely left over from development. A small text file on the SD card
 makes the camera start its own Wi-Fi network, and a laptop on that network can then type commands into the camera.
@@ -10,30 +17,21 @@ Nothing has to be flashed. It works on the stock firmware, and taking the file o
 our [card mod loader](card-mods.md) installed there is an easier way. A Wi-Fi shell row on the "K. Mods" menu page
 starts the same network at the next power-on, with no file on the card.
 
-## Status
-
-- **It works on the camera.** It was first confirmed on our E-M5 III with firmware 1.7 on 12 November 2026.
-- **The shell answers.** It shows the prompt `USR>` and lists 58 commands.
-- **It runs alongside normal shooting.** The camera takes pictures as usual while a laptop is connected.
-- **It has become our main test tool.** Every Live ND test run since 12 November has been watched through it.
-
 ## How it starts
 
 At power-on the camera looks for settings files in a folder called `PARAMDT` on the card. Each line in such a file sets
 one of the camera's internal properties. One of those properties tells the camera to start a debug Wi-Fi network.
 
 Once the camera is ready, it brings up an open network and listens for a connection on port 23. That is the usual port
-for a plain text console. Whatever you type there goes to the camera's built-in
-command shell.
+for a plain text console. Whatever you type there goes to the camera's built-in command shell.
 
 The setting is not saved. It lasts until the camera is switched off, so the file has to be on the card at every
 power-on.
 
 ## Trying it
 
-With the card mod loader, set the Wi-Fi shell row in K. Mods to On, switch the camera off
-and on again, then go straight to step 5. On a stock camera,
-use the settings file as below.
+With the card mod loader, set the Wi-Fi shell row in K. Mods to On, switch the camera off and on again, then go
+straight to step 5. On a stock camera, use the settings file as below.
 
 You need a spare card, a laptop and a place where nobody else is in Wi-Fi range.
 
@@ -62,9 +60,11 @@ The shell also cuts every line at 31 characters, so long commands lose their end
 The network has no password. Anyone in range could join it while the camera is on, so keep sessions short and switch
 the camera off afterwards.
 
-Some commands write to the camera's flash memory or settings. A wrong one could damage the firmware. Stick to reading
-commands such as `help`, `echo` and `take dbginfo`. Never run `flash`, `prm`, `usr`, `damage`, `sdk`, `syscall` or the
-`dbg` test commands, which raise faults on purpose. The technical notes have
+> [!WARNING]
+> Some commands write to the camera's flash memory or settings. A wrong one could damage the firmware.
+
+Stick to reading commands such as `help`, `echo` and `take dbginfo`. Never run `flash`, `prm`, `res`, `bas`, `usr`,
+`damage`, `sdk`, `syscall` or the `dbg` test commands, which raise faults on purpose. The technical notes have
 [the full never-run list](wifi-debug-shell-technical.md#risks).
 
 The shell is part of the normal firmware. It is no help if the camera will not start.
@@ -84,8 +84,8 @@ use. It has been traced in the firmware but not yet tried on the camera. A remot
 through menus without anyone touching the camera. Always send the release after a press, and never fake the power,
 cable, card or lens signals.
 
-**Starting it from the menu.** With our card mod loader, the "K. Mods" menu page has a Wi-Fi shell row. From the next power-on, that starts
-the same network without the settings file.
+**Starting it from the menu.** With our card mod loader, the "K. Mods" menu page has a Wi-Fi shell row. From the next
+power-on, that starts the same network without the settings file.
 
 ## Other cameras
 
@@ -96,12 +96,24 @@ the same network without the settings file.
 | E-M5 II 4.1 | commands present | its Wi-Fi works differently, so the way in still has to be found |
 | E-M5 (Mark I) 2.3 | commands present | no Wi-Fi at all |
 
+*The debug shell on other Olympus bodies.*
+
 ## Credit
 
 We learned about the shell from fishcu's oly_fw_analysis project. A forum user on forum reported it working on an
 E-M5 III before we tried it.
 
+## Status
+
+- **It works on the camera.** It was first confirmed on our E-M5 III with firmware 1.7.
+- **The shell answers.** It shows the prompt `USR>` and lists 58 commands.
+- **It runs alongside normal shooting.** The camera takes pictures as usual while a laptop is connected.
+- **It has become our main test tool.** Every Live ND test run since its first test has been watched through it.
+
 ## Further reading
+
+- [Wi-Fi debug shell: technical notes](wifi-debug-shell-technical.md) has the full command details, the button codes
+  and the addresses.
 
 - [Buttons](../guides/button-press.md) follows a button press from the key to the app, which is the path
   the remote presses use.

@@ -1,20 +1,21 @@
 # Starry Sky AF
 
 <!-- human page -->
-> The dense reference for this page is [Starry Sky AF: technical notes](starry-sky-af-technical.md).
+<!-- house style -->
+
+## Key points
+
+- Starry Sky AF lets newer bodies focus on stars, which normal autofocus cannot do, and the E-M5 III lacks it.
+- The feature is small new code threaded through many places in the existing autofocus system.
+- A first test build for the E-M5 III was made but has never run on a camera.
+- The per-lens infinity table is the risky part, because on the E-M5 III its flash area holds lens data.
 
 Normal autofocus cannot focus on stars. They are too small and too faint for it to find any contrast. Newer bodies have
 a Starry Sky AF mode that can, which makes night-sky photography much easier. The E-M5 III does not have it.
 
 Inside the firmware it is called Astro AF.
 
-## Status
-
-- **Research is done.** We know what the feature is made of and where it would hook into the E-M5 III.
-- **A first test build was made but never run.** It sits on an old base and its memory has since gone to Live ND, so it
-  has to be moved and rebuilt before it can be tried.
-
-## On the newer bodies
+## Newer bodies
 
 The E-M1 III and the OM-5 have the same Starry Sky AF. The OM-5 II only adds a few choices for how it starts.
 
@@ -34,7 +35,7 @@ port, only the sequence around it.
 The newer bodies also learn the infinity position for each lens and keep a table of them in flash memory. That table
 is about 61 KB.
 
-## The port
+## Port
 
 We use the E-M1 III to decide where hooks go, because its focus code is a close superset of the E-M5 III's. We use the
 OM-5 for behaviour, settings and menus.
@@ -48,20 +49,11 @@ The test build makes star focus out of the E-M5 III's normal single AF with four
 
 The code is 321 bytes. It passed the simulator, but it has not been on a camera.
 
-## The hard part
+## Infinity table
 
 The per-lens infinity table is the risky piece. On the OM-5 it lives in a part of flash that holds lens data on the
 E-M5 III. Writing there could damage that data. The plan is to keep the table in memory first and write flash only
 once that is well understood.
-
-## Next steps
-
-1. Move the test code to the space set aside for it and rebuild it on the current base.
-2. Try it on the camera with a fixed infinity position.
-3. Add the settings and a menu choice.
-4. Work out flash learning.
-
-One question is still open. Nothing has yet been found in the E-M5 III that reads the Accuracy or Speed choice.
 
 ## Other cameras
 
@@ -73,7 +65,26 @@ One question is still open. Nothing has yet been found in the E-M5 III that read
 | E-M5 III 1.7 | absent, test build made |
 | E-M5 II, E-M5 (Mark I) | absent, would need new focus code |
 
+*Starry Sky AF by camera and firmware version.*
+
+## Status
+
+- **Research is done.** We know what the feature is made of and where it would hook into the E-M5 III.
+- **A first test build was made but never run.** It sits on an old base and its memory has since gone to Live ND, so it
+  has to be moved and rebuilt before it can be tried.
+
+The next steps are these.
+
+1. Move the test code to the space set aside for it and rebuild it on the current base.
+2. Try it on the camera with a fixed infinity position.
+3. Add the settings and a menu choice.
+4. Work out flash learning.
+
+One question is still open. Nothing has yet been found in the E-M5 III that reads the Accuracy or Speed choice.
+
 ## Further reading
 
+- [Starry Sky AF: technical notes](starry-sky-af-technical.md) has the hook sites, the test build and the address
+  reference.
 - [Memory map](../hardware/memory-map.md) shows the space set aside for this feature.
 - [Modifying the firmware](../firmware/patching-techniques.md) covers hooking and porting from a newer body.

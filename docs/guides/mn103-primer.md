@@ -1,12 +1,21 @@
 # MN103 primer
 
-*Guide 4 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 4 · E-M5 III firmware 1.7 · draft 1. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*
 
-The main program runs on Panasonic MN103 cores. This guide is an introduction
-for someone who knows another embedded CPU (ARM, AVR, 68000, MIPS): what the registers are, why the code is so compact,
-the unusual way calls build stack frames, the hardware loop instruction, how maths is done, and the address space.
-It ends with what all this means when you patch the firmware.
+## Key points
+
+- The main program runs on Panasonic MN103 cores, and in practice the code uses only eight registers.
+- On this CPU the caller builds the callee's stack frame, so a patch must copy the frame of an existing call.
+- Most multiplies and all floating point go through a helper unit, because the core has no floating-point unit.
+- Olympus built the main program with Panasonic's own compiler family, not with GCC.
+
+The main program runs on Panasonic MN103 cores. This guide is an introduction for someone who knows another embedded
+CPU (ARM, AVR, 68000, MIPS). It covers what the registers are, why the code is so compact, the unusual way calls build
+stack frames, the hardware loop instruction, how maths is done, and the address space. It ends with what all this
+means when you patch the firmware.
 
 Everything here is read off the firmware or taken from Panasonic's own documentation, unless marked otherwise. Clock
 speed, pipeline and caches have not been measured.
@@ -19,7 +28,7 @@ The **AM33** is a later member with extra registers and instructions. GNU binuti
 
 Olympus's system-on-chip (TruePic) was designed with Panasonic, which is how the MN103 ended up as its control CPU. The
 image processing doesn't run on it. That is done by the image engine and other dedicated blocks. The MN103 runs the
-camera's logic: menus, the shooting sequence, file writing, talking to the lens and the stabiliser.
+camera's logic. That covers menus, the shooting sequence, file writing, and talking to the lens and the stabiliser.
 
 Every Olympus and OM System body we have opened (E-M5 III, E-M1 III, OM-5, OM-5 II, PEN-F, OM-1, OM-1 II) uses the
 same instruction set and loads its main program at the same address, which is why code from a newer body can run
@@ -33,6 +42,8 @@ on the E-M5 III.
 | same instruction set and load base 0x60021020 on all bodies we hold | [MN103 CPU](../hardware/mn103-cpu.md#what-the-cpu-is) | [code] |
 | family history (Matsushita, 1990s, Linux port) | general knowledge, not from the firmware | [inferred] |
 
+*How the CPU was identified, and where the shared load base is recorded.*
+
 Sources: [MN103 CPU](../hardware/mn103-cpu.md), [SoC overview](../hardware/soc-overview.md).
 </details>
 
@@ -45,7 +56,7 @@ The register set is small and split by purpose, a little like the Motorola 68000
 - **sp**, the stack pointer.
 - **mdr**, the multiply/divide register. It holds the upper half of a multiply result, and it also holds the return
   address after a call (section 4).
-- **psw**, the status word: condition flags and the interrupt mask.
+- **psw**, the status word, which holds the condition flags and the interrupt mask.
 - **lir and lar**, the loop registers used by the hardware loop (section 5).
 
 The AM33 adds eight more general registers (r0 to r7) and some three-operand instructions. Stock Olympus code never
@@ -58,18 +69,20 @@ uses any of them, not once in 4.1 million instructions, so in practice this is a
 | no AM33-only encodings in stock code | scan of block0 | [code] |
 | register roles | Panasonic cc103S manual (Pub.No.13220-010), binutils opcode table | [code: vendor doc] |
 
+*Sources for the register roles and the absence of AM33 instructions.*
+
 Sources: [MN103 CPU](../hardware/mn103-cpu.md#am33-only-instructions-dont-use-them).
 </details>
 
 ## 3. Small instructions
 
-MN103 instructions are anything from one to seven bytes long. The common ones are short: copying one register to
+MN103 instructions are anything from one to seven bytes long. The common ones are short. Copying one register to
 another, clearing a register, adding 4 to a pointer and shifting left by two are all single bytes. Across the whole main
 program, more than a quarter of the instructions are one byte and over two thirds are one or two. The average is 2.55
 bytes.
 
 Having only eight registers is part of why. A register needs just two bits, so two of them and an operation fit in
-one byte. The cost is that the code moves values around a lot. Almost half of all instructions (46 %) are `mov`.
+one byte. The cost is that the code moves values around a lot. Almost half of all instructions (46%) are `mov`.
 
 | instruction | bytes | encoding |
 |---|---|---|
@@ -80,6 +93,8 @@ one byte. The cost is that the code moves values around a lot. Almost half of al
 | `call 0x6005375e,[d2],12` | 5 | `cd fd 1e 80 0c` |
 | `mov 0x60074498,a0` (32-bit constant) | 6 | `fc dc 98 44 07 60` |
 
+*Example instructions with their length and bytes, taken from the main program.*
+
 <details><summary>Where in the firmware</summary>
 
 | what | where | known from |
@@ -87,7 +102,9 @@ one byte. The cost is that the code moves values around a lot. Almost half of al
 | length and instruction counts | 102,113 functions, 4.80 million instructions | [code] |
 | encodings above | taken from `OlyTaStCpu` 0x6005185f and the task start code | [code] |
 
-Sources: [MN103 CPU: by the numbers](../hardware/mn103-cpu.md#what-block0s-code-looks-like-by-the-numbers-2026-11-19).
+*Where the instruction counts and the example encodings come from.*
+
+Sources: [MN103 CPU: by the numbers](../hardware/mn103-cpu.md#what-block0s-code-looks-like-by-the-numbers).
 </details>
 
 ## 4. Caller-built frames
@@ -112,7 +129,7 @@ Some other details:
 
 - `call` also puts the return address in **mdr**. A function that calls nothing can then end with `retf`, which returns
   through mdr without reading the stack. About one return in six in the firmware is a `retf`.
-- **Indirect calls** (`calls`, through a register: virtual methods, callbacks) can't carry a frame, so a function that
+- **Indirect calls** (`calls`, through a register, as for virtual methods and callbacks) can't carry a frame, so a function that
   is called that way has a second entry point with an ordinary prologue.
 - Arguments go in registers **by type**: the first two integers in d0 and d1, the first two pointers in a0 and a1, the
   rest on the stack. Integer results come back in d0, pointers in a0.
@@ -128,6 +145,8 @@ The firmware has 418,741 direct calls and 38,195 indirect ones.
 | `call` writes the return address to mdr | [gotchas](../reference/gotchas.md) | [code] |
 | arguments by type (d0/d1 vs a0/a1) | read off the code, matches the manual | [code] |
 
+*Evidence for the calling rules.*
+
 Sources: [MN103 CPU: how functions are called](../hardware/mn103-cpu.md#how-functions-are-called).
 </details>
 
@@ -136,20 +155,11 @@ Sources: [MN103 CPU: how functions are called](../hardware/mn103-cpu.md#how-func
 The MN103 has a small loop buffer. `setlb` (set loop buffer) marks the start of a loop and copies the next few
 instruction bytes into the loop registers. At the bottom, a conditional loop instruction (`lne`, `lcs`, `llt` ...)
 jumps back to the start if its condition holds, using the saved copy instead of fetching the loop start again. The
-compiler uses it a lot: about 15,000 loops in the main program.
+compiler uses it a lot, with about 15,000 loops in the main program.
 
-The boot stub has a clear example: copying 1,536 words, one at a time.
-
-```
-        setlb                 ; loop starts here
-        mov  (a1),d0          ; read a word
-        inc4 a1
-        mov  d0,(a0)          ; write it
-        inc4 a0
-        inc  d1
-        cmp  1536,d1
-        lcs                   ; loop while d1 < 1536
-```
+The boot stub has a clear example. It copies 1,536 words, one at a time. `setlb` marks the top of the loop. The body
+reads a word, writes it, moves both pointers on by four bytes and adds one to a counter. A compare against 1,536 and
+`lcs` (loop if carry set) send it back to the top until the counter reaches 1,536.
 
 <details><summary>Where in the firmware</summary>
 
@@ -159,8 +169,10 @@ The boot stub has a clear example: copying 1,536 words, one at a time.
 | `setlb` count | 15,070 | [code] |
 | how many bytes the buffer holds, and its timing | not measured | [inferred] |
 
-Sources: [MN103 CPU: by the numbers](../hardware/mn103-cpu.md#what-block0s-code-looks-like-by-the-numbers-2026-11-19),
-[boot and sections](../firmware/boot-and-sections.md#what-the-boot-stub-does-2026-11-19).
+*The example loop and the loop count.*
+
+Sources: [MN103 CPU: by the numbers](../hardware/mn103-cpu.md#what-block0s-code-looks-like-by-the-numbers),
+[boot and sections](../firmware/boot-and-sections.md#boot-stub).
 </details>
 
 ## 6. Maths
@@ -182,6 +194,8 @@ third-party om-emu emulator rather than from our own tests.
 | float UDF operations (udf02-udf06, udf14, udf15) | om-emu's description | [code, third-party] |
 | float helpers on the stabiliser path | u2f 0x600e2350, fmul 0x600e225f, f2u 0x600e21de | [code] |
 
+*Multiply, divide and float operations, with use counts from the main program.*
+
 Sources: [MN103 CPU: UDF operations](../hardware/mn103-cpu.md#udf-operations-the-maths-helper-unit).
 </details>
 
@@ -189,33 +203,38 @@ Sources: [MN103 CPU: UDF operations](../hardware/mn103-cpu.md#udf-operations-the
 
 Addresses are 32 bits, little-endian. These are the main points for reading code.
 
-**The program runs from RAM at 0x6xxxxxxx.** Flash sits at 0x4xxxxxxx. The boot stub copies what's needed into RAM
-and the rest loads in the background ([boot](boot.md)).
+**The program runs from RAM.** Flash sits in a range of its own. The boot stub copies what's needed into RAM and the
+rest loads in the background ([boot](boot.md)).
 
-**Two views of the same RAM.** 0x6xxxxxxx is the cached view and 0xaxxxxxxx the uncached view of the same memory.
-The CPU uses the cached addresses. Buffers shared with the image engine or other cores are usually reached through
-the uncached ones.
+**Two views of the same RAM.** The same memory appears in two ranges, one cached and one uncached. The CPU uses the
+cached addresses. Buffers shared with the image engine or other cores are usually reached through the uncached ones.
 
-**A small memory at 0x47000000.** The boot stack starts at 0x470007fc, and the boot stub copies 6 KB of code to
-0x47000800, which includes memcpy, memset and the watchdog kick. What kind of memory it is hasn't been confirmed.
+**A small memory of its own.** The boot stack starts in it, and the boot stub copies 6 KB of code into it, which
+includes memcpy, memset and the watchdog kick. What kind of memory it is hasn't been confirmed.
 
-**Low addresses are control registers.** For example 0x8050 holds the number of the core that reads it, and 0x8000 to
-0x801c are set at boot to what look like the interrupt handler addresses.
+**Low addresses are control registers.** For example, one of them holds the number of the core that reads it. A short
+run of them is set at boot to what look like the interrupt handler addresses.
 
-**Image buffers live high**, at 0xb0000000 and above.
+**Image buffers live high** in the address space.
 
 **Misaligned access traps.** A 32-bit read from an address that isn't a multiple of 4 (or 16-bit from an odd
-address) is reported to trap on the real chip (seen on a PEN-F, not yet tested on the E-M5 III). Simulators built on the GNU simulator don't check this, so a bug of this kind can
-pass simulation and still crash the camera.
+address) is reported to trap on the real chip. This was seen on a PEN-F and is not yet tested on the E-M5 III.
+Simulators built on the GNU simulator don't check this, so a bug of this kind can pass simulation and still crash the
+camera.
 
 <details><summary>Where in the firmware</summary>
 
 | what | where | known from |
 |---|---|---|
-| cached / uncached alias | 0x61a92e40 = 0xa1a92e40 | [camera] |
-| 0x47000000 memory | sp 0x470007fc; copy to 0x47000800; memcpy 0x47001024, memset 0x47001130, watchdog kick 0x4700101b | [code]; memory type [inferred] |
+| program in RAM / flash | 0x6xxxxxxx / 0x4xxxxxxx | — |
+| cached / uncached alias | 0x6xxxxxxx / 0xaxxxxxxx, e.g. 0x61a92e40 = 0xa1a92e40 | [camera] |
+| small memory | 0x47000000: sp 0x470007fc; copy to 0x47000800; memcpy 0x47001024, memset 0x47001130, watchdog kick 0x4700101b | [code]; memory type [inferred] |
 | core number | (0x8050) | [code] |
+| interrupt handler addresses set at boot | 0x8000 to 0x801c | — |
+| image buffers | 0xb0000000 and above | — |
 | misaligned access traps | PEN-F patch lesson from oly_fw_analysis | [inferred] for the E-M5 III |
+
+*The address ranges named in this section.*
 
 Sources: [memory map](../hardware/memory-map.md), [MN103 CPU: address aliases](../hardware/mn103-cpu.md#address-aliases-cached-and-uncached),
 [gotchas](../reference/gotchas.md).
@@ -240,7 +259,9 @@ function it produces either matches the original byte for byte or is checked to 
 | 820 `.cpp` and 257 `.c` file names | strings | [code] |
 | closest public compiler | cc103S 5.4 (DebugFactory Builder 5); the C++ compiler Olympus used isn't public | [inferred] |
 
-Sources: [MN103 CPU: which compiler](../hardware/mn103-cpu.md#which-compiler-built-the-firmware-research-2026-11-08).
+*Evidence for the compiler.*
+
+Sources: [MN103 CPU: which compiler](../hardware/mn103-cpu.md#which-compiler-built-the-firmware).
 </details>
 
 ## Patching notes
@@ -269,5 +290,15 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | 6 KB helper block copied to 0x47000800 | yes | not checked | not checked | not checked | not checked | not checked | — |
 | misaligned access traps | not tested | not checked | not checked | not checked | not checked | reported | oly_fw_analysis (PEN-F) |
 
+*The MN103 facts of this guide checked against other bodies' firmware.*
+
 Sources: [MN103 CPU](../hardware/mn103-cpu.md), Atlas-linked projects,
 oly_fw_analysis notes.
+
+## Further reading
+
+- [MN103 control CPU](../hardware/mn103-cpu.md), the technical notes on the CPU, the calling convention and the
+  compiler.
+- [Patching techniques](../firmware/patching-techniques.md), the full list of rules for patches.
+- [Memory map](../hardware/memory-map.md), the address space in detail.
+- [Boot](boot.md), the guide to what runs from power-on.

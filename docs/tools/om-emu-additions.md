@@ -1,7 +1,14 @@
 # om-emu additions
 
 <!-- human page -->
-> The dense reference for this page is [om-emu additions: technical notes](om-emu-additions-technical.md).
+<!-- house style -->
+
+## Key points
+
+- We added eleven small patches to om-emu, an emulator for Olympus and OM System cameras written by the om-emu contributors.
+- The patches draw more of the camera's screens and add checks that fail a build the real camera would crash on.
+- Each check was added after a real crash on the camera, and had to fail that build and pass its fix and the stock firmware.
+- The emulator has no sensor, image pipeline or memory protection, so the shooting path is not tested.
 
 [om-emu](https://github.com/flatpanda/om-emu) is an emulator for Olympus and OM System cameras, written by the om-emu
 contributors. It boots the E-M5 III firmware 1.7 through its menus, half-press, shutter and playback. We added eleven
@@ -61,5 +68,9 @@ on purpose. This woke a port-expander driver, so that its first writes could be 
 - There is no sensor, image pipeline, DSP or Wi-Fi chip. So the shooting path and image processing aren't tested.
 - There is no real memory protection. The code-write check stands in for it.
 
-The [technical notes](om-emu-additions-technical.md) list each patch with its switch, what it adds and what it
-found.
+## Further reading
+
+- [om-emu additions: technical notes](om-emu-additions-technical.md) lists each patch with its switch, what it adds
+  and what it found.
+- [Failure patterns](../reference/failure-patterns.md) lists the camera failures these checks were built from.
+- [om-emu](https://github.com/flatpanda/om-emu) is the emulator itself.

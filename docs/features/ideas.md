@@ -1,7 +1,15 @@
 # Feature ideas
 
 <!-- human page -->
+<!-- house style -->
 > The dense reference for this page is [Feature ideas: technical notes](ideas-technical.md).
+
+## Key points
+
+- These ideas are not projects yet, and they come from the camera's hardware, other camera makers and small shooting tweaks.
+- Most of the cheap ideas reuse Live ND's averaging of several raw frames on the image engine.
+- Tripod noise reduction, which averages several full exposures, is the cheapest idea on the list.
+- The camera's own image-engine jobs can't average, subtract or take the minimum of frames, so several ideas need a new job.
 
 These are ideas that are not projects yet. Some are things the camera's hardware could probably do. Some come from
 other camera makers or from Magic Lantern, the firmware add-on for Canon cameras. Some are small shooting tweaks.
@@ -62,3 +70,10 @@ the card loader, remote button presses and the motion vectors. It lives in the p
 
 Most ideas here rely on Live ND's frame averaging. The E-M5 II would need the same new port as Live ND, and the
 original E-M5 has no engine of this kind at all.
+
+## Further reading
+
+- [Feature ideas: technical notes](ideas-technical.md) has the shortlists, the evidence and the addresses.
+- [Focus stacking](focus-stacking.md) covers the focus-stacking shot count.
+- [Movie recording](movie.md) covers the OM-Log400 profile.
+- [Live ND](live-nd.md) describes the frame averaging most of these ideas reuse.

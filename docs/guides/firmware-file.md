@@ -1,12 +1,21 @@
 # Firmware files and updates
 
-*Guide 11 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 11 · E-M5 III firmware 1.7 · draft 1. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions:
 research gaps.*
 
-This guide explains the firmware update file Olympus ships (`OLY_E_137_1700_0000_0000.BIN` for the E-M5 III 1.7): how
-it is put together, how the camera checks and installs it from an SD card, and what happens when the firmware on the
-camera is broken. Anyone patching their camera needs all three, and most of it applies, with different numbers, to
+## Key points
+
+- The firmware file is a handful of blocks, each in a plain-text wrapper with a simple checksum.
+- The contents are scrambled but neither encrypted nor signed, so a correctly checksummed file we build is accepted.
+- The updater lives inside the main program, checks the whole file before writing anything, and writes the main program last.
+- A patch that crashes the camera early in every boot can leave it without a rescue from the card.
+
+This guide explains the firmware update file Olympus ships, `OLY_E_137_1700_0000_0000.BIN` for the E-M5 III 1.7. It
+covers how the file is put together, how the camera checks and installs it from an SD card, and what happens when the
+firmware on the camera is broken. Anyone patching their camera needs all three, and most of it applies, with different numbers, to
 the other bodies in the family.
 
 The file format and the updater are mapped from the code and confirmed by flashing our own builds. What runs before
@@ -14,8 +23,8 @@ the main program, and whether there is any rescue path that doesn't need it, are
 
 ## 1. File layout
 
-The file is a handful of **blocks** placed back to back. Each block is one thing the camera stores in its flash: the
-main program, the menu graphics, the image-engine programs and so on. The E-M5 III file has five:
+The file is a handful of **blocks** placed back to back. Each block is one thing the camera stores in its flash, such
+as the main program, the menu graphics or the image-engine programs. The E-M5 III file has five.
 
 | block | what it holds | size |
 |---|---|---|
@@ -24,6 +33,8 @@ main program, the menu graphics, the image-engine programs and so on. The E-M5 I
 | 2 | resources: image-engine programs, the settings key table, the ARM's Linux image, and more | 50 MB |
 | 3 | very likely the stabiliser sub-processor's program ("LUKE") | 256 KB |
 | 4 | sample images and other data | 9 MB |
+
+*The five blocks of the E-M5 III 1.7 file.*
 
 Other bodies have four to six blocks. The OM-1 and E-M1 III carry a sixth (on the OM-1, the power sub-processor's
 program).
@@ -36,12 +47,14 @@ program).
 | block 3 = LUKE | updater writes it to the IS sub-CPU | [inferred] |
 | blocks per body | [container format](../firmware/container-format.md#which-camera-a-file-is-for) | [code] |
 
+*Where the block list is documented.*
+
 Sources: [container format](../firmware/container-format.md).
 </details>
 
 ## 2. Block wrappers
 
-Every block has the same wrapper: a 32-byte header in plain text, the payload, and a 32-byte trailer.
+Every block has the same wrapper. It is a 32-byte header in plain text, then the payload, then a 32-byte trailer.
 
 - The **header** says which camera the block is for (a 4-byte "magic", `OE 13 70` for the E-M5 III), where in flash it
   goes, how big it is, and what kind of block it is.
@@ -72,14 +85,16 @@ an Olympus one. That is how all our test builds get onto the camera.
 | repacked files accepted, also with the same version number | every build we flashed | [camera] |
 | our tool | `olyfw.py` lists and unpacks the blocks and checks the checksums | [code] |
 
+*The wrapper, the scrambling and the checksum.*
+
 Sources: [container format](../firmware/container-format.md), tools.
 </details>
 
 ## 3. Compressed sections
 
 The E-M5 III's main program is stored as is. The E-M1 III, OM-5 and OM-5 II compress two large stretches of theirs
-with LZ4. Each is unpacked in place at boot, at the same address it occupies. This matters when you compare bodies:
-analyse the unpacked image, or half the code looks missing.
+with LZ4. Each is unpacked in place at boot, at the same address it occupies. This matters when you compare bodies.
+Analyse the unpacked image, or half the code looks missing.
 
 <details><summary>Where in the firmware</summary>
 
@@ -87,6 +102,8 @@ analyse the unpacked image, or half the code looks missing.
 |---|---|---|
 | `olycompress` sections and load table | E-M1 III, OM-5, OM-5 II block0; table 0x60028000 | [code] |
 | none on | E-M5 III, PEN-F, OM-1 | [code] |
+
+*Which bodies compress parts of their main program.*
 
 Sources: [container format: compressed sections](../firmware/container-format.md#compressed-sections-olycompress-lz4).
 </details>
@@ -104,11 +121,13 @@ Before it writes anything, the updater **checks the whole file**: every block's 
 and checksum. A corrupt, truncated or wrong-camera file is rejected with nothing written, and the lamp blinks fast. It
 doesn't check the version number, which is why going back to an older or the same version works.
 
-Then it writes the blocks one by one, each as erase, program, read back. The main program goes **last**:
+Then it writes the blocks one by one, each as erase, program, read back. The main program goes **last**.
 
-```
-stabiliser program (block 3) → sample data (4) → resources (2) → graphics (1) → main program (0)
-```
+1. Stabiliser program (block 3).
+2. Sample data (4).
+3. Resources (2).
+4. Graphics (1).
+5. Main program (0).
 
 There is no rollback. If the power fails while the main program is being written, the camera is left without one.
 
@@ -117,6 +136,8 @@ There is no rollback. If the power fails while the main program is being written
 | solid | working |
 | slow blink | done; switch off |
 | fast blink | file rejected; nothing written |
+
+*What the AF lamp shows during a card update.*
 
 <details><summary>Where in the firmware</summary>
 
@@ -128,21 +149,23 @@ There is no rollback. If the power fails while the main program is being written
 | write order and erase/program/verify | camera's writer run in om-emu on the stock file | [code] |
 | lamp states | FIRMUP_LED 0x601fca3a (255 / 250 / 100) | [code]; solid and blink [camera] |
 
+*The updater tasks, the validator and the lamp.*
+
 Sources: [recovery: the card updater](../firmware/recovery-technical.md#the-card-updater-hold-ok-at-power-on-dcolympe1379999bin).
 </details>
 
 ## 5. Updater requirements
 
-Because the updater lives inside the main program, the camera has to boot most of the way to run it: the boot copy, all
-ten sections of the program, the start-up stages, the file system and the resource reads from the other blocks. The
-updates over USB and Wi-Fi need even more (the USB stack, the user interface, the ARM).
+Because the updater lives inside the main program, the camera has to boot most of the way to run it. That means the
+boot copy, all ten sections of the program, the start-up stages, the file system and the resource reads from the other
+blocks. The updates over USB and Wi-Fi need even more, namely the USB stack, the user interface and the ARM.
 
 So a card update can fix almost any problem **except** one that stops the camera before the updater starts. A patch
 that crashes every boot early enough can leave the camera without a card-based rescue. That is the most important
 fact in this guide for anyone patching, and it shapes every rule our builds follow.
 
-The flash itself is also guarded while the camera runs normally: only a few data windows (settings, logs) may be
-written, and a write anywhere else resets the camera. The boot area at the start of flash is written only by a special
+The flash itself is also guarded while the camera runs normally. Only a few data windows, such as settings and logs,
+may be written. A write anywhere else resets the camera. The boot area at the start of flash is written only by a special
 kind of update that our files never contain.
 
 <details><summary>Where in the firmware</summary>
@@ -153,6 +176,8 @@ kind of update that our files never contain.
 | writable windows in normal operation | 0x40060000-0x40780000, 0x41f60000-0x42160000, 0x47a80000-0x48000000; guard 0x600c463a | [code] |
 | boot area | 0x40000000-0x40060000, written only by update kind BOOT | [code] |
 | what runs before block 0 | not known | open |
+
+*The flash map and its guard.*
 
 Sources: [recovery: flash map](../firmware/recovery-technical.md#flash-map-and-what-an-update-writes), [boot](boot.md).
 </details>
@@ -166,7 +191,7 @@ and stops, so the camera resets about a second later. A fault that happens on ev
 A task that hangs without faulting is different. The watchdog task keeps running, so the camera stays in that state
 frozen until the battery comes out.
 
-What can be fixed, roughly:
+Roughly, this is what can be fixed.
 
 | problem | way out |
 |---|---|
@@ -177,6 +202,8 @@ What can be fixed, roughly:
 | crash early in the boot chain | no card rescue; service or a flash programmer |
 | power lost while the main program is written | camera without a main program |
 
+*Failures and the way out of each. Details are on the recovery page.*
+
 <details><summary>Where in the firmware</summary>
 
 | what | where | known from |
@@ -186,6 +213,8 @@ What can be fixed, roughly:
 | a hang doesn't reset | Live ND test build | [camera] |
 | recovery table | [recovery](../firmware/recovery-technical.md#which-failures-are-recoverable) | [code] + [camera] + [inferred] |
 
+*The watchdog and the reset path.*
+
 Sources: [recovery](../firmware/recovery.md).
 </details>
 
@@ -193,9 +222,9 @@ Sources: [recovery](../firmware/recovery.md).
 
 - **Builds are shipped as deltas.** We keep a small binary difference against the stock file in the repository, never
   the firmware itself, and rebuild the full file from it.
-- **Every build passes a pre-flash check** before it reaches the camera: the wrapper and checksums, the camera's own
-  validator (run in an emulator), that the boot path is unchanged, that every new address is backed by stock code, and
-  an emulated boot.
+- **Every build passes a pre-flash check** before it reaches the camera. The check covers the wrapper and checksums,
+  the camera's own validator (run in an emulator), that the boot path is unchanged, that every new address is backed
+  by stock code, and an emulated boot.
 - **Nothing of ours runs during boot.** Hooks stay switched off until the camera is up and the user arms the feature, so
   the update start always runs stock code and a card rescue stays possible.
 - **A spare card** with only the stock file on it is the first line of recovery.
@@ -214,5 +243,13 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | validator checks everything before writing | yes (emulator) | not checked | not checked | not checked | not checked | not checked | — |
 | write order, block 0 last | yes (emulator) | not checked | not checked | not checked | not checked | not checked | — |
 
+*Each step on other bodies. The last column holds what other projects report.*
+
 Sources: [container format](../firmware/container-format.md), [recovery](../firmware/recovery.md),
 Atlas-linked projects.
+
+## Further reading
+
+- [Firmware file format](../firmware/container-format.md), the detailed reference for the file layout.
+- [Recovery](../firmware/recovery.md), what can go wrong and how to get back.
+- [Boot](boot.md), how much of the boot the updater needs.

@@ -1,7 +1,14 @@
 # Sensor and calibration
 
 <!-- human page -->
-> The dense reference for this page is [Sensor and calibration: technical notes](sensor-technical.md).
+<!-- house style -->
+
+## Key points
+
+- The E-M5 III and the OM-5 use the same sensor, which is one reason OM-5 features port across so well.
+- The camera stores a raw frame as tightly packed 12-bit values, about 32 MB for a full frame.
+- Every camera carries factory calibration, and 172 of the E-M5 III's 173 entries match the OM-5's exactly.
+- The firmware switches the sensor between about twenty modes, and 4K movie is a crop from the middle of the sensor.
 
 This page describes the image sensor as the firmware sees it. It covers the sensor's size, how a raw frame sits in
 memory, the calibration stored for each camera at the factory, and the modes the sensor runs in.
@@ -10,11 +17,11 @@ The E-M5 III and the OM-5 use the same sensor. That is one reason features from 
 
 ## Size
 
-The sensor reads out 5240 by 3912 pixels and delivers a 20-megapixel picture of 5184 by 3888. Some of its pixels are
+The sensor reads out 5240 × 3912 pixels and delivers a 20-megapixel picture of 5184 × 3888. Some of its pixels are
 phase-detect autofocus pixels.
 
-Tripod High Res Shot builds pictures of 10368 by 7776. The OM-5's hand-held High Res adds a slightly larger 10416 by
-7824.
+Tripod High Res Shot builds pictures of 10368 × 7776. The OM-5's hand-held High Res adds a slightly larger
+10416 × 7824.
 
 ## A raw frame in memory
 
@@ -22,7 +29,7 @@ A raw frame is the sensor's data before any processing. Each pixel holds one col
 of red, green and blue.
 
 The camera stores 12 bits per pixel, packed tightly. Every 16 bytes hold 10 pixels plus one spare byte. A full frame
-takes about 32 MB, and each row takes 8384 bytes.
+takes about 32 MB, and each row takes 8,384 bytes.
 
 A few details matter when you work with these frames:
 
@@ -55,7 +62,9 @@ exposure.
 | Full HD movie | HSHR | a band of the sensor at half resolution |
 | Wi-Fi remote live view | MOVIE_HQ | the full area at half resolution |
 
-There are about twenty modes in all. Some read every pixel, and others combine pixels in 2 by 2 or 3 by 3 blocks to
+*The sensor modes with a known use. The technical page lists all of them.*
+
+There are about twenty modes in all. Some read every pixel, and others combine pixels in 2 × 2 or 3 × 3 blocks to
 read faster. A rough estimate puts a full readout of every pixel at about 23 frames per second.
 
 So 4K is a crop, about 1.27 times narrower than the full sensor. Cinema 4K uses the full width and scales it down.
@@ -69,6 +78,9 @@ The OM-5 and E-M1 III have the same sensor readouts and the same geometry as the
 
 ## Further reading
 
+- [Sensor and calibration: technical notes](sensor-technical.md) has the mode table, the raw frame layout and the
+  addresses.
+- [Sensor control link](sensor-link.md) explains how the main chip sends these modes to the sensor.
 - [Taking a photo](../guides/taking-a-photo.md) shows when the sensor switches modes during a shot.
 - [Movie recording](../features/movie.md) covers how movies are recorded.
 - [Image engine](image-engine.md) explains what happens to a raw frame next.

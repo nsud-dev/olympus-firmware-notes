@@ -1,8 +1,17 @@
 # Settings and menus
 
-*Guide 13 · E-M5 III firmware 1.7 · accepted 2026-11-20. New to these guides? Read
+<!-- house style -->
+
+*Guide 13 · E-M5 III firmware 1.7. New to these guides? Read
 [Before you start](before-you-start.md) and [Boot](boot.md) first. Open questions:
 research gaps.*
+
+## Key points
+
+- A menu row is built from tables, and it reaches its stored value only through one getter and one setter.
+- User settings sit in one RAM image that the camera saves to flash at power-off, and its unused tail is saved too.
+- New rows can't get new setting ids or properties, so our code answers its own ids and keeps the values in that tail.
+- Code that a boot-time hook reaches must be ready before the hook first runs, or the camera boot-loops.
 
 This guide follows one menu row through the firmware: the setting behind it, where its value is stored, how it is
 saved across power-off, and how the menu finds its title, its choices and its place on a page. The first half does
@@ -14,20 +23,23 @@ the same things on another body. What has been proven on a camera, and on which 
 
 ## Overview
 
+```mermaid
+flowchart TD
+  TAB["menu tab"] --> ROW["row (setting id 772)"]
+  ROW --> TTL["title and help (string ids)"]
+  TTL --> TXT["text in the current language"]
+  ROW --> PCK["picker choices (option-value record for 772)"]
+  ROW --> SET["setting table: 772 → property 0xf1a1"]
+  SET --> IMG[("settings image in RAM (store 50)")]
+  IMG -- "power-off" --> FL[("flash")]
+  classDef focus stroke-width:3px
+  class ROW focus
 ```
-menu tab ──► row (setting id 772) ──► title and help (string ids) ──► text in the current language
-                     │
-                     ├──► picker choices (option-value record for 772)
-                     │
-                     └──► setting table: 772 → property 0xf1a1
-                                              │
-                                              ▼
-                              settings image in RAM (store 50) ──► saved to flash at power-off
-```
+*One menu row and the three lookups it fans out to. The row, the subject of this guide, has a bold outline. Arrows show which table leads to which.*
 
 ## 1. Value types
 
-Three numbers name a setting, and mixing them up is the commonest mistake:
+Three numbers name a setting. Mixing them up is the commonest mistake.
 
 | number | what it is | High Res Shot |
 |---|---|---|
@@ -35,11 +47,13 @@ Three numbers name a setting, and mixing them up is the commonest mistake:
 | property | the stored value; much more stable between models | 0xf1a1 |
 | string id | the text shown for the row's title or help | 2438 / 2439 |
 
+*The three numbers behind a setting, with High Res Shot as the example.*
+
 A table turns setting ids into properties. Each entry is the property number and a small index (for settings
-that hold several values). The E-M5 III has 1,650 ordinary setting ids (0-1649) and a few small extra ranges for
+that hold several values). The E-M5 III has 1,650 ordinary setting ids (0 to 1649) and a few small extra ranges for
 special cases.
 
-The property number also tells you the size of the value: its lowest three bits are 4 for a 32-bit value, 2 for a
+The property number also tells you the size of the value. Its lowest three bits are 4 for a 32-bit value, 2 for a
 16-bit one, and anything else means one byte. High Res Shot's property ends in 1, so it is one byte: 0 for off, 1 for
 on.
 
@@ -56,12 +70,14 @@ on.
 | High Res Shot | id 772 → {0xf1a1, 0}; default 1 (table 0x604b20ac) | [code] |
 | same property, other ids | OM-5 771, E-M1 III 770, OM-5 II 771, OM-1 770, PEN-F 779 | [code]; meaning on other bodies [inferred] |
 
+*Setting ids and properties in the firmware.*
+
 Sources: [settings and menus: setting ids to properties](../firmware/settings-and-menus.md#from-setting-ids-to-properties).
 </details>
 
 ## 2. Storage
 
-User settings live in one **store**: a 256 KB image in RAM, loaded from flash at power-on and written back at power-off.
+User settings live in one **store**. It is a 256 KB image in RAM, loaded from flash at power-on and written back at power-off.
 The store keeps a list of its properties, and the values sit in the image **in that list's order, with no ids next to
 them**. Reading or writing a property goes through a hash table built at start-up, so code never needs to know where in
 the image a value is.
@@ -87,13 +103,15 @@ Three consequences matter for anyone adding settings:
 | bank check | header = store id, 16-bit sum 0, newer counter wins | [code] |
 | load at boot | whole bank into the image, 0x6005aa15 → 0x6005ad45 | [code] |
 
+*The settings store in the firmware.*
+
 Sources: [settings and menus: how saved settings are stored](../firmware/settings-and-menus.md#how-saved-settings-are-stored).
 </details>
 
 ## 3. Saving
 
-Changing a setting in the menu changes only the RAM image. The camera writes the image to flash when it powers off:
-the save routine compares the whole image with the bank in flash and writes a new bank only if something differs. So
+Changing a setting in the menu changes only the RAM image. The camera writes the image to flash when it powers off.
+The save routine compares the whole image with the bank in flash and writes a new bank only if something differs. So
 a battery pulled out while the camera is on loses the changes made since the last power-off.
 
 Because the comparison covers the whole image, anything written into the unused tail is saved too, by the camera's own
@@ -108,12 +126,14 @@ code, with its own checksum and two-bank protection.
 | other savers | "acc flash write" 0x60062e44 (all stores), shell `w` 0x6005bad0 | [code] |
 | tail bytes survive power-off | Live ND rows | [camera] |
 
-Sources: [settings and menus: when saved settings are written](../firmware/settings-and-menus.md#when-saved-settings-are-written-2026-11-18).
+*Saving settings in the firmware.*
+
+Sources: [settings and menus: when saved settings are written](../firmware/settings-and-menus.md#when-saved-settings-are-written).
 </details>
 
 ## 4. Menu rows
 
-The menus are not drawn by code that knows about High Res Shot. They are built from tables:
+The menus are not drawn by code that knows about High Res Shot. They are built from tables.
 
 - **The tab list.** Each menu tab (Shooting 1, Shooting 2, Movie, ...) has a short list of setting ids, one per row.
   Shooting Menu 2 lists seven, and High Res Shot is the sixth. A tab page holds **at most seven rows**. There is no
@@ -148,6 +168,8 @@ in several places. Both points matter when you add to them.
 | option-value records | static table 0x604d4ee4 (1,215 × 20 B), RAM hash 0x62118d08 built at boot | [code] |
 | page chain | screen table 0x610b166c → controller table 0x61064b98 → submenu 0x61069f60 → page records 0x610d5794 | [code] |
 
+*Menu tables in the firmware.*
+
 Sources: [settings and menus: how menus are built](../firmware/settings-and-menus.md#how-menus-are-built).
 </details>
 
@@ -158,7 +180,7 @@ the id up in the setting table and call the property get or set with the propert
 between the menu and the stored value.
 
 ```
-pseudocode, written from the disassembly (0x602e6a02, 0x602e6f11); byte-matching C waits for the decompile
+pseudocode in our own words, summarised from the disassembly (0x602e6a02, 0x602e6f11)
 
 menu_get(id):
     property, index = setting_table[id]       (special ranges looked up separately)
@@ -179,12 +201,14 @@ and setter for an id can sit behind a row.
 | menu getter / setter | 0x602e6a02 / 0x602e6f11 | [code] |
 | called during boot, before any menu opens | yes | [camera] |
 
+*The menu getter and setter in the firmware.*
+
 Sources: [settings and menus](../firmware/settings-and-menus.md).
 </details>
 
 ## 6. Adding settings
 
-The obvious route, "add a setting id and a property", is blocked in several ways at once:
+The obvious route, "add a setting id and a property", is blocked in several ways at once.
 
 - **No free ids.** The id tables and their caches are packed back to back, and every entry is in use. None of the
   ranges can grow in place.
@@ -205,7 +229,9 @@ of the image.
 | custom modes by id | property 34260, ids above 1649 ignored | [code] |
 | per-id data | defaults 0x602d364d, arrays 0x602e6f35 / 0x602e7088, reset loops 0x602cd3b0 / 0x602d2e0c | [code] |
 
-Sources: [settings and menus: no free setting ids](../firmware/settings-and-menus.md#no-free-setting-ids-2026-11-05).
+*Why new setting ids are blocked, in the firmware.*
+
+Sources: [settings and menus: no free setting ids](../firmware/settings-and-menus.md#no-free-setting-ids).
 </details>
 
 ## 7. Example: the Live ND rows
@@ -214,8 +240,8 @@ The example goal is a **Live ND Shooting** row in Shooting Menu 2, after High Re
 opens a page with Live ND Shooting (Off/On), ND Number (ND2-ND16) and LV Simulation (Off/On). The values must survive
 power-off. Here are the steps in the order to do them.
 
-**Step 1. Pick ids and a place for the values.** Choose a range nothing uses (we use 16000-16031). Choose a block in
-the unused tail of the settings image, and lay it out: a 4-byte marker, then one byte per setting, then spare words.
+**Step 1. Pick ids and a place for the values.** Choose a range nothing uses (we use 16000 to 16031). Choose a block in
+the unused tail of the settings image, and lay it out as a 4-byte marker, then one byte per setting, then spare words.
 The marker matters. On a camera that never ran your code the tail holds leftover bytes, so "no marker" means "write
 the defaults first".
 
@@ -226,7 +252,7 @@ needs to know about your ids.
 **Step 3. Make room on the tab.** Shooting 2 is full at seven rows. We moved RC Mode to the end of Shooting 1 and put
 the new row after High Res Shot. Change the tab lists in every copy, and their counts.
 
-**Step 4. Add text.** Hook the string lookup so a small range of new string ids (we use 4000-4015) comes from your
+**Step 4. Add text.** Hook the string lookup so a small range of new string ids (we use 4000 to 4015) comes from your
 table and everything else from the stock one. Title and help entries for the new row use those ids with the "string
 id" kind. The "inline text" kind crashes the title drawing.
 
@@ -249,12 +275,14 @@ ND2-ND16) and link them into the picker's hash table. Do it on first menu use, n
 
 | what | where | known from |
 |---|---|---|
-| value block | settings image +0x39F00 (RAM 0x6240af00): marker `MOD\x01`, +4 on/off, +5 ND 1-4, +6 LV Simulation, +8..+0x47 spare | [camera] |
+| value block | settings image +0x39f00 (RAM 0x6240af00): marker `MOD\x01`, +4 on/off, +5 ND 1-4, +6 LV Simulation, +8..+0x47 spare | [camera] |
 | getter / setter hooks | jumps at 0x602e6a02 / 0x602e6f11, ids 16000-16031 | [camera] |
 | tab move | RC Mode (180) to the end of Shooting 1 | [camera] |
 | string hook | 5-byte jump at 0x60c9350c, ids 4000-4015 | [camera] |
 | table counts raised | page records 124 → 125, controllers 169 → 170, submenus 146 → 147 | [camera] |
 | picker records | linked into 0x62118d08 on first menu use | [camera] |
+
+*The Live ND rows on our E-M5 III.*
 
 Sources: [saved settings and menu rows](../features/saved-settings-and-menu-rows.md).
 </details>
@@ -288,6 +316,8 @@ the hook checks the ready bit first. Checking the read order is not enough.
 | ready bit for section 3 | bit 0x04 of 0xa26565c0 | [camera] |
 | first attempt (section 7 gap) | boot loop, recovered from the card | [camera] |
 
+*Code placement for the Live ND rows.*
+
 Sources: [saved settings and menu rows: the boot lesson](../features/saved-settings-and-menu-rows.md#where-the-code-goes-the-boot-lesson),
 [boot and sections](../firmware/boot-and-sections.md).
 </details>
@@ -296,7 +326,7 @@ Sources: [saved settings and menu rows: the boot lesson](../features/saved-setti
 
 | step | E-M5 III 1.7 |
 |---|---|
-| values in the image tail, kept across power-off | camera, 2026-11-19 |
+| values in the image tail, kept across power-off | camera |
 | getter/setter hooks, new ids | camera |
 | row after High Res Shot, RC Mode moved | camera |
 | new page with three rows and pickers | camera |
@@ -304,6 +334,8 @@ Sources: [saved settings and menu rows: the boot lesson](../features/saved-setti
 | code after section 3 with ready guards boots | camera |
 | code after section 7 | boot loop on the camera |
 | settings reset and the restore file leave the block alone | not tested |
+
+*What has been proven, and how, on the E-M5 III.*
 
 One camera, one owner so far. Nothing here has been tried on another body.
 
@@ -313,7 +345,7 @@ One camera, one owner so far. Nothing here has been tried on another body.
 - **The dev settings page** (a separate page for tuning values) is planned to keep its values in the block's spare
   words, so they survive power-off too.
 - **Hidden stock settings**, such as the focus-stack shot count that has a property but no row, need no new ids or
-  storage: the stock getter and setter already handle them. They still need the menu steps. In the emulator such a row
+  storage. The stock getter and setter already handle them. They still need the menu steps. In the emulator such a row
   showed its value but couldn't be changed until the page's picker knew the id, which is what step 6 is for.
 
 ## Other cameras
@@ -331,6 +363,16 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | values kept in the settings image tail | yes (camera) | not checked | not checked | not checked | not checked | not checked | E-P7 (Caduceus): the idea, from their notes |
 | own page drawn by the stock list view | yes (camera) | not checked | not checked | not checked | not checked | not checked | E-M10 II (fenykl): own page from one stock row |
 
+*Each step checked on other bodies' firmware.*
+
 "Confirmed" in the first rows means the table or string is present. The code around it wasn't compared.
 [settings and menus](../firmware/settings-and-menus.md), [saved settings and menu rows](../features/saved-settings-and-menu-rows.md),
 Atlas-linked projects.
+
+## Further reading
+
+- [Settings and menus](../firmware/settings-and-menus.md) has the reference notes behind every step.
+- [Saved settings and menu rows](../features/saved-settings-and-menu-rows.md) describes the Live ND rows and the boot lesson.
+- [Boot and sections](../firmware/boot-and-sections.md) explains when each section becomes ready.
+- Research gaps lists the open questions.
+

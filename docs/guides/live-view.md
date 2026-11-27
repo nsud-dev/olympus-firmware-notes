@@ -1,9 +1,18 @@
 # Live view
 
-*Guide 8 · E-M5 III firmware 1.7 · draft 1, 2026-11-19. New to these guides? Read
+<!-- house style -->
+
+*Guide 8 · E-M5 III firmware 1.7 · draft 1. New to these guides? Read
 [Before you start](before-you-start.md) first. Open questions: research gaps.*
 
-This guide follows one live-view frame: the sensor reads it out, it lands in memory as a small raw frame, the image
+## Key points
+
+- In live view the sensor reads out a much smaller raw frame, and the CPU never copies any of its pixels.
+- The image engine turns the raw frame into a display-size picture, and this middle step is the least mapped part of the path.
+- The display controller mixes the picture with three overlay layers that a small 2D engine draws for the menus and icons.
+- The histogram, the highlight and shadow warning and focus peaking are done by the display controller on the displayed picture.
+
+This guide follows one live-view frame. The sensor reads it out, it lands in memory as a small raw frame, the image
 engine turns it into a picture, and the display controller lays the menus and shooting information over it and sends
 it to the rear screen or the viewfinder (EVF). It describes the stock firmware. How our Live ND preview changes the
 path is in its own section at the end.
@@ -14,7 +23,7 @@ layers, drawing engine). The middle, where the raw frame becomes a picture, is n
 ## Components
 
 - **The live-view component.** Olympus calls live view the "through image", so this component is named
-  `CapThr_ThroughImage`. It is generated C++. It decides when live view runs: start, stop, pause and restart, for
+  `CapThr_ThroughImage`. It is generated C++. It decides when live view starts, stops, pauses and restarts, for
   example around a shot or when a menu opens.
 - **The live-view module** (C). Runs once per frame. It takes the new raw frame, starts its processing, and does the
   per-frame bookkeeping.
@@ -34,6 +43,8 @@ layers, drawing engine). The middle, where the raw frame becomes a picture, is n
 | GUI drawing | `osddraw` 0x60c1xxxx → 2D engine at 0x9c100000 | [code] |
 | display controller | VSC registers 0x9c000000, 0x4000 bytes per channel | [code] |
 
+*The live-view components and where their code or registers are.*
+
 Sources: [OS and framework](../firmware/os-and-framework.md#source-file-and-module-names),
 [graphics pipeline](../hardware/graphics-pipeline.md), [display](../hardware/display.md).
 </details>
@@ -45,8 +56,8 @@ section), which lets it run fast. The request that switches it on asks for 120 f
 then runs every 16.7 ms, 60 times a second, and the screen follows it. Why the request says 120 while the processing
 runs at 60 isn't known yet. It may be two readouts per processed frame, or the request value may mean something else.
 
-Each autofocus press sends two requests: first the live-view mode again, then a separate focusing mode at 30 or 60
-frames a second. While focusing, frames reach the live-view module about 33 ms apart, so live view slows to about 30
+Each autofocus press sends two requests. The first asks for the live-view mode again, the second for a separate
+focusing mode at 30 or 60 frames a second. While focusing, frames reach the live-view module about 33 ms apart, so live view slows to about 30
 frames a second. Why focusing needs its own mode, and what that mode reads differently, isn't traced yet. When focusing ends, the
 sensor goes back to the live-view mode.
 
@@ -60,13 +71,15 @@ sensor goes back to the live-view mode.
 | each AF press (S-AF or C-AF) | requests mode 9 at 120 fps, then mode 0 (HSSC) at 30/60 fps | [camera] (request log) |
 | frame spacing while focusing | ~33 ms at the per-frame hook during C-AF | [camera] |
 
+*Sensor modes and frame timing in live view, measured on our E-M5 III.*
+
 Sources: [sensor](../hardware/sensor-technical.md#sensor-mode-requests), [Live ND](../features/live-nd.md).
 </details>
 
 ## 2. The raw frame in memory
 
-Each frame is put in a **live-view raw pool**: four buffers of about 16 MB, of which normal live view uses the first two
-in turn (one being filled while the other is processed).
+Each frame is put in a **live-view raw pool** of four buffers of about 16 MB. Normal live view uses the first two in
+turn, one being filled while the other is processed.
 
 The frame is much smaller than a full photo: **2912 × 544 pixels**, 9 bits per pixel, packed 14 pixels to 16 bytes,
 against 5240 × 3912 at 12 bits for a still. This layout was measured on the camera by reading the buffer directly.
@@ -85,8 +98,10 @@ So the problem was the different sensor mode, not a different buffer, and what u
 | second pool | pool 0x3900 at 0xc4000000-0xc7f93000; user unknown | [code] |
 | white lines in the Live ND preview during C-AF | fixed by skipping frames by requested sensor mode | [camera] |
 
+*The live-view raw pool and the frame layout.*
+
 Sources: [Live ND](../features/live-nd.md) (live-view raw frame format, 2026-11-12),
-[memory map](../hardware/memory-map.md#image-buffer-pool-map-e-m5-iii-vs-om-5-2026-11-12).
+[memory map](../hardware/memory-map.md#image-buffer-pool-map).
 </details>
 
 ## 3. From raw frame to picture
@@ -111,18 +126,20 @@ traced. The frame records hold only display sizes: 720 × 480 and 360 × 240 for
 | live-view exposure output | AE 0x6041e1ce, copied to the output record at 0x60427c71 | [code] |
 | which engine job converts the frame | not traced | [open] |
 
+*The frame records and the per-frame hand-on.*
+
 Source: [Live ND](../features/live-nd.md) (E-M5 preview hook point, 2026-11-12).
 </details>
 
-## 4. Showing the picture
+## 4. The picture on screen
 
 The finished picture is never copied by the CPU. On each frame the display driver writes the picture's address into
 the display controller's first image plane, and keeps a copy of that address in RAM. That RAM word is the simplest
 way for other code to find "the current live-view frame".
 
 The display controller has two channels. Channel 0 drives either the rear screen or the EVF (one at a time), and
-channel 1 drives HDMI. Each channel has six planes: three image planes (live view uses the first) and three overlay
-planes for the GUI. Register changes are latched and take effect at the next frame boundary, so the picture and its settings change
+channel 1 drives HDMI. Each channel has six planes. Three are image planes, of which live view uses the first, and
+three are overlay planes for the GUI. Register changes are latched and take effect at the next frame boundary, so the picture and its settings change
 between frames, not halfway through one.
 
 Some features that look like software are done by the display controller. The **histogram**, the **highlight
@@ -143,8 +160,10 @@ second. Code that needs pixels reads them elsewhere.
 | histogram, highlight/shadow, peaking | VSC blocks HIST1-3 +0x244.., HILIGHT1-4 +0x250.., PEAK1-14 | [code] |
 | probe reset | hook 0x60190ab1 reading 32×32 Y samples → reset ~1 s after arming | [camera]; cause [inferred] |
 
+*The display controller's image planes, channels and display features.*
+
 Sources: [display](../hardware/display.md#display-controller-vsc),
-[graphics pipeline](../hardware/graphics-pipeline.md#3-display-controller-vsc),
+[graphics pipeline](../hardware/graphics-pipeline.md#display-controller-vsc),
 [live-view probe](../hardware/display.md#the-live-view-probe-builds).
 </details>
 
@@ -178,12 +197,14 @@ EVF it is drawn at 640 × 480 and scaled up to the 1024 × 768 panel area.
 | commit | `gpiUpdateDisplay` 0x60c9588b; display sync on at start | [code] (om-emu) |
 | screen sizes | TFT 720×480 at (30, 8), no scaling; EVF 1024×768, OSD scaled from 640×480 | [code] (om-emu run) |
 
-Source: [graphics pipeline](../hardware/graphics-pipeline.md#1-gui-drawing-goes-through-a-hardware-osd-engine).
+*The 2D engine, the overlay layers and their palette.*
+
+Source: [graphics pipeline](../hardware/graphics-pipeline.md#osd-drawing-engine).
 </details>
 
 ## Live ND changes
 
-On the OM-5, Live ND shows a preview of the long exposure in live view: each new frame is averaged with the recent
+On the OM-5, Live ND shows a preview of the long exposure in live view. Each new frame is averaged with the recent
 ones, so the screen shows what the finished photo will look like. Our port adds the same preview to the E-M5 III.
 
 1. **A per-frame hook.** At the point where the per-frame routine hands the raw frame on, the OM-5 calls its preview
@@ -206,6 +227,8 @@ Details: [Live ND](../features/live-nd.md). Guide 9 (planned) will tell the stor
 | job 12 on live view | proven on camera: add, slide and average; window up to 240 at 30 fps | [camera] |
 | OM-5 ring | pools 0x6700/0x6800, 248 × 0x1ba000 | [code] |
 
+*The Live ND preview hook and the OM-5's frame ring.*
+
 Source: [Live ND](../features/live-nd.md).
 </details>
 
@@ -221,5 +244,14 @@ Each step checked against the firmware of other bodies. Nothing is assumed. "Not
 | overlay 2D engine | 0x9c100000 | **confirmed** command set (from om-emu, which models the OM-5 family) | not checked | not checked | not checked | not checked |
 | live view in om-emu | not modelled | not checked | not checked | not checked | modelled (om-emu drives live view only on the OM-1) | not checked |
 
+*Each step on other bodies, read in each body's firmware file or seen in om-emu.*
+
 Sources: [Live ND](../features/live-nd.md), [memory map](../hardware/memory-map.md),
 [graphics pipeline](../hardware/graphics-pipeline.md).
+
+## Further reading
+
+- [Display and live-view frames](../hardware/display.md), the detailed reference for this guide.
+- [Graphics pipeline](../hardware/graphics-pipeline.md), the display controller and the 2D engine.
+- [Live ND](../features/live-nd.md), the feature that hooks into live view.
+- [Taking a photo](taking-a-photo.md), what happens when the shutter button is pressed.

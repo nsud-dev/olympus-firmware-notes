@@ -1,5 +1,14 @@
 # Drawing your own graphics
 
+<!-- house style -->
+
+## Key points
+
+- The firmware's own drawing calls put boxes, lines, pictures and text on the rear screen, and a touch can be answered the same way.
+- Every draw call goes between a start and an end call, and nothing shows until the display is updated.
+- A pixel is a palette entry, and the palette changes with each kind of screen.
+- Every recipe here ran in an emulator on the stock firmware, and none has run on the camera yet.
+
 This guide shows how to put your own boxes, lines, curves, pictures, text and moving things on the E-M5 III's rear
 screen with the firmware's own drawing calls, and how to react to a touch. It follows on from
 [Drawing to the screen](drawing-to-the-screen.md), which explains the hardware. Read that first if "layer", "palette"
@@ -12,17 +21,16 @@ is the next step. The facts and addresses for each section are on the reference 
 
 ## Overview
 
-```
-your code
-   │  drawOsdStart
-   ├─► gpiDrawOsdRectangle / Line / Dot / BlockCopy / Bitmap, DrawText   (queued, not drawn yet)
-   │  drawOsdEnd        ──► the 2D draw engine runs the queue into a layer buffer in memory
-   │  gpiUpdateDisplay  ──► the display controller shows that buffer from the next frame
-   ▼
-rear screen: live view, the c3d layer, then three GUI layers on top
-```
+A drawing goes through these steps in order.
 
-Four rules cover most of it:
+1. Your code calls `drawOsdStart`.
+2. It calls `gpiDrawOsdRectangle` and its siblings for lines, dots, block copies and bitmaps, and `DrawText`. These
+   are queued, not drawn yet.
+3. `drawOsdEnd` makes the 2D draw engine run the queue into a layer buffer in memory.
+4. `gpiUpdateDisplay` makes the display controller show that buffer from the next frame.
+5. The rear screen shows live view, the c3d layer, then three graphical user interface (GUI) layers on top.
+
+Four rules cover most of it.
 
 1. Every draw call goes between **start** and **end**. Outside that bracket the calls are refused.
 2. You draw into a **buffer of a layer**. Nothing changes on screen until you **update**.
@@ -48,6 +56,8 @@ handler or a GUI timer), not from an interrupt.
 | show | `gpiUpdateDisplay` 0x60c9588b; d0 0 shows the current buffer, otherwise it flips | [code] + [emu] |
 | refused outside the bracket | queue 0x60c1db46, error 303 | [code] + [emu] |
 
+*Draw batches in the firmware.*
+
 </details>
 
 ## 2. Layers and buffers
@@ -70,6 +80,8 @@ buffer you want to draw in. Six order codes swap the layers around if you need o
 | buffer records, 16 bytes {address, plane, 896, 600} | layer 0: 0x621d9674 + 16 × buffer; layer 1: 0x621d96b4 + 16 × buffer; layer 2: 0x621d9634 + 16 × buffer | [code] + [emu] |
 | layer order | `GPISetOsdOrder` 0x60c95b1b, codes 0-5; default 3 (2 over 1 over 0) | [code] + [emu], code 3 [camera] |
 
+*Layers and buffers in the firmware.*
+
 </details>
 
 ## 3. Colours and transparency
@@ -82,7 +94,7 @@ box drawn over another box on the same layer replaces those pixels.
 
 The GUI loads a fresh palette for each kind of screen (shooting, menus, playback, Super Control Panel), so a colour
 that is white on one screen can be something else on another. You can set your own entries with `GPISetPalette`. Pick
-entries the current screen does not use. On the shooting screen, setting layer 1's entries 120-126 also recoloured the
+entries the current screen does not use. On the shooting screen, setting layer 1's entries 120 to 126 also recoloured the
 AF frame and the grid lines, because they use those entries. Layer 0 accepts only its first 32 entries, layer 2 its
 first 64, and layer 1 all of them.
 
@@ -93,19 +105,21 @@ first 64, and layer 1 all of them.
 | set entries | `GPISetPalette` 0x60c94f90: d0 first, d1 count, a1 array of 0xAARRGGBB (alpha stored as alpha >> 3) | [code] + [emu] |
 | settable entries per layer | table 0x60ea5c78: 32 / 256 / 64 | [code] + [emu] |
 
+*Palette calls in the firmware.*
+
 </details>
 
 ## 4. Shapes
 
-- **Box:** `gpiDrawOsdRectangle` fills a box with one palette index.
-- **Line:** `gpiDrawOsdLine` takes the same arguments and also fills a box. A horizontal line is a box one pixel high.
-- **Dot:** `gpiDrawOsdDot` sets one pixel.
-- **Curves and circles:** compute the points yourself and draw dots, or short bars for thick lines. A sine curve of
+- **Box.** `gpiDrawOsdRectangle` fills a box with one palette index.
+- **Line.** `gpiDrawOsdLine` takes the same arguments and also fills a box. A horizontal line is a box one pixel high.
+- **Dot.** `gpiDrawOsdDot` sets one pixel.
+- **Curves and circles.** Compute the points yourself and draw dots, or short bars for thick lines. A sine curve of
   150 dots drew cleanly. For smooth, antialiased round shapes the c3d GPU is the better tool (see
   [Drawing to the screen](drawing-to-the-screen.md) section 5). The GPU reference has a how-to for your own drawing
-  in a free draw kind: TG gives a 480 × 480 surface shown at 638 × 480 from x = 160 under the GUI layers
+  in a free draw kind. TG gives a 480 × 480 surface shown at 638 × 480 from x = 160 under the GUI layers
   ([c3d GPU](../hardware/c3d-gpu.md) section 9).
-- **Copy:** `gpiDrawOsdBlockCopy` copies an area from one buffer to another, which is how you save and restore what was
+- **Copy.** `gpiDrawOsdBlockCopy` copies an area from one buffer to another, which is how you save and restore what was
   under something you draw.
 
 Coordinates are in the 896 × 600 layer. A shape must fit inside 800 × 1200 after the GUI's draw offset is added, or
@@ -120,7 +134,7 @@ the call does nothing.
 | `gpiDrawOsdDot` | 0x60c95123 | d0 x, d1 y, a0 vinfo, a1 colour; stack: layer |
 | `gpiDrawOsdBlockCopy` | 0x60c9540a | d0 source x, d1 source y, a0 source vinfo, a1 target vinfo; stack: width, height, target x, target y, layer |
 
-All [code] + [emu] 2026-11-21.
+*The shape calls and their arguments. All [code] + [emu].*
 
 </details>
 
@@ -163,6 +177,8 @@ the tone-curve grid then looks as it does on the camera. We haven't yet drawn a 
 | `gpiDrawBitmap` | 0x60c95576: d0 x, d1 y, a0 vinfo, a1 header + 24; stack: 0, 0, 0, colour table or 0, layer | [code] + [emu] |
 | picture table | word at 0x61eb7628, + 4 × number = the header's address (lookup 0x60c934bb) | [code] + [emu] |
 
+*Picture calls in the firmware.*
+
 </details>
 
 ## 6. Text
@@ -187,6 +203,8 @@ character. Use `DrawText`. The per-character call needs a cached glyph.
 | menu text context | 0x621fd480 (draws on layer 2) | [emu] |
 | one character | `gpiDrawCharactor` 0x60c95682 | [code] + [emu] |
 
+*Text calls in the firmware.*
+
 </details>
 
 ## 7. Animation
@@ -205,6 +223,8 @@ screen). A GUI timer is the right clock for it. The looks editors used one for a
 | double buffering on layer 2 | buffers 0 and 2, `gpiUpdateDisplay` 0 / 1 | [emu] |
 | GUI timers and redraw requests | timers 0x60e1cc60, redraw 0x60c8799f | [camera] (looks) |
 | flip latches at the next frame | display commit command 17 | [code] + [inferred] |
+
+*Animation in the firmware.*
 
 </details>
 
@@ -231,20 +251,21 @@ arrive as control events in the same way (UP, DOWN, the two dials, OK).
 | touch driver | init 0x60197420, task 0x60197536, open 0x6019779c, gesture mask 0x60197925 | [code] (om-emu facts) |
 | key and dial events | UP 0x9004, DOWN 0x9006, rear dial 0x9031, front dial 0x9032 | [camera] (looks) |
 
+*Touch and key input in the firmware.*
+
 </details>
 
 ## 9. Emulator testing
 
 om-emu can call any firmware function on a running emulated camera and take a screenshot afterwards. Our small Python
-driver wraps the calls above (`start`, `rect`, `dot`, `bitmap`, `text`, `touch`, `update`), so a test is a few lines:
-open a batch, draw, end, update, screenshot. The driver is in these notes' `tools/osdlab/` folder.
+driver wraps the calls above (`start`, `rect`, `dot`, `bitmap`, `text`, `touch`, `update`), so a test is a few lines that
+open a batch, draw, end, update and take a screenshot. The driver is in these notes' `tools/osdlab/` folder.
 
 <p class="shot">
 <a href="../images/own-2d-overlay.webp"><img src="../images/own-2d-overlay.webp" alt="Our own overlay on the shooting screen" width="480"></a>
 </p>
 
 *An overlay drawn with the camera's own GUI calls: a text box, a tone curve, a histogram and a dial. Emulator screenshot.*
-
 
 The emulator also runs the stock c3d vector layer under the GUI layers. The Color Creator wheel draws and redraws
 on each key, so a c3d drawing can be checked the same way (see
@@ -275,8 +296,18 @@ from your own code is safe on the camera. Both need a camera run.
 | update call | confirmed | confirmed | confirmed | confirmed | different: draws straight into the shown buffer | different, as the E-M5 II | not checked |
 | pictures, text, touch | confirmed | not checked | not checked | not checked | not checked | not checked | not checked |
 
+*Each step checked on other bodies.*
+
 ## Credit
 
 The emulator is om-emu, by the om-emu contributors (MIT licence). Its notes on the OM-1's text, touch and display paths gave us the names and
 the shape of the text and touch calls, which we then found on the E-M5 III. The picture format and the palette
 lessons come from our looks editor work.
+
+## Further reading
+
+- [Drawing on the GUI layers](../hardware/osd-drawing.md) has the reference notes behind every section.
+- [Drawing to the screen](drawing-to-the-screen.md) explains the hardware these calls drive.
+- [Vector GPU](vector-gpu.md) covers smooth shapes on the c3d layer.
+- [Graphics pipeline](../hardware/graphics-pipeline.md) describes the whole display path.
+

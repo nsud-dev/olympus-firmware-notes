@@ -1,14 +1,22 @@
 # Guides
 
+<!-- house style -->
+
+## Key points
+
+- Each guide follows one process through the E-M5 III firmware 1.7 and explains what happens and why.
+- Start with Before you start and Rhapsody and OXF, which cover the pieces and the words the other guides use.
+- The exact addresses and details are on the reference pages each guide links to.
+
 These guides explain how processes on the camera work without getting bogged down in reference
-material. Each one follows one process through the firmware of the E-M5 Mark III (firmware 1.7). The exact
+material. Each one follows one process through the firmware of the E-M5 III (firmware 1.7). The exact
 addresses and details are on the reference pages each guide links to.
 
 ## The guides
 
 | guide | what it covers |
 |---|---|
-| [Before you start](before-you-start.md) | the pieces of the camera and the words the guides use; read this first |
+| [Before you start](before-you-start.md) | the pieces of the camera and the words the guides use, read this first |
 | [Rhapsody and OXF](rhapsody-and-oxf.md) | why so much of the code looks generated |
 | [Taking a photo](taking-a-photo.md) | one still photo from half-press to the file on the card |
 | [Boot](boot.md) | what runs from power-on until the camera is ready |
@@ -24,4 +32,6 @@ addresses and details are on the reference pages each guide links to.
 | [Drawing to the screen](drawing-to-the-screen.md) | the GUI layers, the 2D draw engine and the vector GPU that draws the colour wheels |
 | [Drawing your own graphics](drawing-your-own.md) | boxes, curves, pictures, text, animation and touch with the firmware's own drawing calls, tried in an emulator |
 | [Vector GPU](vector-gpu.md) | three ways to draw with the GPU that draws the colour wheels: the Olympus driver, your own OpenVG code, raw command lists |
+
+*The public guides and what each one covers.*
 
