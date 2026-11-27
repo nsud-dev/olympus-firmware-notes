@@ -1,4 +1,4 @@
-# Image-stabiliser controller: technical notes
+# Stabiliser controller: technical notes
 
 <!-- house style -->
 > **Technical reading.** The detailed version of [Stabiliser controller](is-controller.md), for readers who want the internals.

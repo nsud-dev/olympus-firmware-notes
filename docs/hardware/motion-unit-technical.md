@@ -1,4 +1,4 @@
-# Motion search unit (EMS1): technical notes
+# Motion search unit: technical notes
 
 <!-- house style -->
 > **Technical reading.** The detailed version of [Motion search unit](motion-unit.md), for readers who want the internals.

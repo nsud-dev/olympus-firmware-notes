@@ -47,7 +47,7 @@ for f, g in folder.items():
 nav = [{'Home': 'README.md'}, {'Overview': 'overview.md'}, {'Guides': [{title(p): p} for p in guides]}]
 # Human pages first. Each section's technical sister pages go in one collapsed "Technical notes" group.
 def section(ps):
-    human = [{title(p): p} for p in ps if not p.endswith('-technical.md')]
+    human = [{re.sub(r': technical notes$', '', title(p)): p} for p in ps if not p.endswith('-technical.md')]
     tech = [{re.sub(r': technical notes$', '', title(p)): p} for p in ps if p.endswith('-technical.md')]
     return human + ([{'Technical notes': tech}] if tech else [])
 nav += [{g: section(ps)} for g, ps in groups.items() if ps] + [{'Licence': 'LICENSE.md'}]
@@ -79,6 +79,9 @@ site_url = os.environ.get('SITE_URL', f'https://{owner.lower()}.github.io/{repo}
 issues = os.environ.get('CORRECTIONS_URL', repo_url + '/issues')
 lic = 'https://creativecommons.org/licenses/by/4.0/'
 cfg['site_url'] = site_url
+# GitHub link in the header. No edit buttons: they would point at a branch path readers can't use.
+cfg['repo_url'], cfg['repo_name'], cfg['edit_uri'] = repo_url, repo, ''
+cfg['theme'].setdefault('icon', {})['repo'] = 'fontawesome/brands/github'
 ovr = os.path.join(work, 'overrides'); os.makedirs(ovr, exist_ok=True)
 open(os.path.join(ovr, 'main.html'), 'w', encoding='utf-8').write(
     '{% extends "base.html" %}\n'

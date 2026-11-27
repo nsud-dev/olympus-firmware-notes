@@ -1,7 +1,7 @@
 # Live GND: technical notes
 
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Live GND](live-gnd.md).
+> **Technical reading.** The detailed version of [Live GND](live-gnd.md), for readers who want the internals.
 
 A graduated ND filter darkens the sky while leaving the foreground alone. "Live GND" does that in the camera, by
 shooting several frames and blending them with a gain that changes across the picture. The OM-1 II has a working
@@ -43,6 +43,6 @@ Open: filter order (which width is soft), E-M5 raw origin/margins, MN103 pass sp
 
 ## On the E-M5 II and E-M5 (Mark I) (2026-11-21)
 
-- Same verdict as [Live ND](live-nd-technical.md#on-the-e-m5-ii-and-e-m5-mark-i-2026-11-21): a new port on the E-M5 II (no ND or GND code there), very likely impossible on the E-M5 Mark I. [inferred]
+- Same verdict as [Live ND](live-nd-technical.md#on-the-e-m5-ii-and-e-m5-mark-i): a new port on the E-M5 II (no ND or GND code there), very likely impossible on the E-M5 Mark I. [inferred]
 
-Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i).

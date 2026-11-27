@@ -1,6 +1,6 @@
-# Subject detection: technical notes
+# Face and subject AF options: technical notes
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Subject detection](af-detect.md).
+> **Technical reading.** The detailed version of [Face and subject AF options](af-detect.md), for readers who want the internals.
 
 Newer OM System bodies can recognise subjects (birds, animals, vehicles) and offer more face and eye options. This page
 compares what the E-M5 III, OM-5 and OM-5 II actually contain, and sorts the features into "already there", "portable"
@@ -44,4 +44,4 @@ Tags: **[code]** read in the firmware, **[inferred]** not traced or tested.
 
 - Face and eye detection code is present on both older bodies (`face_*`, `eye*`, `mdet_*` strings), as on the E-M5 III; neither has any deep-learning detection names. So nothing from this page's "portable" list has been checked on them, and DL subject detection is impossible there for the same hardware reason as on the E-M5 III. [code]+[inferred]
 
-Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i-2026-11-21).
+Full comparison: [older bodies](../bodies/comparison-technical.md#older-bodies-e-m5-ii-and-e-m5-mark-i).

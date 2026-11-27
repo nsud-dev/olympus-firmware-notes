@@ -141,7 +141,7 @@ detected subject works in tests, but it is not finished.
 ## Further reading
 
 - [Subject detection research: technical notes](subject-detection-technical.md)
-- [Subject detection: what each body has](af-detect.md)
+- [Face and subject AF options](af-detect.md)
 - [Network engine program](nn-engine-program.md)
 - [Model training](model-training.md)
 - [Image engine](../hardware/image-engine.md)

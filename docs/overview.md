@@ -49,8 +49,8 @@ the reference.
 | Image engine | where the job programs live, which bodies have which jobs, what the E-M5 III's own jobs 0–10 do, how to submit a job without hanging the camera | [image engine](hardware/image-engine.md) |
 | ARM co-processor | Linux 4.4 for Wi-Fi, Bluetooth and an HHHR maths helper. The mailbox between the two sides, booting it from the SD card, a root shell | [ARM co-processor](hardware/arm-coprocessor.md) |
 | Memory | memory per body, flash layout, frame pools, and the spare regions our code lives in | [memory map](hardware/memory-map.md) |
-| Display | how menus are drawn over live view by a hardware engine, the display controller, where the live frame is | [graphics pipeline](hardware/graphics-pipeline.md), [display](hardware/display.md) |
-| Stabiliser | a separate IS processor with a 57-command set, and what the E-M5 III already has for the OM-5's "IS Level" | [stabiliser](hardware/stabiliser.md) |
+| Display | how menus are drawn over live view by a hardware engine, the display controller, where the live frame is | [graphics pipeline](hardware/graphics-pipeline.md), [display](hardware/display.md), [display controller](hardware/vsc-display-controller.md) |
+| Stabiliser | a separate IS processor with a 57-command set, and what the E-M5 III already has for the OM-5's "IS Level" | [stabiliser](hardware/stabiliser.md), [stabiliser controller](hardware/is-controller.md) |
 | Sensor, USB | raw frame layout and calibration. USB modes and why there is no hidden tethering | [sensor](hardware/sensor.md), [USB](hardware/usb.md) |
 | Boot | the main program loads in ten sections in the background, which caused our intermittent boot failures until we added guards | [boot and sections](firmware/boot-and-sections.md) |
 | Recovery | what the card updater checks, what it writes, which failures you can recover from, and the checks every build passes | [recovery](firmware/recovery.md) |
@@ -63,6 +63,10 @@ the reference.
 | Memory and storage | the NAND flash and DRAM controllers, error correction and bad blocks | [memory and storage](hardware/memory-and-storage.md) |
 | Sensor link | the serial link that sets the sensor's modes and the receiver for its picture data | [sensor link](hardware/sensor-link.md) |
 | Flash and playback | flash metering and the hot shoe. Playback and in-camera editing | [flash](hardware/flash.md), [playback](firmware/playback.md) |
+| Power and caches | the always-on block that handles power, the clock and the watchdog. How the three control cores cache memory | [power and watchdog block](hardware/power-block.md), [caches](hardware/caches.md) |
+| Small chips | the eye sensor, touch panel, accelerometer, battery charger and buttons, on a few shared serial buses | [small body devices](hardware/small-devices.md) |
+| Motion search | the hardware that measures how the live view picture moves between frames, which tracking AF relies on | [motion search unit](hardware/motion-unit.md) |
+| Autofocus | the chain from the shooting sequence to the lens drive, phase and contrast detection, and how C-AF predicts | [autofocus and tracking AF](features/autofocus.md) |
 | Face detection | the hardware face detector and how autofocus uses faces and eyes | [face and eye detection](features/face-detect.md) |
 | Software | μITRON, the Rhapsody state-machine framework, tasks, debug shells. The shooting state machine. Settings and menu tables | [OS and framework](firmware/os-and-framework.md), [shooting sequencer](firmware/shooting-sequencer.md), [settings and menus](firmware/settings-and-menus.md) |
 
@@ -83,7 +87,10 @@ the reference.
 | Colour / mono profiles (PEN-F style) | working on the camera in our test builds. Color and Mono Profile are selectable, with an on-camera editor and a side bar (colour wheel, HSL row, sharpness, contrast, per-profile tone curve, live histogram) whose edits reach photos and live view. A Free tone curve is in progress. The processing and saved settings were already in the E-M5 III firmware | [colour profiles](features/pen-f-profiles.md) |
 | Movie 29:59 limit, OM-Log400 | the 30-minute limit is one value set when recording starts, and the 640-wide sizes already get 2 hours. Much of the log profile's plumbing is present | [movie](features/movie.md) |
 | Live GND | Research closed. The OM-1 II has a real one, and the OM-5 does not. There is an untested design for the E-M5 III on top of Live ND | [Live GND](features/live-gnd.md) |
-| Subject / face / eye AF | face options are portable. Deep-learning subject detection needs OM-1 hardware | [AF detect](features/af-detect.md) |
+| Subject / face / eye AF | face options are portable. The OM-1's own detection networks need its newer hardware | [face and subject AF options](features/af-detect.md) |
+| Our own subject detection | our own engine program and bird model run on the E-M5 III's image engine in test firmware, about four times faster than the E-M1X's detection job. Autofocus follows a detected bird, but tracking is not finished | [subject detection research](features/subject-detection.md), [network engine program](features/nn-engine-program.md), [model training](features/model-training.md), [subject tracking](features/subject-tracking.md) |
+| Geotagging | the stock camera geotags from the phone app's GPS track. Real-time Bluetooth geotagging is feasible but a big job, and the hot shoe is a flash bus, not an accessory port | [geotagging and the hot shoe](features/geotagging-and-hotshoe.md) |
+| Debug shell commands | what all 58 commands of the hidden user shell do, and which ones must never be used | [user shell commands](features/shell-commands.md) |
 | Sync IS with Panasonic lenses | no simple flag. A split body/lens mode is the best bet | [Sync IS](features/sync-is-panasonic.md) |
 | Other ideas | multi-frame noise reduction, bracketing, timelapse ramping, ideas from other makers | [ideas](features/ideas.md) |
 
@@ -105,5 +112,6 @@ the reference.
 
 - [Guides](guides/README.md) follow one process at a time through the firmware.
 - [Body comparison](bodies/comparison.md) compares the firmware of the bodies we studied.
+- [Firmware source lineage](bodies/lineage.md) traces which bodies share code, with a timeline.
 - [Gotchas](reference/gotchas.md) collects the mistakes that cost a flash.
 

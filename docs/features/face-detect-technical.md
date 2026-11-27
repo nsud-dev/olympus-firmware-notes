@@ -224,7 +224,7 @@ stubbed source and the DL body and two part slots.[^fw1]
 
 *What the two bodies share. Found by matching functions between the two firmware files.[^fw2]*
 
-See also: [Subject detection: technical notes](af-detect-technical.md).
+See also: [Face and subject AF options: technical notes](af-detect-technical.md).
 
 ## Open questions
 

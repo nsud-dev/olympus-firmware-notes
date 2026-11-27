@@ -96,6 +96,7 @@ These numbers went into our simulator. Its predicted pass time now matches the c
 | first whole-network run | one job, packed rows for small layers | 17.5 ms |
 | hide transfers | load the next band while the current one is calculated | 15.4 ms |
 | schedule the busiest loop | place each operation in the earliest free slot | 14.4 ms |
+| cheaper maths | a model trained for simpler rounding and a cheaper activation | 13.9 ms |
 
 *How the pass time came down, measured on our E-M5 III using test firmware.*
 
@@ -125,7 +126,8 @@ odd columns again for every output channel.
 ## Status
 
 The program runs our bird detector on our E-M5 III using test firmware. One pass at 480 × 480 pixels takes 14.4 ms.
-Every output matches our PC model bit for bit.
+A model trained for cheaper maths takes 13.9 ms, about 1 ms slower than our simulator predicts. Every output matches
+our PC model bit for bit.
 
 ## Further reading
 

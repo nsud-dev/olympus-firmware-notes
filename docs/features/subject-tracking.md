@@ -119,6 +119,6 @@ subjects, re-finding a lost subject and the display colours are still open.
 
 - [Subject tracking: technical notes](subject-tracking-technical.md)
 - [Subject detection research](subject-detection.md)
-- [Subject detection: what each body has](af-detect.md)
+- [Face and subject AF options](af-detect.md)
 - [Autofocus and tracking AF](autofocus.md)
 - [Network engine program](nn-engine-program.md)

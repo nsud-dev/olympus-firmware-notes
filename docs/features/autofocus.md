@@ -150,7 +150,7 @@ Desk research. Nothing on this page has been tested on the camera yet.
 - [Autofocus and tracking AF: technical notes](autofocus-technical.md) has the tasks, the tracker's parts, the tuning
   table and the addresses.
 - [Face and eye detection](face-detect.md) covers the face detector and how AF chooses a face.
-- [Subject detection](af-detect.md) covers the network side.
+- [Subject detection research](subject-detection.md) covers the network side, and [Face and subject AF options](af-detect.md) sorts the features by body.
 - [Motion search unit](../hardware/motion-unit.md) describes the motion search hardware.
 - [Starry Sky AF](starry-sky-af.md) uses the same contrast code.
 

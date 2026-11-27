@@ -1,6 +1,6 @@
 # Firmware file format
 
-> **Technical notes.** This page is the dense reference. For a readable introduction, start with [Firmware files and updates](../guides/firmware-file.md).
+> **Technical reading.** The detailed version of [Firmware files and updates](../guides/firmware-file.md), for readers who want the internals.
 
 Olympus ships firmware updates as one `.BIN` file per camera model. This page explains how that file is put together:
 the blocks inside it, the light obfuscation over each block (it is not encryption), the checksum the camera checks, and

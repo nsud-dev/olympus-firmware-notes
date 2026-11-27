@@ -89,4 +89,4 @@ detection route is the better one, and the face path stays a fallback.
 
 - [Face and eye detection: technical notes](face-detect-technical.md) has the detector registers, the result records,
   the autofocus path and the address reference.
-- [Subject detection](af-detect.md) sorts the face, eye and subject features by body.
+- [Face and subject AF options](af-detect.md) sorts the face, eye and subject features by body.

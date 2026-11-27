@@ -1,4 +1,4 @@
-# Display controller registers: technical notes
+# Display controller: technical notes
 
 <!-- house style -->
 > **Technical reading.** The detailed version of [Display controller](vsc-display-controller.md), for readers who want the internals.

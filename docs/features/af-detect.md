@@ -1,4 +1,4 @@
-# Subject detection
+# Face and subject AF options
 
 <!-- human page -->
 <!-- house style -->
@@ -7,12 +7,13 @@
 
 - Face and eye detection on the E-M5 III is the same as on the OM-5 and OM-5 II, so there is nothing to port.
 - A few face and autofocus options from the OM-5 are ordinary code that could be brought over.
-- Subject detection for birds, animals and vehicles needs a neural network and hardware the E-M5 III does not have.
+- The OM-1's subject detection runs on hardware the E-M5 III does not have, so its networks cannot be carried over.
+- The E-M1X runs its detection on an image engine like the E-M5 III's, and our own research follows that route.
 - A menu string or setting name alone does not prove that a feature exists.
 
 Newer OM System bodies can recognise birds, animals and vehicles, and they offer more face and eye options than the
 E-M5 III. This page sorts those features into three groups. Some are already on the E-M5 III, some could be ported,
-and some need newer hardware.
+and some need other hardware.
 
 ## Already there
 
@@ -34,7 +35,7 @@ These OM-5 options are missing from the E-M5 III, but they are ordinary code tha
 The plan, if this goes ahead, starts with face selection and face priority, then the C-AF centre options, and only then
 a study of the tracker swap.
 
-## Needs newer hardware
+## The camera makers' subject detection
 
 Subject detection for birds, animals and vehicles uses a neural network. On the OM-1 it runs on an extra processor
 core and a dedicated AI hardware block, with several large files of network weights. The E-M5 III has neither.
@@ -43,8 +44,13 @@ The E-M1 III, OM-5 and OM-5 II carry pieces of the subject-detection code, left 
 them has the network itself or its weights. Their menus show the subject names because the menu text is shared across
 the range. The OM-5 II's menu offers only face and eye detection.
 
-So subject detection cannot be ported to the E-M5 III. Among Olympus and OM System bodies, only the E-M1X and the OM-1
-family have it.
+So the OM-1's subject detection cannot be ported to the E-M5 III as it is. Among Olympus and OM System bodies, only the
+E-M1X and the OM-1 family have it.
+
+The E-M1X is different. It runs its detection network as a job on its image engine, the same kind of hardware the
+E-M5 III has. The E-M1X has a spare image engine to itself, so it has more headroom. Our own research runs a detection
+network of our own on the E-M5 III's image engine. It is described in
+[Subject detection research](subject-detection.md).
 
 ## Other cameras
 
@@ -58,11 +64,12 @@ code behind it, or run the menu in the emulator.
 
 ## Status
 
-Research is done. Nothing has been built.
+Research on the face and AF options is done, and nothing has been built for them. Our own subject detection work is on
+[Subject detection research](subject-detection.md).
 
 ## Further reading
 
-- [Subject detection: technical notes](af-detect-technical.md) has the code names, the weight search and the address
+- [Face and subject AF options: technical notes](af-detect-technical.md) has the code names, the weight search and the address
   reference.
 - [Face and eye detection](face-detect.md) explains how the existing face detector works.
 - [Body comparison](../bodies/comparison.md) lists what each camera has.

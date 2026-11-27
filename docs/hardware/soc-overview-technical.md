@@ -199,7 +199,7 @@ Our hook code checks that the core number register reads 0, to be sure it is run
 The OM-5, OM-5 II and E-M1 III contain deep-learning (DL) subject-detection control code as CPU2 tasks
 (`MDET_DL_*_CPU2`). It is dead there. They have no network executor or weights, and no shipped feature uses it. The
 OM-1 runs the network on CPU3 plus a hardware DML block (`CLKDML`) with ~5 × 9.3 MB weights. The E-M5 III has a CPU2
-but no CPU3, no DML block and none of the `MDET_DL` code.[^fix1] See also: [AF detect](../features/af-detect.md).
+but no CPU3, no DML block and none of the `MDET_DL` code.[^fix1] See also: [Face and subject AF options](../features/af-detect.md).
 
 ### Communication between cores
 

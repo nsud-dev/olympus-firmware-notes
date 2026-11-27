@@ -79,7 +79,7 @@ one.
 
 ## Further reading
 
-- [Display controller registers: technical notes](vsc-display-controller-technical.md) has the register map, the
+- [Display controller: technical notes](vsc-display-controller-technical.md) has the register map, the
   driver functions and the camera results.
 - [Drawing to the screen](../guides/drawing-to-the-screen.md) explains the layers the controller mixes.
 - [Card mods](../features/card-mods.md) covers how the view assists are loaded.

@@ -246,7 +246,7 @@ The IS tuning property defaults have the same values on the E-M5 III, OM-5 and O
 6130/6146, 7057/7073 and the others the bc module reads. The OM-5 lines only add the movie IS Level set.[^fw6]
 
 The stabiliser controller's servo code and filter tables are also the same. The OM-5 II adds an unused gyro filter bank
-and wire `0x37`.[^fw6] See also: [Image-stabiliser controller](is-controller-technical.md#across-bodies-e-m5-iii-om-5-om-5-ii).
+and wire `0x37`.[^fw6] See also: [Stabiliser controller: technical notes](is-controller-technical.md#across-bodies-e-m5-iii-om-5-om-5-ii).
 
 ## Open questions
 

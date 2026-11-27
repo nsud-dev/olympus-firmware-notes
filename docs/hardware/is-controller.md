@@ -146,7 +146,7 @@ the factory calibration that the controller keeps in its own memory. That last p
 
 ## Further reading
 
-- [Image-stabiliser controller: technical notes](is-controller-technical.md) has the memory layout, the command table,
+- [Stabiliser controller: technical notes](is-controller-technical.md) has the memory layout, the command table,
   the I/O blocks and the addresses.
 - [Image stabiliser](stabiliser.md) covers the main processor's side.
 - [Power and watchdog block](power-block.md) explains why that block is not a processor.

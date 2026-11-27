@@ -92,5 +92,5 @@ experiment. It showed the three curves on the camera, but it does not yet run cl
 ## Further reading
 
 - [Display and OSD](../hardware/display.md#histogram) has the histogram internals.
-- [Display controller registers](../hardware/vsc-display-controller-technical.md#histogram) has the histogram registers.
+- [Display controller: technical notes](../hardware/vsc-display-controller-technical.md#histogram) has the histogram registers.
 - [Live view](../guides/live-view.md) explains how the live-view picture is made.
